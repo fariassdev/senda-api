@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 from google import genai
 from google.genai import types
