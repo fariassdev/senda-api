@@ -47,9 +47,7 @@ Make sure you have the following tools installed:
 
 Before running the scripts, you need to set up your API keys.
 
-Create a file named `.env` in the root of the project and add your keys:
-
-`GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"`
+Rename the `.env.example` file to `.env` in the root of the project and populate it with your keys.
 
 The scripts will automatically load this environment variable.
 
