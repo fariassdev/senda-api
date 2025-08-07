@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import json
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -7,40 +8,54 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def generate():
+def generate_script(course_context, lesson_details):
+    """
+    Generates a meditation script for a specific lesson within a course.
+
+    Args:
+        course_context (dict): A dictionary containing the course name, description, and total lessons.
+        lesson_details (dict): A dictionary containing the details for the specific lesson.
+
+    Returns:
+        str: A JSON string representing the generated meditation script.
+    """
     client = genai.Client(
         api_key=os.environ.get("GEMINI_API_KEY"),
     )
 
     model = "gemini-2.5-pro"
+
+    # Prepare the input for the model by combining course and lesson data
+    prompt_input = json.dumps(
+        {"courseContext": course_context, "lessonDetails": lesson_details}, indent=2
+    )
+
     contents = [
         types.Content(
             role="user",
             parts=[
-                types.Part.from_text(text="""INSERT_INPUT_HERE"""),
+                types.Part.from_text(text=prompt_input),
             ],
         ),
     ]
+
     generate_content_config = types.GenerateContentConfig(
-        thinking_config=types.ThinkingConfig(
-            thinking_budget=-1,
-        ),
         safety_settings=[
             types.SafetySetting(
                 category="HARM_CATEGORY_HARASSMENT",
-                threshold="BLOCK_NONE",  # Block none
+                threshold="BLOCK_NONE",
             ),
             types.SafetySetting(
                 category="HARM_CATEGORY_HATE_SPEECH",
-                threshold="BLOCK_NONE",  # Block none
+                threshold="BLOCK_NONE",
             ),
             types.SafetySetting(
                 category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                threshold="BLOCK_NONE",  # Block none
+                threshold="BLOCK_NONE",
             ),
             types.SafetySetting(
                 category="HARM_CATEGORY_DANGEROUS_CONTENT",
-                threshold="BLOCK_NONE",  # Block none
+                threshold="BLOCK_NONE",
             ),
         ],
         response_mime_type="application/json",
@@ -155,13 +170,33 @@ Generate the guided meditation script as a JSON array based on the provided JSON
         ],
     )
 
-    for chunk in client.models.generate_content_stream(
+    # Using the blocking client to get the full response
+    response = client.models.generate_content(
         model=model,
         contents=contents,
         config=generate_content_config,
-    ):
-        print(chunk.text, end="")
+    )
+
+    return response.text
 
 
 if __name__ == "__main__":
-    generate()
+    # Example usage for testing purposes
+    mock_course_context = {
+        "name": "The First Path",
+        "description": "A 10-day introductory course to build a foundational meditation practice...",
+        "totalLessons": 10,
+    }
+    mock_lesson_details = {
+        "lessonNumber": 1,
+        "title": "The First Step",
+        "corePractice": "Resting your attention on the physical sensation of your breath...",
+        "durationMinutes": 6,
+        "keyPoint": "The goal isn't to stop thinking...",
+        "tone": "Gentle, welcoming, reassuring",
+    }
+
+    print("Generating example script...")
+    generated_script_json = generate_script(mock_course_context, mock_lesson_details)
+    print("Script generated successfully:")
+    print(json.dumps(json.loads(generated_script_json), indent=2))
