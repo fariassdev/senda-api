@@ -6,12 +6,12 @@ import json
 from pathlib import Path
 
 # 1. API ENDPOINT URL
-KOKORO_API_URL = "http://localhost:8880/v1/audio/speech" 
+KOKORO_API_URL = "http://localhost:8880/v1/audio/speech"
 
 # 2. MODEL PARAMETERS
 # You can change the voice to: 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'
-MODEL_VOICE = 'af_nicole'
-MODEL_NAME = 'kokoro'  # Usually 'tts-1'
+MODEL_VOICE = "af_nicole"
+MODEL_NAME = "kokoro"  # Usually 'tts-1'
 
 # Audio settings
 CHUNK_SIZE = 1024
@@ -19,11 +19,13 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 24000  # Standard sampling rate for these models
 
+
 # --- Meditation Flow ---
 def load_meditation_flow():
     script_path = Path(__file__).parent / "default_meditation_script.json"
     with open(script_path, "r") as f:
         return json.load(f)
+
 
 meditation_flow = load_meditation_flow()
 
@@ -40,16 +42,16 @@ def stream_and_play(text_to_speak):
         "input": text_to_speak,
         "voice": MODEL_VOICE,
         "response_format": "pcm",
-        "stream": True
+        "stream": True,
     }
-    headers = {
-        "Content-Type": "application/json"
-    }
+    headers = {"Content-Type": "application/json"}
 
     try:
         stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True)
-        
-        with requests.post(KOKORO_API_URL, headers=headers, json=payload, stream=True) as response:
+
+        with requests.post(
+            KOKORO_API_URL, headers=headers, json=payload, stream=True
+        ) as response:
             response.raise_for_status()
             for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
                 if chunk:
@@ -65,6 +67,7 @@ def stream_and_play(text_to_speak):
             stream.close()
         if p:
             p.terminate()
+
 
 print("Starting guided meditation...")
 

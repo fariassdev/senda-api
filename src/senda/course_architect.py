@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def generate():
     client = genai.Client(
         api_key=os.environ.get("GEMINI_API_KEY"),
@@ -21,7 +22,7 @@ def generate():
         ),
     ]
     generate_content_config = types.GenerateContentConfig(
-        thinking_config = types.ThinkingConfig(
+        thinking_config=types.ThinkingConfig(
             thinking_budget=-1,
         ),
         safety_settings=[
@@ -44,60 +45,67 @@ def generate():
         ],
         response_mime_type="application/json",
         response_schema=genai.types.Schema(
-            type = genai.types.Type.OBJECT,
-            description = "A complete meditation course structure, including metadata and a full list of lesson plans.",
-            required = ["name", "description", "totalLessons", "tags", "lessons"],
-            properties = {
+            type=genai.types.Type.OBJECT,
+            description="A complete meditation course structure, including metadata and a full list of lesson plans.",
+            required=["name", "description", "totalLessons", "tags", "lessons"],
+            properties={
                 "name": genai.types.Schema(
-                    type = genai.types.Type.STRING,
-                    description = "The official name of the meditation course.",
+                    type=genai.types.Type.STRING,
+                    description="The official name of the meditation course.",
                 ),
                 "description": genai.types.Schema(
-                    type = genai.types.Type.STRING,
-                    description = "A brief, engaging summary of what the course offers and who it is for.",
+                    type=genai.types.Type.STRING,
+                    description="A brief, engaging summary of what the course offers and who it is for.",
                 ),
                 "totalLessons": genai.types.Schema(
-                    type = genai.types.Type.INTEGER,
-                    description = "The total number of lessons in the entire course.",
+                    type=genai.types.Type.INTEGER,
+                    description="The total number of lessons in the entire course.",
                 ),
                 "tags": genai.types.Schema(
-                    type = genai.types.Type.ARRAY,
-                    description = "A list of relevant keywords for discoverability (e.g., 'Beginner', 'Mindfulness').",
-                    items = genai.types.Schema(
-                        type = genai.types.Type.STRING,
+                    type=genai.types.Type.ARRAY,
+                    description="A list of relevant keywords for discoverability (e.g., 'Beginner', 'Mindfulness').",
+                    items=genai.types.Schema(
+                        type=genai.types.Type.STRING,
                     ),
                 ),
                 "lessons": genai.types.Schema(
-                    type = genai.types.Type.ARRAY,
-                    description = "The full, ordered array of lesson plan objects for the course.",
-                    items = genai.types.Schema(
-                        type = genai.types.Type.OBJECT,
-                        description = "A single lesson plan within the meditation course.",
-                        required = ["lessonNumber", "title", "corePractice", "durationMinutes", "keyPoint", "tone"],
-                        properties = {
+                    type=genai.types.Type.ARRAY,
+                    description="The full, ordered array of lesson plan objects for the course.",
+                    items=genai.types.Schema(
+                        type=genai.types.Type.OBJECT,
+                        description="A single lesson plan within the meditation course.",
+                        required=[
+                            "lessonNumber",
+                            "title",
+                            "corePractice",
+                            "durationMinutes",
+                            "keyPoint",
+                            "tone",
+                        ],
+                        properties={
                             "lessonNumber": genai.types.Schema(
-                                type = genai.types.Type.INTEGER,
-                                description = "The sequential number of this lesson, starting from 1.",
+                                type=genai.types.Type.INTEGER,
+                                description="The sequential number of this lesson, starting from 1.",
                             ),
                             "title": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                                description = "The concise, evocative title for the lesson.",
+                                type=genai.types.Type.STRING,
+                                description="The concise, evocative title for the lesson.",
                             ),
                             "corePractice": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                                description = "A clear, one-sentence description of the meditation technique for this lesson.",
+                                type=genai.types.Type.STRING,
+                                description="A clear, one-sentence description of the meditation technique for this lesson.",
                             ),
                             "durationMinutes": genai.types.Schema(
-                                type = genai.types.Type.INTEGER,
-                                description = "The approximate duration of the lesson in whole minutes.",
+                                type=genai.types.Type.INTEGER,
+                                description="The approximate duration of the lesson in whole minutes.",
                             ),
                             "keyPoint": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                                description = "The single most important educational takeaway or expectation-setting message for the user.",
+                                type=genai.types.Type.STRING,
+                                description="The single most important educational takeaway or expectation-setting message for the user.",
                             ),
                             "tone": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                                description = "A few adjectives describing the intended feeling and tone of the lesson (e.g., 'Gentle, reassuring').",
+                                type=genai.types.Type.STRING,
+                                description="A few adjectives describing the intended feeling and tone of the lesson (e.g., 'Gentle, reassuring').",
                             ),
                         },
                     ),
@@ -105,7 +113,8 @@ def generate():
             },
         ),
         system_instruction=[
-            types.Part.from_text(text="""# ROLE & GOAL
+            types.Part.from_text(
+                text="""# ROLE & GOAL
 You are the Senda Curriculum Architect. Your purpose is to design comprehensive, multi-lesson meditation courses that are coherent, progressive, and deeply aligned with the Senda philosophy. You take a high-level course concept (e.g., \"A 10-day introductory course\") and break it down into a logical sequence of individual lesson plans. Your output serves as the blueprint for Anah, the guide, to create the final scripts.
 
 # GUIDING PHILOSOPHY (SENDA'S IDENTITY)
@@ -172,7 +181,8 @@ The output MUST be a single, valid JSON object `{...}`. Adhere strictly to these
     ```
 
 # EXECUTE
-Based on the user's request for a new course, design the complete multi-lesson structure. Generate a single JSON object that contains the course metadata and the full, ordered array of lesson plans, ensuring the entire output is valid JSON and adheres perfectly to the specified structure."""),
+Based on the user's request for a new course, design the complete multi-lesson structure. Generate a single JSON object that contains the course metadata and the full, ordered array of lesson plans, ensuring the entire output is valid JSON and adheres perfectly to the specified structure."""
+            ),
         ],
     )
 
@@ -182,6 +192,7 @@ Based on the user's request for a new course, design the complete multi-lesson s
         config=generate_content_config,
     ):
         print(chunk.text, end="")
+
 
 if __name__ == "__main__":
     generate()

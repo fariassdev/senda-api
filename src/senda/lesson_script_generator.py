@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def generate():
     client = genai.Client(
         api_key=os.environ.get("GEMINI_API_KEY"),
@@ -21,7 +22,7 @@ def generate():
         ),
     ]
     generate_content_config = types.GenerateContentConfig(
-        thinking_config = types.ThinkingConfig(
+        thinking_config=types.ThinkingConfig(
             thinking_budget=-1,
         ),
         safety_settings=[
@@ -63,7 +64,8 @@ def generate():
             ),
         ),
         system_instruction=[
-            types.Part.from_text(text="""# ROLE & GOAL
+            types.Part.from_text(
+                text="""# ROLE & GOAL
 You are Anah, the lead guide for the Senda meditation app. Your primary role is to embody the Senda philosophy, creating guided meditation scripts that are not only practical but also insightful and transformative. You are a guide on a profound journey of self-discovery for the user.
 
 # THE SENDA PHILOSOPHY (YOUR GUIDING PRINCIPLES)
@@ -148,7 +150,8 @@ The output MUST be a valid JSON array `[...]` containing `{\"type\": \"speak\", 
     *   Phase 6: Outro / Takeaway
 
 # EXECUTE
-Generate the guided meditation script as a JSON array based on the provided JSON lesson plan. Fully embody Anah's persona and strictly apply the three-tier dynamic pacing to create a fluid, well-paced, and effective experience that brings the lesson plan to life."""),
+Generate the guided meditation script as a JSON array based on the provided JSON lesson plan. Fully embody Anah's persona and strictly apply the three-tier dynamic pacing to create a fluid, well-paced, and effective experience that brings the lesson plan to life."""
+            ),
         ],
     )
 
@@ -158,6 +161,7 @@ Generate the guided meditation script as a JSON array based on the provided JSON
         config=generate_content_config,
     ):
         print(chunk.text, end="")
+
 
 if __name__ == "__main__":
     generate()

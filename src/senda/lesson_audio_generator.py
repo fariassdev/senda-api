@@ -10,13 +10,14 @@ KOKORO_API_URL = "http://localhost:8880/v1/audio/speech"
 
 # 2. MODEL PARAMETERS
 # You can change the voice to: 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'
-MODEL_VOICE = 'af_nicole'
-MODEL_NAME = 'kokoro'  # Usually 'tts-1'
+MODEL_VOICE = "af_nicole"
+MODEL_NAME = "kokoro"  # Usually 'tts-1'
 
 # Audio settings
 RATE = 24000  # Standard sampling rate for these models
 CHANNELS = 1
 SAMPLE_WIDTH = 2  # 2 bytes for 16-bit PCM audio
+
 
 # --- Meditation Flow ---
 def load_meditation_flow():
@@ -24,6 +25,7 @@ def load_meditation_flow():
     script_path = Path(__file__).parent / "default_meditation_script.json"
     with open(script_path, "r") as f:
         return json.load(f)
+
 
 def get_speech_audio(text_to_speak):
     """
@@ -34,14 +36,16 @@ def get_speech_audio(text_to_speak):
         "input": text_to_speak,
         "voice": MODEL_VOICE,
         "response_format": "pcm",
-        "stream": True
+        "stream": True,
     }
     headers = {"Content-Type": "application/json"}
     audio_chunks = []
 
     try:
         print(f"Generating audio for: '{text_to_speak}'")
-        with requests.post(KOKORO_API_URL, headers=headers, json=payload, stream=True) as response:
+        with requests.post(
+            KOKORO_API_URL, headers=headers, json=payload, stream=True
+        ) as response:
             response.raise_for_status()
             for chunk in response.iter_content(chunk_size=1024):
                 if chunk:
@@ -49,8 +53,9 @@ def get_speech_audio(text_to_speak):
     except requests.exceptions.RequestException as e:
         print(f"API Error: {e}")
         return None
-    
+
     return b"".join(audio_chunks)
+
 
 # --- Main Loop to Generate and Save the File ---
 print("Starting meditation audio generation...")
@@ -68,7 +73,7 @@ for action in meditation_flow:
                 io.BytesIO(speech_data),
                 sample_width=SAMPLE_WIDTH,
                 frame_rate=RATE,
-                channels=CHANNELS
+                channels=CHANNELS,
             )
             final_audio += speech_segment
 
