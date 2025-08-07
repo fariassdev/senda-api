@@ -9,6 +9,8 @@ dependencies = [
     "pyaudio==0.2.14",
     "python-dotenv==1.1.1",
     "requests==2.32.4",
+    "pydub==0.25.1",
+    "audioop-lts==0.2.2",
 ]
 
 [tool.setuptools.packages.find]
