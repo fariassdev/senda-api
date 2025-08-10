@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: senda_db
+      POSTGRES_USER: senda
+      POSTGRES_PASSWORD: 4Qgr7DpEf2wLur4eAwhuSiw7s
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  kokoro_tts:
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:latest
+    restart: always
+    ports:
+      - "8880:8880"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - kokoro_tts
+    command: uvicorn src.senda.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pg_data:
