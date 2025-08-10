@@ -1,17 +1,17 @@
-# Senda: AI-Powered Meditation Scripts
+# Senda: AI-Powered Meditation Scripts 🧘‍♀️
 
-Senda is a Python-based tool for generating and playing guided meditation scripts. It leverages Google's Generative AI (Gemini) to create the scripts and a local text-to-speech (TTS) service to stream the audio.
+Senda is a Python-based tool for generating and playing guided meditation scripts. It leverages Google's Generative AI (Gemini) to create the scripts and a local text-to-speech (Kokoro TTS) service to stream the audio.
 
-## Features
+## ✨ Features
 
-*   **AI Script Generation**: Automatically create unique meditation scripts using Gemini.
-*   **Course Architecture**: Design comprehensive meditation courses with multiple lessons.
-*   **Text-to-Speech**: Convert generated scripts into audio via a local TTS service.
-*   **Audio Streaming**: Play meditation audio directly from the command line.
-*   **Batch Generation**: Generate scripts and audio for entire courses at once.
-*   **REST API**: Exposes course management functionalities through a FastAPI interface.
+*   ✨ **AI Script Generation**: Automatically create unique meditation scripts using Gemini.
+*   📚 **Course Architecture**: Design comprehensive meditation courses with multiple lessons.
+*   🗣️ **Text-to-Speech**: Convert generated scripts into audio via a local TTS service.
+*   🎧 **Audio Streaming**: Play meditation audio directly from the command line.
+*   📦 **Batch Generation**: Generate scripts and audio for entire courses at once.
+*   🌐 **REST API**: Exposes course management functionalities through a FastAPI interface.
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Using Docker (Recommended)
 
@@ -59,24 +59,23 @@ To run the application locally, you will need to have Python 3.13+ and `uv` inst
     ```
 
 
-## Usage
+## 💻 Usage
 
 Senda provides several scripts for different tasks. All commands should be run from the root of the project.
 
-
-
-### API Server
+### FastAPI Server
 
 Senda includes a FastAPI server to manage courses.
 
-*   **Run the development server:**
+*   ▶️ **Run the development server:**
     This command starts the server with auto-reload enabled. The API will be available at `http://localhost:8000`.
     ```sh
     uvicorn src.senda.api.main:app
     ```
 
-## Development Conventions
+## 🛠️ Development Conventions
 
-*   **Package Management**: The project uses `uv` for managing dependencies, as defined in `pyproject.toml`.
-*   **Environment Variables**: A `.env` file is used to store the `GEMINI_API_KEY`.
-*   **Source Code**: All Python source code is located in the `src/senda` directory.
+*   📦 **Package Management**: The project uses `uv` for managing dependencies, as defined in `pyproject.toml`.
+*   🔑 **Environment Variables**: A `.env` file is used to store the `GEMINI_API_KEY`.
+*   📁 **Source Code**: All Python source code is located in the `src/senda` directory.
+
