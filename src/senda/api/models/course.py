@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from src.senda.api.core.database import Base
@@ -42,7 +42,7 @@ class Lesson(Base):
     key_point = Column(String)
     tone = Column(String)
     duration_minutes = Column(Integer)
-    status = Column(Enum(LessonStatus), default=LessonStatus.NOT_GENERATED)
+    status = Column(String, default=LessonStatus.NOT_GENERATED)
     script_url = Column(String, nullable=True)
     audio_url = Column(String, nullable=True)
 
