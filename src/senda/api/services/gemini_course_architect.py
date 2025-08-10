@@ -32,16 +32,19 @@ class GeminiCourseArchitect(CourseArchitect):
             types.Content(role="user", parts=[types.Part.from_text(text=prompt)]),
         ]
         generate_content_config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(
+                thinking_budget=-1,
+            ),
             safety_settings=self._get_safety_settings(),
             response_mime_type="application/json",
             response_schema=self.response_schema,
             system_instruction=self.system_instruction,
         )
 
-        response = self.client.generate_content(
+        response = self.client.models.generate_content(
             model=self.model,
             contents=contents,
-            generation_config=generate_content_config,
+            config=generate_content_config,
         )
 
         response_json = json.loads(response.text)
