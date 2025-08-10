@@ -4,31 +4,37 @@ from src.senda.api.schemas import course as schemas
 
 
 class CourseRepository:
-    def get_course(self, db: Session, course_id: str):
+    def get_course(self, db: Session, course_id: int):
         return db.query(models.Course).filter(models.Course.id == course_id).first()
 
     def create_course(self, db: Session, course: schemas.CourseCreate):
+        if course.total_lessons != len(course.lessons):
+            print(
+                f"Warning: LLM 'totalLessons' ({course.total_lessons}) does not match lesson count ({len(course.lessons)})."
+            )
+
+        # Create the Course DB model instance from the schema
         db_course = models.Course(
-            id=course.id,
             title=course.title,
             description=course.description,
-            author=course.author,
-            image_placeholder_url=course.image_placeholder_url.unicode_string(),
+            tags=course.tags,
         )
         db.add(db_course)
         db.commit()
         db.refresh(db_course)
 
+        # Create the Lesson DB model instances
         for lesson_data in course.lessons:
             db_lesson = models.Lesson(
                 **lesson_data.model_dump(), course_id=db_course.id
             )
             db.add(db_lesson)
         db.commit()
+
         db.refresh(db_course)
         return db_course
 
-    def get_lesson(self, db: Session, course_id: str, lesson_id: int):
+    def get_lesson(self, db: Session, course_id: int, lesson_id: int):
         return (
             db.query(models.Lesson)
             .filter(models.Lesson.course_id == course_id, models.Lesson.id == lesson_id)
@@ -53,7 +59,7 @@ class CourseRepository:
         db.refresh(lesson)
         return lesson
 
-    def get_ungenerated_lessons(self, db: Session, course_id: str):
+    def get_ungenerated_lessons(self, db: Session, course_id: int):
         return (
             db.query(models.Lesson)
             .filter(

@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, func, select
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship, column_property
 from src.senda.api.core.database import Base
 import enum
 
@@ -14,11 +15,14 @@ class LessonStatus(str, enum.Enum):
 class Course(Base):
     __tablename__ = "courses"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     description = Column(String)
-    author = Column(String)
-    image_placeholder_url = Column(String)
+    tags = Column(JSONB)
+    active = Column(Boolean, default=False, nullable=False)
+
+    author = Column(String, default="Senda AI")
+    image_placeholder_url = Column(String, nullable=True)
 
     lessons = relationship(
         "Lesson", back_populates="course", cascade="all, delete-orphan"
@@ -29,15 +33,23 @@ class Lesson(Base):
     __tablename__ = "lessons"
 
     id = Column(Integer, primary_key=True, index=True)
-    course_id = Column(String, ForeignKey("courses.id"))
+    course_id = Column(Integer, ForeignKey("courses.id"))
     lesson_number = Column(Integer, index=True)
     title = Column(String)
     core_practice = Column(String)
     key_point = Column(String)
     tone = Column(String)
     duration_minutes = Column(Integer)
-    status = Column(Enum(LessonStatus), default=LessonStatus.NOT_GENERATED)
+    status = Column(String, default=LessonStatus.NOT_GENERATED)
     script_url = Column(String, nullable=True)
     audio_url = Column(String, nullable=True)
 
     course = relationship("Course", back_populates="lessons")
+
+
+Course.total_lessons = column_property(
+    select(func.count(Lesson.id))
+    .where(Lesson.course_id == Course.id)
+    .correlate_except(Lesson)
+    .scalar_subquery()
+)
