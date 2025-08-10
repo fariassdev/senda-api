@@ -4,7 +4,7 @@ from pathlib import Path
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
-from src.senda.api.services.course_architect import CourseArchitect
+from .course_architect import CourseArchitect
 from src.senda.api.schemas.course import CourseCreate
 
 load_dotenv()
@@ -51,7 +51,7 @@ class GeminiCourseArchitect(CourseArchitect):
         return CourseCreate.model_validate(response_json)
 
     def _load_system_instruction(self) -> list[types.Part]:
-        prompt_path = Path(__file__).parent / "system_prompts" / "course_architect.md"
+        prompt_path = Path(__file__).parent / "system_prompt.md"
         with open(prompt_path, "r", encoding="utf-8") as f:
             prompt_text = f.read()
         return [types.Part.from_text(text=prompt_text)]

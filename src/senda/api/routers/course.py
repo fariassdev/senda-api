@@ -3,8 +3,10 @@ from sqlalchemy.orm import Session
 from src.senda.api.schemas import course as schemas
 from src.senda.api.repositories.course import course_repository
 from src.senda.api.core.database import get_db
-from src.senda.api.services.course_architect import CourseArchitect
-from src.senda.api.services.gemini_course_architect import GeminiCourseArchitect
+from src.senda.api.services.course_architect import (
+    CourseArchitect,
+    GeminiCourseArchitect,
+)
 
 router = APIRouter()
 
