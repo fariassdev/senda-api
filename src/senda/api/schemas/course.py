@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, HttpUrl
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from src.senda.api.models.course import LessonStatus
 
 # region Lesson Schemas
@@ -24,7 +24,7 @@ class LessonCreate(LessonBase):
 class Lesson(LessonBase):
     id: int
     status: LessonStatus = LessonStatus.NOT_GENERATED
-    script_url: Optional[HttpUrl] = Field(None, alias="scriptUrl")
+    script: Optional[List[Dict[str, Any]]] = Field(None)
     audio_url: Optional[HttpUrl] = Field(None, alias="audioUrl")
 
     class Config:

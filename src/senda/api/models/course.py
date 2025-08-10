@@ -41,7 +41,7 @@ class Lesson(Base):
     tone = Column(String)
     duration_minutes = Column(Integer)
     status = Column(String, default=LessonStatus.NOT_GENERATED)
-    script_url = Column(String, nullable=True)
+    script = Column(JSONB, nullable=True)
     audio_url = Column(String, nullable=True)
 
     course = relationship("Course", back_populates="lessons")
