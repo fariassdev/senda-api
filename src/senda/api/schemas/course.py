@@ -67,4 +67,16 @@ class CourseCreatePrompt(BaseModel):
     prompt: str
 
 
+class CourseUpdate(BaseModel):
+    title: Optional[str] = Field(None, alias="name")
+    description: Optional[str] = None
+    tags: Optional[List[str]] = None
+    active: Optional[bool] = None
+    author: Optional[str] = None
+    image_placeholder_url: Optional[HttpUrl] = Field(None, alias="imagePlaceholderUrl")
+
+    class Config:
+        populate_by_name = True
+
+
 # endregion

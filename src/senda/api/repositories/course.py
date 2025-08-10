@@ -71,5 +71,19 @@ class CourseRepository:
             .all()
         )
 
+    def update_course(
+        self, db: Session, db_course: models.Course, course_update: schemas.CourseUpdate
+    ):
+        update_data = course_update.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            if key == "image_placeholder_url" and value is not None:
+                setattr(db_course, key, value.unicode_string())
+            else:
+                setattr(db_course, key, value)
+        db.add(db_course)
+        db.commit()
+        db.refresh(db_course)
+        return db_course
+
 
 course_repository = CourseRepository()

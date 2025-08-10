@@ -49,6 +49,28 @@ def get_course(course_id: int, db: Session = Depends(get_db)):
     return course
 
 
+@router.put("/courses/{course_id}", response_model=schemas.Course)
+def update_course(
+    course_id: int,
+    course_update: schemas.CourseUpdate,
+    db: Session = Depends(get_db),
+):
+    db_course = course_repository.get_course(db, course_id)
+    if not db_course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Check if the course is being activated and if all lessons are generated
+    if course_update.active and not db_course.active:
+        ungenerated_lessons = course_repository.get_ungenerated_lessons(db, course_id)
+        if ungenerated_lessons:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot activate course: Not all lessons have been generated.",
+            )
+
+    return course_repository.update_course(db, db_course, course_update)
+
+
 # ... (The rest of the endpoints for lesson generation remain the same for now)
 # Note: They will need to be updated to use integer IDs.
 
