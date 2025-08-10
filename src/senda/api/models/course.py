@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, func, select
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, column_property
 from src.senda.api.core.database import Base
 import enum
 
@@ -18,7 +18,6 @@ class Course(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     description = Column(String)
-    total_lessons = Column(Integer)
     tags = Column(JSONB)  # Using JSONB for storing tags as a list of strings
     active = Column(Boolean, default=False, nullable=False)
 
@@ -47,3 +46,11 @@ class Lesson(Base):
     audio_url = Column(String, nullable=True)
 
     course = relationship("Course", back_populates="lessons")
+
+
+Course.total_lessons = column_property(
+    select(func.count(Lesson.id))
+    .where(Lesson.course_id == Course.id)
+    .correlate_except(Lesson)
+    .scalar_subquery()
+)

@@ -8,11 +8,15 @@ class CourseRepository:
         return db.query(models.Course).filter(models.Course.id == course_id).first()
 
     def create_course(self, db: Session, course: schemas.CourseCreate):
+        if course.total_lessons != len(course.lessons):
+            print(
+                f"Warning: LLM 'totalLessons' ({course.total_lessons}) does not match lesson count ({len(course.lessons)})."
+            )
+
         # Create the Course DB model instance from the schema
         db_course = models.Course(
             title=course.title,
             description=course.description,
-            total_lessons=course.total_lessons,
             tags=course.tags,
             # 'active' defaults to False in the model
         )
