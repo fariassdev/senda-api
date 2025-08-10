@@ -22,7 +22,7 @@ class GeminiCourseArchitect(CourseArchitect):
             raise ValueError("GEMINI_API_KEY environment variable not set.")
 
         self.client = genai.Client(api_key=api_key)
-        self.model = "gemini-1.5-pro-latest"
+        self.model = "gemini-2.5-flash"
         self.system_instruction = self._load_system_instruction()
         self.response_schema = self._build_response_schema()
 
