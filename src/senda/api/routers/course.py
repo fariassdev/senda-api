@@ -1,12 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from src.senda.api.schemas import course as schemas
-from src.senda.api.repositories.course import course_repository
 from src.senda.api.core.database import get_db
+from src.senda.api.repositories.course import CourseRepository, course_repository
 from src.senda.api.services.course_architect import (
     CourseArchitect,
     GeminiCourseArchitect,
 )
+from src.senda.api.services.lesson_script_writer import (
+    LessonScriptWriter,
+    GeminiLessonScriptWriter,
+)
+from src.senda.api.services.lesson_service import LessonService
 
 router = APIRouter()
 
@@ -15,6 +20,19 @@ router = APIRouter()
 def get_course_architect() -> CourseArchitect:
     """Dependency provider for the CourseArchitect service."""
     return GeminiCourseArchitect()
+
+
+def get_lesson_script_writer() -> LessonScriptWriter:
+    """Dependency provider for the LessonScriptWriter service."""
+    return GeminiLessonScriptWriter()
+
+
+def get_lesson_service(
+    script_writer: LessonScriptWriter = Depends(get_lesson_script_writer),
+    repo: CourseRepository = Depends(lambda: course_repository),
+) -> LessonService:
+    """Dependency provider for the LessonService."""
+    return LessonService(script_writer, repo)
 
 
 # In a real application, this would be a proper task queue (e.g., Celery)
@@ -73,34 +91,61 @@ def update_course(
     return course_repository.update_course(db, db_course, course_update)
 
 
-# ... (The rest of the endpoints for lesson generation remain the same for now)
-# Note: They will need to be updated to use integer IDs.
-
-
-async def _generate_lesson_task(db: Session, course_id: int, lesson_id: int):
-    # ... (implementation needs to be updated to use int IDs)
-    pass
-
-
-async def _generate_all_lessons_task(db: Session, course_id: int):
-    # ... (implementation needs to be updated to use int IDs)
-    pass
-
-
-@router.post("/courses/{course_id}/generate-all", status_code=202)
-async def generate_all_lessons(
-    course_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+async def _generate_lesson_task(
+    db: Session, course_id: int, lesson_id: int, lesson_service: LessonService
 ):
-    # ... (implementation needs to be updated to use int IDs)
-    pass
+    try:
+        lesson_service.generate_and_save_lesson_script(db, course_id, lesson_id)
+    except Exception as e:
+        print(f"Error generating script for lesson {lesson_id}: {e}")
+        # Optionally, update lesson status to FAILED here if not handled in service
 
 
-@router.post("/courses/{course_id}/lessons/{lesson_id}/generate", status_code=202)
-async def generate_lesson(
+async def _generate_all_lessons_task(
+    db: Session, course_id: int, lesson_service: LessonService
+):
+    try:
+        lesson_service.generate_and_save_all_lesson_scripts(db, course_id)
+    except Exception as e:
+        print(f"Error generating scripts for course {course_id}: {e}")
+
+
+@router.post("/courses/{course_id}/generate-all-scripts", status_code=202)
+async def generate_all_lessons_scripts(
+    course_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    lesson_service: LessonService = Depends(get_lesson_service),
+):
+    if course_id in _generating_courses:
+        raise HTTPException(
+            status_code=409, detail="Course generation already in progress"
+        )
+
+    _generating_courses.add(course_id)
+    background_tasks.add_task(_generate_all_lessons_task, db, course_id, lesson_service)
+    return {
+        "message": "Script generation for all lessons in course started in background"
+    }
+
+
+@router.post(
+    "/courses/{course_id}/lessons/{lesson_id}/generate-script", status_code=202
+)
+async def generate_lesson_script(
     course_id: int,
     lesson_id: int,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
+    lesson_service: LessonService = Depends(get_lesson_service),
 ):
-    # ... (implementation needs to be updated to use int IDs)
-    pass
+    if (course_id, lesson_id) in _generating_lessons:
+        raise HTTPException(
+            status_code=409, detail="Lesson script generation already in progress"
+        )
+
+    _generating_lessons.add((course_id, lesson_id))
+    background_tasks.add_task(
+        _generate_lesson_task, db, course_id, lesson_id, lesson_service
+    )
+    return {"message": "Script generation for lesson started in background"}
