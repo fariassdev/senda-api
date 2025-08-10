@@ -13,7 +13,7 @@ class CourseService:
             title=course.title,
             description=course.description,
             author=course.author,
-            image_placeholder_url=course.image_placeholder_url,
+            image_placeholder_url=course.image_placeholder_url.unicode_string(),
         )
         db.add(db_course)
         db.commit()
