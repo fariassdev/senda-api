@@ -1,3 +1,4 @@
+from typing import Any, Dict, List
 from sqlalchemy.orm import Session
 from src.senda.api.models import course as models
 from src.senda.api.schemas import course as schemas
@@ -46,14 +47,25 @@ class CourseRepository:
         db: Session,
         lesson: models.Lesson,
         status: models.LessonStatus,
-        script_url: str = None,
         audio_url: str = None,
     ):
         lesson.status = status
-        if script_url:
-            lesson.script_url = script_url
         if audio_url:
             lesson.audio_url = audio_url
+        db.add(lesson)
+        db.commit()
+        db.refresh(lesson)
+        return lesson
+
+    def update_lesson_script(
+        self,
+        db: Session,
+        lesson: models.Lesson,
+        script_content: List[Dict[str, Any]],
+        status: models.LessonStatus,
+    ):
+        lesson.script = script_content
+        lesson.status = status
         db.add(lesson)
         db.commit()
         db.refresh(lesson)
