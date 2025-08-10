@@ -51,26 +51,4 @@ Rename the `.env.example` file to `.env` in the root of the project and populate
 
 The scripts will automatically load this environment variable.
 
-## **▶️ Usage**
-
-Once installed, you can interact with the project in several ways.
-
-### **Generate a New Meditation Script**
-
-To generate a new script in JSON format using Google GenAI, run the following script:
-
-```sh
-python src/senda/generate_meditation_course_script.py
-```
-
-The output will be printed directly to the console.
-
-### **Play a Meditation Script**
-
-To listen to the predefined meditation script through a local text-to-speech service (as configured in `meditation_practice_audio_stream.py`), run:
-
-```sh
-python src/senda/meditation_practice_audio_stream.py
-```
-
-**Note**: This script is configured to connect to an endpoint at `http://localhost:8880`. Make sure the TTS service is running locally at that address.
+**Note**: This project is configured to connect to an endpoint at `http://localhost:8880`. Make sure the TTS service is running locally at that address.
