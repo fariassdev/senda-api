@@ -21,7 +21,7 @@ class CourseService:
 
         for lesson_data in course.lessons:
             db_lesson = models.Lesson(
-                **lesson_data.model_dump(by_alias=True), course_id=db_course.id
+                **lesson_data.model_dump(), course_id=db_course.id
             )
             db.add(db_lesson)
         db.commit()
