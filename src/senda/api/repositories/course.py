@@ -3,7 +3,7 @@ from src.senda.api.models import course as models
 from src.senda.api.schemas import course as schemas
 
 
-class CourseService:
+class CourseRepository:
     def get_course(self, db: Session, course_id: str):
         return db.query(models.Course).filter(models.Course.id == course_id).first()
 
@@ -66,4 +66,4 @@ class CourseService:
         )
 
 
-course_service = CourseService()
+course_repository = CourseRepository()
