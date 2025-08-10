@@ -18,10 +18,9 @@ class Course(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     description = Column(String)
-    tags = Column(JSONB)  # Using JSONB for storing tags as a list of strings
+    tags = Column(JSONB)
     active = Column(Boolean, default=False, nullable=False)
 
-    # Fields to be managed outside the LLM generation
     author = Column(String, default="Senda AI")
     image_placeholder_url = Column(String, nullable=True)
 

@@ -18,7 +18,6 @@ class CourseRepository:
             title=course.title,
             description=course.description,
             tags=course.tags,
-            # 'active' defaults to False in the model
         )
         db.add(db_course)
         db.commit()
@@ -32,7 +31,6 @@ class CourseRepository:
             db.add(db_lesson)
         db.commit()
 
-        # Refresh the course instance to load the newly created lessons
         db.refresh(db_course)
         return db_course
 
