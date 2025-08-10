@@ -2,14 +2,16 @@ from pydantic import BaseModel, Field, HttpUrl
 from typing import List, Optional
 from src.senda.api.models.course import LessonStatus
 
+# region Lesson Schemas
+
 
 class LessonBase(BaseModel):
     lesson_number: int = Field(..., alias="lessonNumber")
     title: str
     core_practice: str = Field(..., alias="corePractice")
+    duration_minutes: int = Field(..., alias="durationMinutes")
     key_point: str = Field(..., alias="keyPoint")
     tone: str
-    duration_minutes: int = Field(..., alias="durationMinutes")
 
     class Config:
         populate_by_name = True
@@ -30,12 +32,16 @@ class Lesson(LessonBase):
         populate_by_name = True
 
 
+# endregion
+
+# region Course Schemas
+
+
 class CourseBase(BaseModel):
-    id: str
-    title: str
+    title: str = Field(..., alias="name")
     description: str
-    author: str
-    image_placeholder_url: Optional[HttpUrl] = Field(None, alias="imagePlaceholderUrl")
+    total_lessons: int = Field(..., alias="totalLessons")
+    tags: List[str]
 
     class Config:
         populate_by_name = True
@@ -46,8 +52,19 @@ class CourseCreate(CourseBase):
 
 
 class Course(CourseBase):
+    id: int
+    active: bool
     lessons: List[Lesson]
+    author: str  # Assuming author is added after creation
+    image_placeholder_url: Optional[HttpUrl] = Field(None, alias="imagePlaceholderUrl")
 
     class Config:
         from_attributes = True
         populate_by_name = True
+
+
+class CourseCreatePrompt(BaseModel):
+    prompt: str
+
+
+# endregion

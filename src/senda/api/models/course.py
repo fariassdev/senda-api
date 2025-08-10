@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, Enum, ForeignKey, Boolean
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from src.senda.api.core.database import Base
 import enum
@@ -14,11 +15,16 @@ class LessonStatus(str, enum.Enum):
 class Course(Base):
     __tablename__ = "courses"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     description = Column(String)
-    author = Column(String)
-    image_placeholder_url = Column(String)
+    total_lessons = Column(Integer)
+    tags = Column(JSONB)  # Using JSONB for storing tags as a list of strings
+    active = Column(Boolean, default=False, nullable=False)
+
+    # Fields to be managed outside the LLM generation
+    author = Column(String, default="Senda AI")
+    image_placeholder_url = Column(String, nullable=True)
 
     lessons = relationship(
         "Lesson", back_populates="course", cascade="all, delete-orphan"
@@ -29,7 +35,7 @@ class Lesson(Base):
     __tablename__ = "lessons"
 
     id = Column(Integer, primary_key=True, index=True)
-    course_id = Column(String, ForeignKey("courses.id"))
+    course_id = Column(Integer, ForeignKey("courses.id"))
     lesson_number = Column(Integer, index=True)
     title = Column(String)
     core_practice = Column(String)
