@@ -1,54 +1,82 @@
-# **Senda Meditation Scripts**
+# Senda: AI-Powered Meditation Scripts
 
-This project contains a set of Python tools and scripts to generate and play guided meditation scripts using generative AI and text-to-speech services.
+Senda is a Python-based tool for generating and playing guided meditation scripts. It leverages Google's Generative AI (Gemini) to create the scripts and a local text-to-speech (TTS) service to stream the audio.
 
-## **🚀 Getting Started**
+## Features
 
-Follow these instructions to get the project up and running on your local machine.
+*   **AI Script Generation**: Automatically create unique meditation scripts using Gemini.
+*   **Course Architecture**: Design comprehensive meditation courses with multiple lessons.
+*   **Text-to-Speech**: Convert generated scripts into audio via a local TTS service.
+*   **Audio Streaming**: Play meditation audio directly from the command line.
+*   **Batch Generation**: Generate scripts and audio for entire courses at once.
+*   **REST API**: Exposes course management functionalities through a FastAPI interface.
 
-### **Prerequisites**
+## Getting Started
 
-Make sure you have the following tools installed:
+### Using Docker (Recommended)
 
-* **Python 3.13+**  
-* **uv**: An extremely fast Python package installer and manager. You can install it from [its official website](https://github.com/astral-sh/uv).
+To build and run the application using Docker, run the following command from the project root:
 
-### **Installation**
+```bash
+docker-compose up --build
+```
 
-1. **Clone the repository** (or if you already have it, navigate to the root directory):  
-   ```sh
-   git clone https://github.com/fariassdev/senda.git 
-   cd senda
-   ```
+This will start the PostgreSQL database, the Kokoro TTS service, and the FastAPI application. The API will be available at `http://localhost:8000`.
 
-2. **Create a virtual environment** using uv:
-   ```sh
-   uv venv
-   ```
+### Running Locally
 
-   This will create a `.venv` folder in your project with the Python interpreter and necessary tools.  
-3. **Activate the virtual environment**:  
-   * On macOS/Linux:
-     ```sh
-     source .venv/bin/activate
-     ```
+To run the application locally, you will need to have Python 3.13+ and `uv` installed.
 
-   * On Windows (PowerShell):
-     ```sh
-     .venv\Scripts\activate
-     ```
+#### Installation
 
-4. **Install the dependencies** and the project in editable mode. This allows you to modify the code and see the changes instantly without reinstalling.
-   ```sh
-   uv pip install -e .
-   ```
+1.  **Create and activate a virtual environment:**
+    ```sh
+    # Unix
+    uv venv
+    source .venv/bin/activate
+    ```
 
-## **⚙️ Configuration**
+    ```sh
+    # Windows
+    uv venv
+    .venv\Scripts\activate
+    ```
 
-Before running the scripts, you need to set up your API keys.
+2.  **Install dependencies:**
+    ```sh
+    uv pip install -e .
+    ```
 
-Rename the `.env.example` file to `.env` in the root of the project and populate it with your keys.
+#### Configuration
 
-The scripts will automatically load this environment variable.
+1.  **Create a `.env` file** in the root of the project by copying the example file:
+    ```sh
+    cp .env.example .env
+    ```
+2.  **Add your Gemini API key** to the `.env` file:
+    ```
+    GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
+    ```
 
-**Note**: This project is configured to connect to an endpoint at `http://localhost:8880`. Make sure the TTS service is running locally at that address.
+
+## Usage
+
+Senda provides several scripts for different tasks. All commands should be run from the root of the project.
+
+
+
+### API Server
+
+Senda includes a FastAPI server to manage courses.
+
+*   **Run the development server:**
+    This command starts the server with auto-reload enabled. The API will be available at `http://localhost:8000`.
+    ```sh
+    uvicorn src.senda.api.main:app
+    ```
+
+## Development Conventions
+
+*   **Package Management**: The project uses `uv` for managing dependencies, as defined in `pyproject.toml`.
+*   **Environment Variables**: A `.env` file is used to store the `GEMINI_API_KEY`.
+*   **Source Code**: All Python source code is located in the `src/senda` directory.
