@@ -14,3 +14,7 @@ wheels/
 
 # Generated data
 generated_courses
+
+# IDE
+.idea/
+.vscode/
