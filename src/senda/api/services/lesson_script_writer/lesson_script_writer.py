@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+
+from src.senda.api.schemas.lesson import ScriptPart
 
 
 class LessonScriptWriter(ABC):
@@ -10,8 +11,8 @@ class LessonScriptWriter(ABC):
 
     @abstractmethod
     def generate_script(
-        self, course_context: Dict[str, Any], lesson_details: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, course_context: dict[str, any], lesson_details: dict[str, any]
+    ) -> list[ScriptPart]:
         """
         Generates a meditation script for a specific lesson within a course.
 
@@ -20,7 +21,7 @@ class LessonScriptWriter(ABC):
             lesson_details (Dict[str, Any]): A dictionary containing the details for the specific lesson.
 
         Returns:
-            List[Dict[str, Any]]: A list of dictionaries representing the generated meditation script.
+            list[ScriptPart]: A list of dictionaries representing the generated meditation script.
                                    Each dictionary should have 'type', 'content', and optionally 'duration'.
         """
         pass

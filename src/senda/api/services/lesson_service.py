@@ -4,7 +4,6 @@ from src.senda.api.repositories.course import CourseRepository
 from src.senda.api.services.lesson_script_writer.lesson_script_writer import (
     LessonScriptWriter,
 )
-from typing import Dict, Any, List
 
 
 class LessonService:
@@ -41,7 +40,7 @@ class LessonService:
             "tone": lesson.tone,
         }
 
-        script_content: List[Dict[str, Any]] = self.script_writer.generate_script(
+        script_content = self.script_writer.generate_script(
             course_context, lesson_details
         )
 

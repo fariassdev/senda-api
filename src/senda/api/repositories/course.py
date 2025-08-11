@@ -1,5 +1,5 @@
-from typing import Any, Dict, List
 from sqlalchemy.orm import Session
+from src.senda.api.schemas.lesson import ScriptPart
 from src.senda.api.models import course as models
 from src.senda.api.schemas import course as schemas
 
@@ -9,11 +9,6 @@ class CourseRepository:
         return db.query(models.Course).filter(models.Course.id == course_id).first()
 
     def create_course(self, db: Session, course: schemas.CourseCreate):
-        if course.total_lessons != len(course.lessons):
-            print(
-                f"Warning: LLM 'totalLessons' ({course.total_lessons}) does not match lesson count ({len(course.lessons)})."
-            )
-
         # Create the Course DB model instance from the schema
         db_course = models.Course(
             title=course.title,
@@ -61,10 +56,10 @@ class CourseRepository:
         self,
         db: Session,
         lesson: models.Lesson,
-        script_content: List[Dict[str, Any]],
+        script_content: list[ScriptPart],
         status: models.LessonStatus,
     ):
-        lesson.script = script_content
+        lesson.script = [script_line.model_dump() for script_line in script_content]
         lesson.status = status
         db.add(lesson)
         db.commit()
