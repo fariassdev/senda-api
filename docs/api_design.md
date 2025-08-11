@@ -62,5 +62,6 @@ For a detailed description of the front-end application, its components, and use
 The following features are planned for future development:
 
 1.  **Audio File Generation:** Implement functionality to generate audio files (e.g., MP3) from the saved lesson scripts.
-2.  **Robust Test Suite:** Develop a comprehensive suite of automated tests to ensure the stability, reliability, and correctness of the API.
-3.  **Basic CMS UI:** Implement a foundational user interface for the CMS to facilitate interaction with the API's functionalities.
+2.  **Reuse pydantic models in Gemini outputs:** Reuse the Pydantic schemas in Gemini Structured Output to avoid code duplication and enhance code maintainability.
+3.  **Robust Test Suite:** Develop a comprehensive suite of automated tests to ensure the stability, reliability, and correctness of the API.
+4.  **Basic CMS UI:** Implement a foundational user interface for the CMS to facilitate interaction with the API's functionalities.
