@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from src.senda.api.schemas import course as schemas
+
 from src.senda.api.core.database import get_db
 from src.senda.api.repositories.course import CourseRepository, course_repository
+from src.senda.api.schemas import course as schemas
+from src.senda.api.services.audio_service import AudioService
 from src.senda.api.services.course_architect import (
     CourseArchitect,
     GeminiCourseArchitect,
@@ -12,6 +14,7 @@ from src.senda.api.services.lesson_script_writer import (
     GeminiLessonScriptWriter,
 )
 from src.senda.api.services.lesson_service import LessonService
+from src.senda.api.services.s3_service import S3Service
 
 router = APIRouter()
 
@@ -33,6 +36,14 @@ def get_lesson_service(
 ) -> LessonService:
     """Dependency provider for the LessonService."""
     return LessonService(script_writer, repo)
+
+
+def get_s3_service() -> S3Service:
+    return S3Service()
+
+
+def get_audio_service(s3_service: S3Service = Depends(get_s3_service)) -> AudioService:
+    return AudioService(s3_service)
 
 
 # In a real application, this would be a proper task queue (e.g., Celery)
@@ -149,3 +160,37 @@ async def generate_lesson_script(
         _generate_lesson_task, db, course_id, lesson_id, lesson_service
     )
     return {"message": "Script generation for lesson started in background"}
+
+
+@router.post("/{course_id}/generate-audios", status_code=202)
+async def generate_course_audios(
+    course_id: int,
+    db: Session = Depends(get_db),
+    audio_service: AudioService = Depends(get_audio_service),
+):
+    course_repo = CourseRepository(db)
+    lessons = course_repo.get_lessons_by_course_id(course_id)
+
+    if not lessons:
+        raise HTTPException(status_code=404, detail="No lessons found for this course.")
+
+    generated_count = 0
+    failed_count = 0
+
+    for lesson in lessons:
+        if lesson.script:
+            try:
+                audio_url = audio_service.generate_and_upload_lesson_audio(lesson)
+                if audio_url:
+                    lesson.audio_url = audio_url
+                    course_repo.update_lesson(lesson)
+                    generated_count += 1
+            except Exception as e:
+                print(f"Failed to generate audio for lesson {lesson.id}: {e}")
+                failed_count += 1
+
+    return {
+        "message": "Audio generation for course completed.",
+        "generated_count": generated_count,
+        "failed_count": failed_count,
+    }
