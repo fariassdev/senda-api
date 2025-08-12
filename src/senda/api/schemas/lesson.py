@@ -37,7 +37,7 @@ class LessonCreate(LessonBase):
 
 class Lesson(LessonBase):
     id: int
-    status: LessonStatus = LessonStatus.NOT_GENERATED
+    status: LessonStatus = LessonStatus.PENDING
     script: Optional[list[ScriptPart]] = None
     audio_url: Optional[HttpUrl] = Field(None, alias="audioUrl")
 

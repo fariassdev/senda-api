@@ -22,6 +22,10 @@ class LessonService:
                 f"Lesson with ID {lesson_id} not found in course {course_id}"
             )
 
+        self.course_repository.update_lesson_status(
+            db, lesson, models.LessonStatus.SCRIPT_GENERATING
+        )
+
         course = self.course_repository.get_course(db, course_id)
         if not course:
             raise ValueError(f"Course with ID {course_id} not found")
@@ -40,14 +44,21 @@ class LessonService:
             "tone": lesson.tone,
         }
 
-        script_content = self.script_writer.generate_script(
-            course_context, lesson_details
-        )
+        try:
+            script_content = self.script_writer.generate_script(
+                course_context, lesson_details
+            )
 
-        updated_lesson = self.course_repository.update_lesson_script(
-            db, lesson, script_content, models.LessonStatus.COMPLETED
-        )
-        return updated_lesson
+            updated_lesson = self.course_repository.update_lesson_script(
+                db, lesson, script_content, models.LessonStatus.SCRIPT_COMPLETED
+            )
+            return updated_lesson
+        except Exception as e:
+            print(f"Error generating script for lesson {lesson.id}: {e}")
+            self.course_repository.update_lesson_status(
+                db, lesson, models.LessonStatus.SCRIPT_FAILED
+            )
+            raise
 
     def generate_and_save_all_lesson_scripts(self, db: Session, course_id: int):
         lessons = self.course_repository.get_ungenerated_lessons(db, course_id)
@@ -56,18 +67,15 @@ class LessonService:
 
         generated_lessons = []
         for lesson in lessons:
-            try:
-                # Mark as generating to prevent duplicate attempts
-                self.course_repository.update_lesson_status(
-                    db, lesson, models.LessonStatus.GENERATING
-                )
-                updated_lesson = self.generate_and_save_lesson_script(
-                    db, course_id, lesson.id
-                )
-                generated_lessons.append(updated_lesson)
-            except Exception as e:
-                print(f"Error generating script for lesson {lesson.id}: {e}")
-                self.course_repository.update_lesson_status(
-                    db, lesson, models.LessonStatus.FAILED
-                )
+            if lesson.status in [
+                models.LessonStatus.PENDING,
+                models.LessonStatus.SCRIPT_FAILED,
+            ]:
+                try:
+                    updated_lesson = self.generate_and_save_lesson_script(
+                        db, course_id, lesson.id
+                    )
+                    generated_lessons.append(updated_lesson)
+                except Exception as e:
+                    print(f"Error generating script for lesson {lesson.id}: {e}")
         return generated_lessons

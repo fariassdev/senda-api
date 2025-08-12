@@ -42,11 +42,8 @@ class CourseRepository:
         db: Session,
         lesson: models.Lesson,
         status: models.LessonStatus,
-        audio_url: str = None,
     ):
         lesson.status = status
-        if audio_url:
-            lesson.audio_url = audio_url
         db.add(lesson)
         db.commit()
         db.refresh(lesson)
@@ -72,7 +69,7 @@ class CourseRepository:
             .filter(
                 models.Lesson.course_id == course_id,
                 models.Lesson.status.in_(
-                    [models.LessonStatus.NOT_GENERATED, models.LessonStatus.FAILED]
+                    [models.LessonStatus.PENDING, models.LessonStatus.SCRIPT_FAILED]
                 ),
             )
             .all()
