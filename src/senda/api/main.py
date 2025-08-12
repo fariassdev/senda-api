@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from dotenv import load_dotenv
-from src.senda.api.routers import course
+from src.senda.api.routers import course, lesson
 
 # Load environment variables from .env file
 load_dotenv()
@@ -21,6 +21,7 @@ async def health_check():
 
 
 app.include_router(course.router, prefix="/api")
+app.include_router(lesson.router, prefix="/api")
 
 if __name__ == "__main__":
     import uvicorn
