@@ -6,10 +6,13 @@ import enum
 
 
 class LessonStatus(str, enum.Enum):
-    NOT_GENERATED = "NOT_GENERATED"
-    GENERATING = "GENERATING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
+    PENDING = "PENDING"
+    SCRIPT_GENERATING = "SCRIPT_GENERATING"
+    SCRIPT_COMPLETED = "SCRIPT_COMPLETED"
+    SCRIPT_FAILED = "SCRIPT_FAILED"
+    AUDIO_GENERATING = "AUDIO_GENERATING"
+    AUDIO_COMPLETED = "AUDIO_COMPLETED"
+    AUDIO_FAILED = "AUDIO_FAILED"
 
 
 class Course(Base):
@@ -40,7 +43,7 @@ class Lesson(Base):
     key_point = Column(String)
     tone = Column(String)
     duration_minutes = Column(Integer)
-    status = Column(String, default=LessonStatus.NOT_GENERATED)
+    status = Column(String, default=LessonStatus.PENDING)
     script = Column(JSONB, nullable=True)
     audio_url = Column(String, nullable=True)
 

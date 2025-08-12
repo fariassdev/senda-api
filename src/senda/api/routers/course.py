@@ -15,6 +15,7 @@ from src.senda.api.services.lesson_script_writer import (
 )
 from src.senda.api.services.lesson_service import LessonService
 from src.senda.api.services.s3_service import S3Service
+from src.senda.api.models.course import LessonStatus
 
 router = APIRouter()
 
@@ -176,13 +177,24 @@ async def _generate_course_audios_task(
 
     for lesson in lessons:
         if lesson.script:
+            lesson.status = LessonStatus.AUDIO_GENERATING
+            course_repo.update_lesson(lesson)
             try:
                 audio_url = audio_service.generate_and_upload_lesson_audio(lesson)
                 if audio_url:
                     lesson.audio_url = audio_url
+                    lesson.status = LessonStatus.AUDIO_COMPLETED
                     course_repo.update_lesson(lesson)
                     print(f"Audio generated for lesson {lesson.id}")
+                else:
+                    lesson.status = LessonStatus.AUDIO_FAILED
+                    course_repo.update_lesson(lesson)
+                    print(
+                        f"Audio generation failed for lesson {lesson.id}: No audio URL returned."
+                    )
             except Exception as e:
+                lesson.status = LessonStatus.AUDIO_FAILED
+                course_repo.update_lesson(lesson)
                 print(f"Failed to generate audio for lesson {lesson.id}: {e}")
 
 

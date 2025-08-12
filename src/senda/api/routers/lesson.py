@@ -5,6 +5,7 @@ from src.senda.api.core.database import get_db
 from src.senda.api.repositories.lesson import LessonRepository
 from src.senda.api.services.audio_service import AudioService
 from src.senda.api.services.s3_service import S3Service
+from src.senda.api.models.course import LessonStatus
 
 router = APIRouter(
     prefix="/lessons",
@@ -29,18 +30,30 @@ async def _generate_audio_task(
     lesson_repo: LessonRepository,
     audio_service: AudioService,
 ):
-    lesson = lesson_repo.get_lesson_by_id(lesson_id)
+    lesson = lesson_repo.get_lesson(lesson_id)
     if not lesson:
         print(f"Lesson with id {lesson_id} not found.")
         return
+
+    lesson.status = LessonStatus.AUDIO_GENERATING
+    lesson_repo.update_lesson(lesson)
 
     try:
         audio_url = audio_service.generate_and_upload_lesson_audio(lesson)
         if audio_url:
             lesson.audio_url = audio_url
+            lesson.status = LessonStatus.AUDIO_COMPLETED
             lesson_repo.update_lesson(lesson)
             print(f"Audio generated successfully for lesson {lesson_id}")
+        else:
+            lesson.status = LessonStatus.AUDIO_FAILED
+            lesson_repo.update_lesson(lesson)
+            print(
+                f"Audio generation failed for lesson {lesson_id}: No audio URL returned."
+            )
     except Exception as e:
+        lesson.status = LessonStatus.AUDIO_FAILED
+        lesson_repo.update_lesson(lesson)
         print(f"Failed to generate audio for lesson {lesson_id}: {e}")
 
 
