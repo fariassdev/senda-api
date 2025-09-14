@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from src.senda.api.core.database import get_db
 from src.senda.api.repositories.lesson import LessonRepository
 from src.senda.api.repositories.course import CourseRepository
-from src.senda.api.schemas import course as schemas
+from src.senda.api.models.lesson import LessonStatus
+from src.senda.api.schemas.course import CourseCreatePrompt, CourseUpdate, Course
 from src.senda.api.services.audio_service import AudioService
 from src.senda.api.services.course_architect import (
     CourseArchitect,
@@ -16,9 +17,11 @@ from src.senda.api.services.lesson_script_writer import (
 )
 from src.senda.api.services.lesson_service import LessonService
 from src.senda.api.services.s3_service import S3Service
-from src.senda.api.models.lesson import LessonStatus
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/courses",
+    tags=["courses"],
+)
 
 
 def get_course_repository(db: Session = Depends(get_db)) -> CourseRepository:
@@ -58,12 +61,11 @@ def get_audio_service(s3_service: S3Service = Depends(get_s3_service)) -> AudioS
 
 # In a real application, this would be a proper task queue (e.g., Celery)
 _generating_courses = set()
-_generating_lessons = set()
 
 
-@router.post("/courses", response_model=schemas.Course, status_code=201)
+@router.post("", response_model=Course, status_code=201)
 def create_course_from_prompt(
-    prompt_request: schemas.CourseCreatePrompt,
+    prompt_request: CourseCreatePrompt,
     course_repository: CourseRepository = Depends(get_course_repository),
     architect: CourseArchitect = Depends(get_course_architect),
 ):
@@ -82,7 +84,7 @@ def create_course_from_prompt(
         raise HTTPException(status_code=500, detail=f"Failed to create course: {e}")
 
 
-@router.get("/courses/{course_id}", response_model=schemas.Course)
+@router.get("/{course_id}", response_model=Course)
 def get_course(
     course_id: int,
     course_repository: CourseRepository = Depends(get_course_repository),
@@ -93,10 +95,10 @@ def get_course(
     return course
 
 
-@router.put("/courses/{course_id}", response_model=schemas.Course)
+@router.put("/{course_id}", response_model=Course)
 def update_course(
     course_id: int,
-    course_update: schemas.CourseUpdate,
+    course_update: CourseUpdate,
     course_repository: CourseRepository = Depends(get_course_repository),
 ):
     db_course = course_repository.get_course(course_id)
@@ -115,18 +117,6 @@ def update_course(
     return course_repository.update_course(db_course, course_update)
 
 
-async def _generate_lesson_task(
-    course_id: int,
-    lesson_id: int,
-    lesson_service: LessonService,
-):
-    try:
-        lesson_service.generate_and_save_lesson_script(course_id, lesson_id)
-    except Exception as e:
-        print(f"Error generating script for lesson {lesson_id}: {e}")
-        # Optionally, update lesson status to FAILED here if not handled in service
-
-
 async def _generate_all_lessons_task(course_id: int, lesson_service: LessonService):
     try:
         lesson_service.generate_and_save_all_lesson_scripts(course_id)
@@ -134,7 +124,7 @@ async def _generate_all_lessons_task(course_id: int, lesson_service: LessonServi
         print(f"Error generating scripts for course {course_id}: {e}")
 
 
-@router.post("/courses/{course_id}/generate-all-scripts", status_code=202)
+@router.post("/{course_id}/generate-all-scripts", status_code=202)
 async def generate_all_lessons_scripts(
     course_id: int,
     background_tasks: BackgroundTasks,
@@ -150,27 +140,6 @@ async def generate_all_lessons_scripts(
     return {
         "message": "Script generation for all lessons in course started in background"
     }
-
-
-@router.post(
-    "/courses/{course_id}/lessons/{lesson_id}/generate-script", status_code=202
-)
-async def generate_lesson_script(
-    course_id: int,
-    lesson_id: int,
-    background_tasks: BackgroundTasks,
-    lesson_service: LessonService = Depends(get_lesson_service),
-):
-    if (course_id, lesson_id) in _generating_lessons:
-        raise HTTPException(
-            status_code=409, detail="Lesson script generation already in progress"
-        )
-
-    _generating_lessons.add((course_id, lesson_id))
-    background_tasks.add_task(
-        _generate_lesson_task, course_id, lesson_id, lesson_service
-    )
-    return {"message": "Script generation for lesson started in background"}
 
 
 async def _generate_course_audios_task(
