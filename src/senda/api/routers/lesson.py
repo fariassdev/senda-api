@@ -5,7 +5,7 @@ from src.senda.api.core.database import get_db
 from src.senda.api.repositories.lesson import LessonRepository
 from src.senda.api.services.audio_service import AudioService
 from src.senda.api.services.s3_service import S3Service
-from src.senda.api.models.course import LessonStatus
+from src.senda.api.models.lesson import LessonStatus
 
 router = APIRouter(
     prefix="/lessons",

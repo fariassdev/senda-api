@@ -15,7 +15,7 @@ from src.senda.api.services.lesson_script_writer import (
 )
 from src.senda.api.services.lesson_service import LessonService
 from src.senda.api.services.s3_service import S3Service
-from src.senda.api.models.course import LessonStatus
+from src.senda.api.models.lesson import LessonStatus
 
 router = APIRouter()
 
