@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from src.senda.api.models import course as models
+from src.senda.api.models.lesson import Lesson, LessonStatus
 from src.senda.api.repositories.course import CourseRepository
 from src.senda.api.services.lesson_script_writer.lesson_script_writer import (
     LessonScriptWriter,
@@ -15,7 +15,7 @@ class LessonService:
 
     def generate_and_save_lesson_script(
         self, db: Session, course_id: int, lesson_id: int
-    ) -> models.Lesson:
+    ) -> Lesson:
         lesson = self.course_repository.get_lesson(db, course_id, lesson_id)
         if not lesson:
             raise ValueError(
@@ -23,7 +23,7 @@ class LessonService:
             )
 
         self.course_repository.update_lesson_status(
-            db, lesson, models.LessonStatus.SCRIPT_GENERATING
+            db, lesson, LessonStatus.SCRIPT_GENERATING
         )
 
         course = self.course_repository.get_course(db, course_id)
@@ -50,13 +50,13 @@ class LessonService:
             )
 
             updated_lesson = self.course_repository.update_lesson_script(
-                db, lesson, script_content, models.LessonStatus.SCRIPT_COMPLETED
+                db, lesson, script_content, LessonStatus.SCRIPT_COMPLETED
             )
             return updated_lesson
         except Exception as e:
             print(f"Error generating script for lesson {lesson.id}: {e}")
             self.course_repository.update_lesson_status(
-                db, lesson, models.LessonStatus.SCRIPT_FAILED
+                db, lesson, LessonStatus.SCRIPT_FAILED
             )
             raise
 
@@ -68,8 +68,8 @@ class LessonService:
         generated_lessons = []
         for lesson in lessons:
             if lesson.status in [
-                models.LessonStatus.PENDING,
-                models.LessonStatus.SCRIPT_FAILED,
+                LessonStatus.PENDING,
+                LessonStatus.SCRIPT_FAILED,
             ]:
                 try:
                     updated_lesson = self.generate_and_save_lesson_script(

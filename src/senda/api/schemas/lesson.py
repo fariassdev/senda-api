@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional
 from enum import Enum
 
-from src.senda.api.models.course import LessonStatus
+from src.senda.api.models.lesson import LessonStatus
 
 
 class ScriptPartType(str, Enum):

@@ -1,16 +1,17 @@
 from sqlalchemy.orm import Session
 from src.senda.api.schemas.lesson import ScriptPart
-from src.senda.api.models import course as models
-from src.senda.api.schemas import course as schemas
+from src.senda.api.schemas.course import CourseCreate, CourseUpdate
+from src.senda.api.models.course import Course
+from src.senda.api.models.lesson import Lesson, LessonStatus
 
 
 class CourseRepository:
     def get_course(self, db: Session, course_id: int):
-        return db.query(models.Course).filter(models.Course.id == course_id).first()
+        return db.query(Course).filter(Course.id == course_id).first()
 
-    def create_course(self, db: Session, course: schemas.CourseCreate):
+    def create_course(self, db: Session, course: CourseCreate):
         # Create the Course DB model instance from the schema
-        db_course = models.Course(
+        db_course = Course(
             title=course.title,
             description=course.description,
             tags=course.tags,
@@ -21,9 +22,7 @@ class CourseRepository:
 
         # Create the Lesson DB model instances
         for lesson_data in course.lessons:
-            db_lesson = models.Lesson(
-                **lesson_data.model_dump(), course_id=db_course.id
-            )
+            db_lesson = Lesson(**lesson_data.model_dump(), course_id=db_course.id)
             db.add(db_lesson)
         db.commit()
 
@@ -32,16 +31,16 @@ class CourseRepository:
 
     def get_lesson(self, db: Session, course_id: int, lesson_id: int):
         return (
-            db.query(models.Lesson)
-            .filter(models.Lesson.course_id == course_id, models.Lesson.id == lesson_id)
+            db.query(Lesson)
+            .filter(Lesson.course_id == course_id, Lesson.id == lesson_id)
             .first()
         )
 
     def update_lesson_status(
         self,
         db: Session,
-        lesson: models.Lesson,
-        status: models.LessonStatus,
+        lesson: Lesson,
+        status: LessonStatus,
     ):
         lesson.status = status
         db.add(lesson)
@@ -52,9 +51,9 @@ class CourseRepository:
     def update_lesson_script(
         self,
         db: Session,
-        lesson: models.Lesson,
+        lesson: Lesson,
         script_content: list[ScriptPart],
-        status: models.LessonStatus,
+        status: LessonStatus,
     ):
         lesson.script = [script_line.model_dump() for script_line in script_content]
         lesson.status = status
@@ -65,18 +64,16 @@ class CourseRepository:
 
     def get_ungenerated_lessons(self, db: Session, course_id: int):
         return (
-            db.query(models.Lesson)
+            db.query(Lesson)
             .filter(
-                models.Lesson.course_id == course_id,
-                models.Lesson.status.in_(
-                    [models.LessonStatus.PENDING, models.LessonStatus.SCRIPT_FAILED]
-                ),
+                Lesson.course_id == course_id,
+                Lesson.status.in_([LessonStatus.PENDING, LessonStatus.SCRIPT_FAILED]),
             )
             .all()
         )
 
     def update_course(
-        self, db: Session, db_course: models.Course, course_update: schemas.CourseUpdate
+        self, db: Session, db_course: Course, course_update: CourseUpdate
     ):
         update_data = course_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
