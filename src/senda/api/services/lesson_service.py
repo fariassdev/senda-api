@@ -17,20 +17,18 @@ class LessonService:
         self.course_repository = course_repository
         self.lesson_repository = lesson_repository
 
-    def generate_and_save_lesson_script(self, course_id: int, lesson_id: int) -> Lesson:
+    def generate_and_save_lesson_script(self, lesson_id: int) -> Lesson:
         lesson = self.lesson_repository.get_lesson(lesson_id)
         if not lesson:
-            raise ValueError(
-                f"Lesson with ID {lesson_id} not found in course {course_id}"
-            )
+            raise ValueError(f"Lesson with ID {lesson_id} not found")
 
         self.lesson_repository.update_lesson_status(
             lesson, LessonStatus.SCRIPT_GENERATING
         )
 
-        course = self.course_repository.get_course(course_id)
+        course = self.course_repository.get_course(lesson.course_id)
         if not course:
-            raise ValueError(f"Course with ID {course_id} not found")
+            raise ValueError(f"Course with ID {lesson.course_id} not found")
 
         course_context = {
             "name": course.title,
