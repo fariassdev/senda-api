@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
 from src.senda.api.models.lesson import Lesson, LessonStatus
+from src.senda.api.repositories.lesson import LessonRepository
 from src.senda.api.repositories.course import CourseRepository
 from src.senda.api.services.lesson_script_writer.lesson_script_writer import (
     LessonScriptWriter,
@@ -8,25 +8,27 @@ from src.senda.api.services.lesson_script_writer.lesson_script_writer import (
 
 class LessonService:
     def __init__(
-        self, script_writer: LessonScriptWriter, course_repository: CourseRepository
+        self,
+        script_writer: LessonScriptWriter,
+        course_repository: CourseRepository,
+        lesson_repository: LessonRepository,
     ):
         self.script_writer = script_writer
         self.course_repository = course_repository
+        self.lesson_repository = lesson_repository
 
-    def generate_and_save_lesson_script(
-        self, db: Session, course_id: int, lesson_id: int
-    ) -> Lesson:
-        lesson = self.course_repository.get_lesson(db, course_id, lesson_id)
+    def generate_and_save_lesson_script(self, course_id: int, lesson_id: int) -> Lesson:
+        lesson = self.lesson_repository.get_lesson(lesson_id)
         if not lesson:
             raise ValueError(
                 f"Lesson with ID {lesson_id} not found in course {course_id}"
             )
 
-        self.course_repository.update_lesson_status(
-            db, lesson, LessonStatus.SCRIPT_GENERATING
+        self.lesson_repository.update_lesson_status(
+            lesson, LessonStatus.SCRIPT_GENERATING
         )
 
-        course = self.course_repository.get_course(db, course_id)
+        course = self.course_repository.get_course(course_id)
         if not course:
             raise ValueError(f"Course with ID {course_id} not found")
 
@@ -49,19 +51,19 @@ class LessonService:
                 course_context, lesson_details
             )
 
-            updated_lesson = self.course_repository.update_lesson_script(
-                db, lesson, script_content, LessonStatus.SCRIPT_COMPLETED
+            updated_lesson = self.lesson_repository.update_lesson_script(
+                lesson, script_content, LessonStatus.SCRIPT_COMPLETED
             )
             return updated_lesson
         except Exception as e:
             print(f"Error generating script for lesson {lesson.id}: {e}")
-            self.course_repository.update_lesson_status(
-                db, lesson, LessonStatus.SCRIPT_FAILED
+            self.lesson_repository.update_lesson_status(
+                lesson, LessonStatus.SCRIPT_FAILED
             )
             raise
 
-    def generate_and_save_all_lesson_scripts(self, db: Session, course_id: int):
-        lessons = self.course_repository.get_ungenerated_lessons(db, course_id)
+    def generate_and_save_all_lesson_scripts(self, course_id: int):
+        lessons = self.lesson_repository.get_ungenerated_lessons(course_id)
         if not lessons:
             return []
 
@@ -73,7 +75,7 @@ class LessonService:
             ]:
                 try:
                     updated_lesson = self.generate_and_save_lesson_script(
-                        db, course_id, lesson.id
+                        course_id, lesson.id
                     )
                     generated_lessons.append(updated_lesson)
                 except Exception as e:
