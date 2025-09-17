@@ -11,6 +11,9 @@ class CourseRepository:
     def get_course(self, course_id: int):
         return self.db.query(Course).filter(Course.id == course_id).first()
 
+    def get_courses(self, skip: int = 0, limit: int = 10):
+        return self.db.query(Course).offset(skip).limit(limit).all()
+
     def create_course(self, course: CourseCreate):
         # Create the Course DB model instance from the schema
         db_course = Course(
@@ -52,3 +55,6 @@ class CourseRepository:
             )
             .all()
         )
+
+    def get_lessons_by_course_id(self, course_id: int):
+        return self.db.query(Lesson).filter(Lesson.course_id == course_id).all()

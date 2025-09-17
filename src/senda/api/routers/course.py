@@ -63,6 +63,15 @@ def get_audio_service(s3_service: S3Service = Depends(get_s3_service)) -> AudioS
 _generating_courses = set()
 
 
+@router.get("", response_model=list[Course])
+def get_courses(
+    skip: int = 0,
+    limit: int = 10,
+    course_repository: CourseRepository = Depends(get_course_repository),
+):
+    return course_repository.get_courses(skip=skip, limit=limit)
+
+
 @router.post("", response_model=Course, status_code=201)
 def create_course_from_prompt(
     prompt_request: CourseCreatePrompt,
