@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional
+from uuid import UUID
 from src.senda.api.schemas.lesson import Lesson, LessonCreate
 
 
@@ -17,7 +18,7 @@ class CourseCreate(CourseBase):
 
 
 class Course(CourseBase):
-    id: int
+    id: UUID
     active: bool
     lessons: list[Lesson]
     author: str

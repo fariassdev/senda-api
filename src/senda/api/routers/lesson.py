@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from src.senda.api.core.database import get_db
 from src.senda.api.repositories.course import CourseRepository
@@ -54,7 +55,7 @@ _generating_lessons = set()
 
 
 async def _generate_audio_task(
-    lesson_id: int,
+    lesson_id: UUID,
     lesson_repo: LessonRepository,
     audio_service: AudioService,
 ):
@@ -86,7 +87,7 @@ async def _generate_audio_task(
 
 
 async def _generate_lesson_task(
-    lesson_id: int,
+    lesson_id: UUID,
     lesson_service: LessonService,
 ):
     try:
@@ -98,7 +99,7 @@ async def _generate_lesson_task(
 
 @router.post("/{lesson_id}/generate-audio", status_code=202)
 async def generate_lesson_audio(
-    lesson_id: int,
+    lesson_id: UUID,
     background_tasks: BackgroundTasks,
     lesson_repo: LessonRepository = Depends(get_lesson_repository),
     audio_service: AudioService = Depends(get_audio_service),
@@ -111,7 +112,7 @@ async def generate_lesson_audio(
 
 @router.post("/{lesson_id}/generate-script", status_code=202)
 async def generate_lesson_script(
-    lesson_id: int,
+    lesson_id: UUID,
     background_tasks: BackgroundTasks,
     lesson_service: LessonService = Depends(get_lesson_service),
 ):

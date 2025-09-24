@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional
 from enum import Enum
+from uuid import UUID
 
 from src.senda.api.models.lesson import LessonStatus
 
@@ -36,7 +37,7 @@ class LessonCreate(LessonBase):
 
 
 class Lesson(LessonBase):
-    id: int
+    id: UUID
     status: LessonStatus = LessonStatus.PENDING
     script: Optional[list[ScriptPart]] = None
     audio_url: Optional[HttpUrl] = Field(None, alias="audioUrl")

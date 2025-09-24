@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, String, ForeignKey, Integer
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from src.senda.api.core.database import Base
+from src.senda.api.utils.uuid_utils import generate_uuidv7
 import enum
 
 
@@ -18,8 +19,10 @@ class LessonStatus(str, enum.Enum):
 class Lesson(Base):
     __tablename__ = "lessons"
 
-    id = Column(Integer, primary_key=True, index=True)
-    course_id = Column(Integer, ForeignKey("courses.id"))
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, index=True, default=generate_uuidv7
+    )
+    course_id = Column(UUID(as_uuid=True), ForeignKey("courses.id"))
     lesson_number = Column(Integer, index=True)
     title = Column(String)
     core_practice = Column(String)
