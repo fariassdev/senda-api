@@ -1,3 +1,4 @@
+from uuid import UUID
 from src.senda.api.models.lesson import Lesson, LessonStatus
 from src.senda.api.repositories.lesson import LessonRepository
 from src.senda.api.repositories.course import CourseRepository
@@ -17,7 +18,7 @@ class LessonService:
         self.course_repository = course_repository
         self.lesson_repository = lesson_repository
 
-    def generate_and_save_lesson_script(self, lesson_id: int) -> Lesson:
+    def generate_and_save_lesson_script(self, lesson_id: UUID) -> Lesson:
         lesson = self.lesson_repository.get_lesson(lesson_id)
         if not lesson:
             raise ValueError(f"Lesson with ID {lesson_id} not found")
@@ -60,7 +61,7 @@ class LessonService:
             )
             raise
 
-    def generate_and_save_all_lesson_scripts(self, course_id: int):
+    def generate_and_save_all_lesson_scripts(self, course_id: UUID):
         lessons = self.lesson_repository.get_ungenerated_lessons(course_id)
         if not lessons:
             return []

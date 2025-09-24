@@ -5,7 +5,7 @@ from pathlib import Path
 import requests
 from pydub import AudioSegment
 
-from src.senda.api.models.course import Lesson
+from src.senda.api.models.lesson import Lesson
 from src.senda.api.services.s3_service import S3Service
 
 KOKORO_API_URL = "http://localhost:8880/v1/audio/speech"

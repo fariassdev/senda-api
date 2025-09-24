@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from uuid import UUID
 from src.senda.api.schemas.course import CourseCreate, CourseUpdate
 from src.senda.api.models.course import Course
 from src.senda.api.models.lesson import Lesson, LessonStatus
@@ -8,7 +9,7 @@ class CourseRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_course(self, course_id: int):
+    def get_course(self, course_id: UUID):
         return self.db.query(Course).filter(Course.id == course_id).first()
 
     def get_courses(self, skip: int = 0, limit: int = 10):
@@ -46,7 +47,7 @@ class CourseRepository:
         self.db.refresh(db_course)
         return db_course
 
-    def get_ungenerated_lessons(self, course_id: int):
+    def get_ungenerated_lessons(self, course_id: UUID):
         return (
             self.db.query(Lesson)
             .filter(
@@ -56,5 +57,5 @@ class CourseRepository:
             .all()
         )
 
-    def get_lessons_by_course_id(self, course_id: int):
+    def get_lessons_by_course_id(self, course_id: UUID):
         return self.db.query(Lesson).filter(Lesson.course_id == course_id).all()

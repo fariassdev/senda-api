@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from src.senda.api.core.database import get_db
 from src.senda.api.repositories.lesson import LessonRepository
@@ -95,7 +96,7 @@ def create_course_from_prompt(
 
 @router.get("/{course_id}", response_model=Course)
 def get_course(
-    course_id: int,
+    course_id: UUID,
     course_repository: CourseRepository = Depends(get_course_repository),
 ):
     course = course_repository.get_course(course_id)
@@ -106,7 +107,7 @@ def get_course(
 
 @router.put("/{course_id}", response_model=Course)
 def update_course(
-    course_id: int,
+    course_id: UUID,
     course_update: CourseUpdate,
     course_repository: CourseRepository = Depends(get_course_repository),
 ):
@@ -126,7 +127,7 @@ def update_course(
     return course_repository.update_course(db_course, course_update)
 
 
-async def _generate_all_lessons_task(course_id: int, lesson_service: LessonService):
+async def _generate_all_lessons_task(course_id: UUID, lesson_service: LessonService):
     try:
         lesson_service.generate_and_save_all_lesson_scripts(course_id)
     except Exception as e:
@@ -135,7 +136,7 @@ async def _generate_all_lessons_task(course_id: int, lesson_service: LessonServi
 
 @router.post("/{course_id}/generate-all-scripts", status_code=202)
 async def generate_all_lessons_scripts(
-    course_id: int,
+    course_id: UUID,
     background_tasks: BackgroundTasks,
     lesson_service: LessonService = Depends(get_lesson_service),
 ):
@@ -152,7 +153,7 @@ async def generate_all_lessons_scripts(
 
 
 async def _generate_course_audios_task(
-    course_id: int,
+    course_id: UUID,
     audio_service: AudioService,
     course_repository: CourseRepository = Depends(get_course_repository),
 ):
@@ -187,7 +188,7 @@ async def _generate_course_audios_task(
 
 @router.post("/{course_id}/generate-audios", status_code=202)
 async def generate_course_audios(
-    course_id: int,
+    course_id: UUID,
     background_tasks: BackgroundTasks,
     audio_service: AudioService = Depends(get_audio_service),
 ):

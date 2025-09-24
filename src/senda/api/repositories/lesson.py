@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from src.senda.api.schemas.lesson import ScriptPart
 from src.senda.api.models.lesson import LessonStatus, Lesson
@@ -8,7 +9,7 @@ class LessonRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_lesson(self, lesson_id: int) -> Lesson | None:
+    def get_lesson(self, lesson_id: UUID) -> Lesson | None:
         return self.db.query(Lesson).filter(Lesson.id == lesson_id).first()
 
     def update_lesson(self, lesson: Lesson) -> Lesson:

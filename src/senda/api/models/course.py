@@ -1,14 +1,16 @@
-from sqlalchemy import Column, Integer, String, Boolean, func, select
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship, column_property
-from src.senda.api.models.lesson import Lesson
+from sqlalchemy import Column, String, Boolean
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import relationship
 from src.senda.api.core.database import Base
+from src.senda.api.utils.uuid_utils import generate_uuidv7
 
 
 class Course(Base):
     __tablename__ = "courses"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, index=True, default=generate_uuidv7
+    )
     title = Column(String, index=True)
     description = Column(String)
     tags = Column(JSONB)
@@ -20,11 +22,3 @@ class Course(Base):
     lessons = relationship(
         "Lesson", back_populates="course", cascade="all, delete-orphan"
     )
-
-
-Course.total_lessons = column_property(
-    select(func.count(Lesson.id))
-    .where(Lesson.course_id == Course.id)
-    .correlate_except(Lesson)
-    .scalar_subquery()
-)
