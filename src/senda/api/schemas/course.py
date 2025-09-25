@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional
 from uuid import UUID
 from src.senda.api.schemas.lesson import Lesson, LessonCreate
+from datetime import datetime
 
 
 class CourseBase(BaseModel):
@@ -23,6 +24,8 @@ class Course(CourseBase):
     lessons: list[Lesson]
     author: str
     image_placeholder_url: Optional[HttpUrl] = Field(None, alias="imagePlaceholderUrl")
+    created_at: Optional[datetime] = Field(None, alias="createdAt")
+    updated_at: Optional[datetime] = Field(None, alias="updatedAt")
 
     class Config:
         from_attributes = True
