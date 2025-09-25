@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
+from datetime import datetime, timezone
 
 from src.senda.api.core.database import get_db
 from src.senda.api.repositories.course import CourseRepository
@@ -72,6 +73,7 @@ async def _generate_audio_task(
         if audio_url:
             lesson.audio_url = audio_url
             lesson.status = LessonStatus.AUDIO_COMPLETED
+            lesson.audio_generated_at = datetime.now(timezone.utc)
             lesson_repo.update_lesson(lesson)
             print(f"Audio generated successfully for lesson {lesson_id}")
         else:

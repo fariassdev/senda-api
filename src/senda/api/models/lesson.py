@@ -33,7 +33,11 @@ class Lesson(Base):
     status = Column(String, default=LessonStatus.PENDING)
     script = Column(JSONB, nullable=True)
     audio_url = Column(String, nullable=True)
+    script_generated_at = Column(DateTime(timezone=True), nullable=True)
+    audio_generated_at = Column(DateTime(timezone=True), nullable=True)
 
     course = relationship("Course", back_populates="lessons")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

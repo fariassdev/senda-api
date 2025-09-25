@@ -41,6 +41,8 @@ class Lesson(LessonBase):
     status: LessonStatus = LessonStatus.PENDING
     script: Optional[list[ScriptPart]] = None
     audio_url: Optional[HttpUrl] = Field(None, alias="audioUrl")
+    script_generated_at: Optional[datetime] = Field(None, alias="scriptGeneratedAt")
+    audio_generated_at: Optional[datetime] = Field(None, alias="audioGeneratedAt")
     created_at: Optional[datetime] = Field(None, alias="createdAt")
     updated_at: Optional[datetime] = Field(None, alias="updatedAt")
 
