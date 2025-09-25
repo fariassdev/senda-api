@@ -1,5 +1,4 @@
 from uuid import UUID
-from datetime import datetime
 from src.senda.api.models.lesson import Lesson, LessonStatus
 from src.senda.api.repositories.lesson import LessonRepository
 from src.senda.api.repositories.course import CourseRepository
@@ -54,9 +53,6 @@ class LessonService:
             updated_lesson = self.lesson_repository.update_lesson_script(
                 lesson, script_content, LessonStatus.SCRIPT_COMPLETED
             )
-            # Set script generation timestamp
-            updated_lesson.script_generated_at = datetime.utcnow()
-            self.lesson_repository.update_lesson(updated_lesson)
             return updated_lesson
         except Exception as e:
             print(f"Error generating script for lesson {lesson.id}: {e}")

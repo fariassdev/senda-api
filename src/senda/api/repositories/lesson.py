@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from uuid import UUID
+from datetime import datetime, timezone
 
 from src.senda.api.schemas.lesson import ScriptPart
 from src.senda.api.models.lesson import LessonStatus, Lesson
@@ -37,6 +38,10 @@ class LessonRepository:
     ):
         lesson.script = [script_line.model_dump() for script_line in script_content]
         lesson.status = status
+
+        if status == LessonStatus.SCRIPT_COMPLETED:
+            lesson.script_generated_at = datetime.now(timezone.utc)
+
         self.db.add(lesson)
         self.db.commit()
         self.db.refresh(lesson)
