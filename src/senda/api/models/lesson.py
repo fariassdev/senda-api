@@ -1,9 +1,10 @@
-from sqlalchemy import Column, String, ForeignKey, Integer
+from sqlalchemy import Column, String, ForeignKey, Integer, DateTime
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from src.senda.api.core.database import Base
 from src.senda.api.utils.uuid_utils import generate_uuidv7
 import enum
+from sqlalchemy.sql import func
 
 
 class LessonStatus(str, enum.Enum):
@@ -34,3 +35,5 @@ class Lesson(Base):
     audio_url = Column(String, nullable=True)
 
     course = relationship("Course", back_populates="lessons")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

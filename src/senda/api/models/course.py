@@ -1,8 +1,9 @@
-from sqlalchemy import Column, String, Boolean
+from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from src.senda.api.core.database import Base
 from src.senda.api.utils.uuid_utils import generate_uuidv7
+from sqlalchemy.sql import func
 
 
 class Course(Base):
@@ -22,3 +23,5 @@ class Course(Base):
     lessons = relationship(
         "Lesson", back_populates="course", cascade="all, delete-orphan"
     )
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
