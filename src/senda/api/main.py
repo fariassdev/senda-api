@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-from src.senda.api.routers import course, lesson
+from src.senda.api.routers import course, lesson, auth
 
 # Load environment variables from .env file
 load_dotenv()
@@ -15,6 +18,11 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
+
+# Set up rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Set up CORS
 origins = [
@@ -35,6 +43,7 @@ async def health_check():
     return {"status": "ok"}
 
 
+app.include_router(auth.router, prefix="/api")
 app.include_router(course.router, prefix="/api")
 app.include_router(lesson.router, prefix="/api")
 
