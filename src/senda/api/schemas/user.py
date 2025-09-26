@@ -52,3 +52,5 @@ class UserPublic(BaseModel):
     name: str
     role: UserRole
     last_login: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
