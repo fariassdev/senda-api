@@ -8,26 +8,29 @@ including login, token refresh, and user session management.
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from starlette.requests import Request
 
 from src.senda.api.core.database import get_db
+from src.senda.api.core.auth import get_current_user_id
 from src.senda.api.services.auth_service import AuthenticationService
+from src.senda.api.repositories.user import UserRepository
 from src.senda.api.schemas.auth import LoginRequest, LoginResponse
+from src.senda.api.schemas.user import UserPublic
 
 # Rate limiting setup
 limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
-# Add rate limit exception handler
-router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
 
 def get_auth_service(db: Session = Depends(get_db)) -> AuthenticationService:
     return AuthenticationService(db)
+
+
+def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
+    return UserRepository(db)
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -90,4 +93,52 @@ async def login_json(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during authentication",
+        )
+
+
+@router.get("/me", response_model=UserPublic)
+async def get_current_user(
+    current_user_id: str = Depends(get_current_user_id),
+    user_repo: UserRepository = Depends(get_user_repository),
+):
+    """
+    Get Current User & Verify Session
+
+    Validate JWT and return current admin user data.
+    Requires JWT in Authorization: Bearer <token> header.
+    """
+    try:
+        user = user_repo.get_user_by_id(current_user_id)
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        if not user_repo.is_admin_user(user):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Admin privileges required",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        return UserPublic(
+            id=user.id,
+            email=user.email,
+            username=user.username,
+            name=user.name,
+            role=user.role,
+            last_login=user.last_login,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        )
+
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during user verification",
         )
