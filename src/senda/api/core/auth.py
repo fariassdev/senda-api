@@ -11,7 +11,8 @@ from typing import Optional
 from passlib.context import CryptContext
 import jwt
 from jwt.exceptions import InvalidTokenError
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -124,3 +125,44 @@ def verify_token(token: str, expected_type: str = "access") -> dict:
 
     except InvalidTokenError:
         raise credentials_exception
+
+
+# OAuth2 scheme for extracting bearer tokens
+oauth2_scheme = HTTPBearer(auto_error=False)
+
+
+def get_current_user_id(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(oauth2_scheme),
+) -> str:
+    """
+    Extract and validate current user ID from JWT token.
+
+    Args:
+        credentials: HTTP authorization credentials from request header
+
+    Returns:
+        User ID from token
+
+    Raises:
+        HTTPException: If token is invalid, expired, or missing
+    """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header missing",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Verify the token and extract payload
+    payload = verify_token(credentials.credentials, expected_type="access")
+
+    # Extract user ID from token
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token: missing user ID",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user_id
