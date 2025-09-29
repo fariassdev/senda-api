@@ -34,6 +34,21 @@ class AuthenticationService:
         self.db = db
         self.user_repo = UserRepository(db)
 
+    def _safely_revoke_refresh_token(self, stored_token, reason: str) -> None:
+        """
+        Safely revoke a refresh token with error handling and logging.
+
+        Args:
+            stored_token: The RefreshToken instance to revoke
+            reason: Reason for revocation (for logging)
+        """
+        if stored_token:
+            try:
+                self.user_repo.revoke_refresh_token(stored_token)
+                logger.info(f"Refresh token revoked due to {reason}")
+            except Exception as revoke_error:
+                logger.error(f"Failed to revoke token during {reason}: {revoke_error}")
+
     def authenticate_user(
         self, email_or_username: str, password: str
     ) -> Tuple[bool, Optional[User], str]:
@@ -225,28 +240,13 @@ class AuthenticationService:
 
         except HTTPException:
             # Re-raise HTTP exceptions, but ensure token is revoked if we found it
-            if stored_token:
-                try:
-                    self.user_repo.revoke_refresh_token(stored_token)
-                    logger.info("Refresh token revoked due to failed refresh attempt")
-                except Exception as revoke_error:
-                    logger.error(
-                        f"Failed to revoke token during error handling: {revoke_error}"
-                    )
+            self._safely_revoke_refresh_token(stored_token, "failed refresh attempt")
             raise
         except Exception as e:
-            # Handle any other token verification errors
             logger.error(f"Unexpected error during token refresh: {str(e)}")
 
             # Revoke the token if we found it to prevent replay attacks
-            if stored_token:
-                try:
-                    self.user_repo.revoke_refresh_token(stored_token)
-                    logger.info("Refresh token revoked due to unexpected error")
-                except Exception as revoke_error:
-                    logger.error(
-                        f"Failed to revoke token during error handling: {revoke_error}"
-                    )
+            self._safely_revoke_refresh_token(stored_token, "unexpected error")
 
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
