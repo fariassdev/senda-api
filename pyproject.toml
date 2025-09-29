@@ -22,7 +22,7 @@ dependencies = [
     
     # Authentication dependencies
     "PyJWT==2.10.1",
-    "passlib[bcrypt]==1.7.4",
+    "bcrypt==5.0.0",
     "python-multipart==0.0.20",
     "slowapi==0.1.9"
 ]
