@@ -7,7 +7,7 @@ from src.senda.api.schemas.user import UserPublic
 class LoginRequest(BaseModel):
     """Schema for login requests."""
 
-    email_or_username: str = Field(..., description="Email address or username")
+    username: str = Field(..., description="Email address or username")
     password: str
 
 
