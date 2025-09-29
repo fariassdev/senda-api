@@ -15,6 +15,7 @@ class LoginResponse(BaseModel):
     """Schema for successful login responses."""
 
     access_token: str
+    refresh_token: str
     token_type: Literal["bearer"] = "bearer"
     expires_in: int  # seconds
     user: UserPublic
@@ -30,5 +31,6 @@ class TokenResponse(BaseModel):
     """Schema for token refresh responses."""
 
     access_token: str
+    refresh_token: str
     token_type: Literal["bearer"] = "bearer"
     expires_in: int  # seconds

@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 import bcrypt
 import jwt
+import hashlib
 from jwt.exceptions import InvalidTokenError
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -42,6 +43,19 @@ def get_password_hash(password: str) -> str:
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
     return hashed.decode("utf-8")
+
+
+def hash_refresh_token(token: str) -> str:
+    """
+    Hash a refresh token for secure storage.
+
+    Args:
+        token: The refresh token to hash
+
+    Returns:
+        SHA-256 hash of the token
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

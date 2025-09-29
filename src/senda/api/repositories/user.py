@@ -11,7 +11,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from src.senda.api.models.user import User, UserRole
-from src.senda.api.core.auth import MAX_LOGIN_ATTEMPTS, ACCOUNT_LOCKOUT_DURATION_MINUTES
+from src.senda.api.models.refresh_token import RefreshToken
+from src.senda.api.core.auth import (
+    MAX_LOGIN_ATTEMPTS,
+    ACCOUNT_LOCKOUT_DURATION_MINUTES,
+    REFRESH_TOKEN_EXPIRE_DAYS,
+)
 
 
 class UserRepository:
@@ -105,3 +110,82 @@ class UserRepository:
             True if user is admin, False otherwise
         """
         return user.role == UserRole.ADMIN
+
+    def store_refresh_token(self, user: User, token_hash: str) -> RefreshToken:
+        """
+        Store a refresh token for a user.
+
+        Args:
+            user: User instance
+            token_hash: Hashed refresh token
+
+        Returns:
+            Created RefreshToken instance
+        """
+        # Clean up any expired tokens for this user
+        self.cleanup_expired_refresh_tokens(user)
+
+        # Create new refresh token
+        refresh_token = RefreshToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        )
+
+        self.db.add(refresh_token)
+        self.db.commit()
+        self.db.refresh(refresh_token)
+
+        return refresh_token
+
+    def get_refresh_token_by_hash(self, token_hash: str) -> Optional[RefreshToken]:
+        """
+        Get refresh token by its hash.
+
+        Args:
+            token_hash: Hashed refresh token
+
+        Returns:
+            RefreshToken instance if found and valid, None otherwise
+        """
+        return (
+            self.db.query(RefreshToken)
+            .filter(
+                RefreshToken.token_hash == token_hash,
+                RefreshToken.is_revoked.is_(False),
+                RefreshToken.expires_at > datetime.now(timezone.utc),
+            )
+            .first()
+        )
+
+    def revoke_refresh_token(self, refresh_token: RefreshToken) -> None:
+        """
+        Revoke a refresh token.
+
+        Args:
+            refresh_token: RefreshToken instance to revoke
+        """
+        refresh_token.revoke()
+        self.db.commit()
+
+    def cleanup_expired_refresh_tokens(self, user: User) -> None:
+        """
+        Clean up expired refresh tokens for a user.
+
+        Args:
+            user: User instance
+        """
+        expired_tokens = (
+            self.db.query(RefreshToken)
+            .filter(
+                RefreshToken.user_id == user.id,
+                RefreshToken.expires_at <= datetime.now(timezone.utc),
+            )
+            .all()
+        )
+
+        for token in expired_tokens:
+            self.db.delete(token)
+
+        self.db.commit()

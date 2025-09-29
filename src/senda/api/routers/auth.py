@@ -5,6 +5,7 @@ This module provides the REST API endpoints for authentication operations
 including login, token refresh, and user session management.
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -16,8 +17,15 @@ from src.senda.api.core.database import get_db
 from src.senda.api.core.auth import get_current_user_id
 from src.senda.api.services.auth_service import AuthenticationService
 from src.senda.api.repositories.user import UserRepository
-from src.senda.api.schemas.auth import LoginRequest, LoginResponse
+from src.senda.api.schemas.auth import (
+    LoginRequest,
+    LoginResponse,
+    RefreshTokenRequest,
+    TokenResponse,
+)
 from src.senda.api.schemas.user import UserPublic
+
+logger = logging.getLogger(__name__)
 
 # Rate limiting setup
 limiter = Limiter(key_func=get_remote_address)
@@ -141,4 +149,41 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during user verification",
+        )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("10/minute")  # Rate limit: 10 refresh attempts per minute per IP
+async def refresh_token(
+    request: Request,
+    token_data: RefreshTokenRequest,
+    auth_service: AuthenticationService = Depends(get_auth_service),
+):
+    """
+    Refresh Access Token
+
+    Refresh JWT access token using a valid refresh token.
+    Accepts refresh_token in request body and returns new access token.
+    """
+    client_ip = get_remote_address(request)
+    logger.info(f"Token refresh attempt from IP: {client_ip}")
+
+    try:
+        token_response = auth_service.refresh_access_token(
+            refresh_token=token_data.refresh_token
+        )
+
+        logger.info(f"Token refresh successful from IP: {client_ip}")
+        return token_response
+
+    except HTTPException as e:
+        logger.warning(f"Token refresh failed from IP {client_ip}: {e.detail}")
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error during token refresh from IP {client_ip}: {str(e)}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during token refresh",
         )
