@@ -88,7 +88,7 @@ async def login_json(
     """
     try:
         login_response = auth_service.login(
-            email_or_username=login_data.email_or_username, password=login_data.password
+            email_or_username=login_data.username, password=login_data.password
         )
 
         return login_response
