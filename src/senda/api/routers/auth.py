@@ -8,9 +8,8 @@ including login, token refresh, and user session management.
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from starlette.requests import Request
 
 from src.senda.api.core.database import get_db
@@ -21,9 +20,6 @@ from src.senda.api.schemas.auth import LoginRequest, LoginResponse
 limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
-
-# Add rate limit exception handler
-router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 def get_auth_service(db: Session = Depends(get_db)) -> AuthenticationService:
