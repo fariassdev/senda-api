@@ -5,6 +5,7 @@ This module provides the REST API endpoints for authentication operations
 including login, token refresh, and user session management.
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -23,6 +24,8 @@ from src.senda.api.schemas.auth import (
     TokenResponse,
 )
 from src.senda.api.schemas.user import UserPublic
+
+logger = logging.getLogger(__name__)
 
 # Rate limiting setup
 limiter = Limiter(key_func=get_remote_address)
@@ -162,18 +165,24 @@ async def refresh_token(
     Refresh JWT access token using a valid refresh token.
     Accepts refresh_token in request body and returns new access token.
     """
+    client_ip = get_remote_address(request)
+    logger.info(f"Token refresh attempt from IP: {client_ip}")
+
     try:
         token_response = auth_service.refresh_access_token(
             refresh_token=token_data.refresh_token
         )
 
+        logger.info(f"Token refresh successful from IP: {client_ip}")
         return token_response
 
-    except HTTPException:
-        # Re-raise HTTP exceptions from the service
+    except HTTPException as e:
+        logger.warning(f"Token refresh failed from IP {client_ip}: {e.detail}")
         raise
-    except Exception:
-        # Handle unexpected errors
+    except Exception as e:
+        logger.error(
+            f"Unexpected error during token refresh from IP {client_ip}: {str(e)}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during token refresh",

@@ -5,6 +5,7 @@ This module provides the business logic layer for authentication operations
 including login validation, token generation, and security checks.
 """
 
+import logging
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
@@ -21,6 +22,9 @@ from src.senda.api.core.auth import (
 )
 from src.senda.api.schemas.auth import LoginResponse, TokenResponse
 from src.senda.api.schemas.user import UserPublic
+
+
+logger = logging.getLogger(__name__)
 
 
 class AuthenticationService:
@@ -149,6 +153,7 @@ class AuthenticationService:
             user_id = payload.get("sub")
 
             if not user_id:
+                logger.warning("Refresh token attempt with missing user ID")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid refresh token: missing user ID",
@@ -160,6 +165,9 @@ class AuthenticationService:
             # Check if the refresh token exists in the database and is valid
             stored_token = self.user_repo.get_refresh_token_by_hash(token_hash)
             if not stored_token:
+                logger.warning(
+                    f"Invalid or expired refresh token used for user {user_id}"
+                )
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid or expired refresh token",
@@ -168,6 +176,7 @@ class AuthenticationService:
             # Get the user
             user = self.user_repo.get_user_by_id(user_id)
             if not user:
+                logger.warning(f"Refresh token used for non-existent user {user_id}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="User not found",
@@ -175,15 +184,24 @@ class AuthenticationService:
 
             # Verify user is still admin
             if not self.user_repo.is_admin_user(user):
+                logger.warning(
+                    f"Non-admin user {user_id} ({user.email}) attempted to refresh token"
+                )
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Admin privileges required",
                 )
 
+            logger.info(f"Access token refreshed for user {user_id} ({user.email})")
+
             # Create new access token
             access_token = create_access_token(
                 data={"sub": str(user.id), "username": user.username, "role": user.role}
             )
+
+            # Note: Token rotation (revoking used refresh token) could be implemented
+            # here for enhanced security, but it would require returning a new refresh token
+            # which is not specified in the current acceptance criteria
 
             return TokenResponse(
                 access_token=access_token,
@@ -192,10 +210,9 @@ class AuthenticationService:
             )
 
         except HTTPException:
-            # Re-raise HTTP exceptions
             raise
-        except Exception:
-            # Handle any other token verification errors
+        except Exception as e:
+            logger.error(f"Unexpected error during token refresh: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired refresh token",
