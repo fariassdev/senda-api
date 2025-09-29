@@ -136,17 +136,21 @@ class AuthenticationService:
 
     def refresh_access_token(self, refresh_token: str) -> TokenResponse:
         """
-        Refresh access token using a valid refresh token.
+        Refresh access token using a valid refresh token with token rotation.
+
+        Implements secure token rotation: the provided refresh token is revoked
+        and a new refresh token is issued along with the new access token.
 
         Args:
             refresh_token: The refresh token
 
         Returns:
-            TokenResponse with new access token
+            TokenResponse with new access token and new refresh token
 
         Raises:
             HTTPException: If refresh token is invalid or expired
         """
+        stored_token = None
         try:
             # Verify the refresh token JWT
             payload = verify_token(refresh_token, expected_type="refresh")
@@ -194,25 +198,56 @@ class AuthenticationService:
 
             logger.info(f"Access token refreshed for user {user_id} ({user.email})")
 
+            # SECURITY: Implement token rotation for enhanced security
+            # Revoke the used refresh token immediately to prevent replay attacks
+            self.user_repo.revoke_refresh_token(stored_token)
+
             # Create new access token
             access_token = create_access_token(
                 data={"sub": str(user.id), "username": user.username, "role": user.role}
             )
 
-            # Note: Token rotation (revoking used refresh token) could be implemented
-            # here for enhanced security, but it would require returning a new refresh token
-            # which is not specified in the current acceptance criteria
+            # Create new refresh token for rotation
+            new_refresh_token = create_refresh_token(
+                data={"sub": str(user.id), "username": user.username}
+            )
+
+            # Store new refresh token hash in database
+            new_refresh_token_hash = hash_refresh_token(new_refresh_token)
+            self.user_repo.store_refresh_token(user, new_refresh_token_hash)
 
             return TokenResponse(
                 access_token=access_token,
+                refresh_token=new_refresh_token,
                 token_type="bearer",
                 expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
             )
 
         except HTTPException:
+            # Re-raise HTTP exceptions, but ensure token is revoked if we found it
+            if stored_token:
+                try:
+                    self.user_repo.revoke_refresh_token(stored_token)
+                    logger.info("Refresh token revoked due to failed refresh attempt")
+                except Exception as revoke_error:
+                    logger.error(
+                        f"Failed to revoke token during error handling: {revoke_error}"
+                    )
             raise
         except Exception as e:
+            # Handle any other token verification errors
             logger.error(f"Unexpected error during token refresh: {str(e)}")
+
+            # Revoke the token if we found it to prevent replay attacks
+            if stored_token:
+                try:
+                    self.user_repo.revoke_refresh_token(stored_token)
+                    logger.info("Refresh token revoked due to unexpected error")
+                except Exception as revoke_error:
+                    logger.error(
+                        f"Failed to revoke token during error handling: {revoke_error}"
+                    )
+
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired refresh token",
