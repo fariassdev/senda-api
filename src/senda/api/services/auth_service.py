@@ -14,6 +14,7 @@ from src.senda.api.repositories.user import UserRepository
 from src.senda.api.core.auth import (
     verify_password,
     create_access_token,
+    create_refresh_token,
     verify_token,
     hash_refresh_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -100,6 +101,15 @@ class AuthenticationService:
             data={"sub": str(user.id), "username": user.username, "role": user.role}
         )
 
+        # Create refresh token
+        refresh_token = create_refresh_token(
+            data={"sub": str(user.id), "username": user.username}
+        )
+
+        # Store refresh token hash in database
+        refresh_token_hash = hash_refresh_token(refresh_token)
+        self.user_repo.store_refresh_token(user, refresh_token_hash)
+
         # Convert user to public schema
         user_public = UserPublic(
             id=user.id,
@@ -114,6 +124,7 @@ class AuthenticationService:
 
         return LoginResponse(
             access_token=access_token,
+            refresh_token=refresh_token,
             token_type="bearer",
             expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
             user=user_public,
