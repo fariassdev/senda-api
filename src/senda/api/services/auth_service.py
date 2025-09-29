@@ -14,9 +14,11 @@ from src.senda.api.repositories.user import UserRepository
 from src.senda.api.core.auth import (
     verify_password,
     create_access_token,
+    verify_token,
+    hash_refresh_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
 )
-from src.senda.api.schemas.auth import LoginResponse
+from src.senda.api.schemas.auth import LoginResponse, TokenResponse
 from src.senda.api.schemas.user import UserPublic
 
 
@@ -116,3 +118,74 @@ class AuthenticationService:
             expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
             user=user_public,
         )
+
+    def refresh_access_token(self, refresh_token: str) -> TokenResponse:
+        """
+        Refresh access token using a valid refresh token.
+
+        Args:
+            refresh_token: The refresh token
+
+        Returns:
+            TokenResponse with new access token
+
+        Raises:
+            HTTPException: If refresh token is invalid or expired
+        """
+        try:
+            # Verify the refresh token JWT
+            payload = verify_token(refresh_token, expected_type="refresh")
+            user_id = payload.get("sub")
+
+            if not user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid refresh token: missing user ID",
+                )
+
+            # Hash the token to look it up in the database
+            token_hash = hash_refresh_token(refresh_token)
+
+            # Check if the refresh token exists in the database and is valid
+            stored_token = self.user_repo.get_refresh_token_by_hash(token_hash)
+            if not stored_token:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or expired refresh token",
+                )
+
+            # Get the user
+            user = self.user_repo.get_user_by_id(user_id)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User not found",
+                )
+
+            # Verify user is still admin
+            if not self.user_repo.is_admin_user(user):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Admin privileges required",
+                )
+
+            # Create new access token
+            access_token = create_access_token(
+                data={"sub": str(user.id), "username": user.username, "role": user.role}
+            )
+
+            return TokenResponse(
+                access_token=access_token,
+                token_type="bearer",
+                expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
+            )
+
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception:
+            # Handle any other token verification errors
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired refresh token",
+            )

@@ -16,7 +16,12 @@ from src.senda.api.core.database import get_db
 from src.senda.api.core.auth import get_current_user_id
 from src.senda.api.services.auth_service import AuthenticationService
 from src.senda.api.repositories.user import UserRepository
-from src.senda.api.schemas.auth import LoginRequest, LoginResponse
+from src.senda.api.schemas.auth import (
+    LoginRequest,
+    LoginResponse,
+    RefreshTokenRequest,
+    TokenResponse,
+)
 from src.senda.api.schemas.user import UserPublic
 
 # Rate limiting setup
@@ -141,4 +146,35 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during user verification",
+        )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("10/minute")  # Rate limit: 10 refresh attempts per minute per IP
+async def refresh_token(
+    request: Request,
+    token_data: RefreshTokenRequest,
+    auth_service: AuthenticationService = Depends(get_auth_service),
+):
+    """
+    Refresh Access Token
+
+    Refresh JWT access token using a valid refresh token.
+    Accepts refresh_token in request body and returns new access token.
+    """
+    try:
+        token_response = auth_service.refresh_access_token(
+            refresh_token=token_data.refresh_token
+        )
+
+        return token_response
+
+    except HTTPException:
+        # Re-raise HTTP exceptions from the service
+        raise
+    except Exception:
+        # Handle unexpected errors
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during token refresh",
         )
