@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
-from datetime import datetime, timezone
 
 from src.senda.api.core.database import get_db
 from src.senda.api.repositories.course import CourseRepository
 from src.senda.api.repositories.lesson import LessonRepository
+from src.senda.api.repositories.audio import AudioRepository
 from src.senda.api.models.lesson import LessonStatus
 from src.senda.api.services.lesson_service import LessonService
 from src.senda.api.services.audio_service import AudioService
@@ -14,6 +14,7 @@ from src.senda.api.services.lesson_script_writer import (
     LessonScriptWriter,
     GeminiLessonScriptWriter,
 )
+from src.senda.api.schemas.audio import Audio as AudioSchema
 
 router = APIRouter(
     prefix="/lessons",
@@ -27,6 +28,10 @@ def get_course_repository(db: Session = Depends(get_db)) -> CourseRepository:
 
 def get_lesson_repository(db: Session = Depends(get_db)) -> LessonRepository:
     return LessonRepository(db)
+
+
+def get_audio_repository(db: Session = Depends(get_db)) -> AudioRepository:
+    return AudioRepository(db)
 
 
 def get_lesson_script_writer() -> LessonScriptWriter:
@@ -58,6 +63,7 @@ _generating_lessons = set()
 async def _generate_audio_task(
     lesson_id: UUID,
     lesson_repo: LessonRepository,
+    audio_repo: AudioRepository,
     audio_service: AudioService,
 ):
     lesson = lesson_repo.get_lesson(lesson_id)
@@ -69,13 +75,20 @@ async def _generate_audio_task(
     lesson_repo.update_lesson(lesson)
 
     try:
-        audio_url = audio_service.generate_and_upload_lesson_audio(lesson)
-        if audio_url:
-            lesson.audio_url = audio_url
+        audio_url, metrics = audio_service.generate_and_upload_lesson_audio(lesson)
+        if audio_url and metrics:
+            # Create audio record with metrics
+            audio_data = {
+                "lesson_id": lesson.id,
+                "url": audio_url,
+                **metrics,
+            }
+            audio_repo.create_audio(audio_data)
+
             lesson.status = LessonStatus.AUDIO_COMPLETED
-            lesson.audio_generated_at = datetime.now(timezone.utc)
             lesson_repo.update_lesson(lesson)
             print(f"Audio generated successfully for lesson {lesson_id}")
+            print(f"  Quality metrics: {metrics}")
         else:
             lesson.status = LessonStatus.AUDIO_FAILED
             lesson_repo.update_lesson(lesson)
@@ -104,10 +117,11 @@ async def generate_lesson_audio(
     lesson_id: UUID,
     background_tasks: BackgroundTasks,
     lesson_repo: LessonRepository = Depends(get_lesson_repository),
+    audio_repo: AudioRepository = Depends(get_audio_repository),
     audio_service: AudioService = Depends(get_audio_service),
 ):
     background_tasks.add_task(
-        _generate_audio_task, lesson_id, lesson_repo, audio_service
+        _generate_audio_task, lesson_id, lesson_repo, audio_repo, audio_service
     )
     return {"message": "Audio generation for lesson started in background"}
 
@@ -126,3 +140,15 @@ async def generate_lesson_script(
     _generating_lessons.add((lesson_id))
     background_tasks.add_task(_generate_lesson_task, lesson_id, lesson_service)
     return {"message": "Script generation for lesson started in background"}
+
+
+@router.get("/{lesson_id}/audio", response_model=AudioSchema)
+async def get_lesson_audio_metrics(
+    lesson_id: UUID,
+    audio_repo: AudioRepository = Depends(get_audio_repository),
+):
+    """Get audio quality metrics for a lesson"""
+    audio = audio_repo.get_audio_by_lesson_id(lesson_id)
+    if not audio:
+        raise HTTPException(status_code=404, detail="Audio not found for this lesson")
+    return audio

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 from typing import Optional
 from enum import Enum
 from uuid import UUID
@@ -40,9 +40,7 @@ class Lesson(LessonBase):
     id: UUID
     status: LessonStatus = LessonStatus.PENDING
     script: Optional[list[ScriptPart]] = None
-    audio_url: Optional[HttpUrl] = Field(None, alias="audioUrl")
     script_generated_at: Optional[datetime] = Field(None, alias="scriptGeneratedAt")
-    audio_generated_at: Optional[datetime] = Field(None, alias="audioGeneratedAt")
     created_at: Optional[datetime] = Field(None, alias="createdAt")
     updated_at: Optional[datetime] = Field(None, alias="updatedAt")
 

@@ -5,6 +5,7 @@ from uuid import UUID
 from src.senda.api.core.database import get_db
 from src.senda.api.repositories.lesson import LessonRepository
 from src.senda.api.repositories.course import CourseRepository
+from src.senda.api.repositories.audio import AudioRepository
 from src.senda.api.models.lesson import LessonStatus
 from src.senda.api.schemas.course import CourseCreatePrompt, CourseUpdate, Course
 from src.senda.api.services.audio_service import AudioService
@@ -31,6 +32,10 @@ def get_course_repository(db: Session = Depends(get_db)) -> CourseRepository:
 
 def get_lesson_repository(db: Session = Depends(get_db)) -> LessonRepository:
     return LessonRepository(db)
+
+
+def get_audio_repository(db: Session = Depends(get_db)) -> AudioRepository:
+    return AudioRepository(db)
 
 
 def get_course_architect() -> CourseArchitect:
@@ -155,6 +160,7 @@ async def generate_all_lessons_scripts(
 async def _generate_course_audios_task(
     course_id: UUID,
     audio_service: AudioService,
+    audio_repository: AudioRepository,
     course_repository: CourseRepository = Depends(get_course_repository),
 ):
     lessons = course_repository.get_lessons_by_course_id(course_id)
@@ -168,12 +174,22 @@ async def _generate_course_audios_task(
             lesson.status = LessonStatus.AUDIO_GENERATING
             course_repository.update_lesson(lesson)
             try:
-                audio_url = audio_service.generate_and_upload_lesson_audio(lesson)
-                if audio_url:
-                    lesson.audio_url = audio_url
+                audio_url, metrics = audio_service.generate_and_upload_lesson_audio(
+                    lesson
+                )
+                if audio_url and metrics:
+                    # Create audio record with metrics
+                    audio_data = {
+                        "lesson_id": lesson.id,
+                        "url": audio_url,
+                        **metrics,
+                    }
+                    audio_repository.create_audio(audio_data)
+
                     lesson.status = LessonStatus.AUDIO_COMPLETED
                     course_repository.update_lesson(lesson)
                     print(f"Audio generated for lesson {lesson.id}")
+                    print(f"  Quality metrics: {metrics}")
                 else:
                     lesson.status = LessonStatus.AUDIO_FAILED
                     course_repository.update_lesson(lesson)
@@ -191,6 +207,9 @@ async def generate_course_audios(
     course_id: UUID,
     background_tasks: BackgroundTasks,
     audio_service: AudioService = Depends(get_audio_service),
+    audio_repository: AudioRepository = Depends(get_audio_repository),
 ):
-    background_tasks.add_task(_generate_course_audios_task, course_id, audio_service)
+    background_tasks.add_task(
+        _generate_course_audios_task, course_id, audio_service, audio_repository
+    )
     return {"message": "Audio generation for course started in background"}
