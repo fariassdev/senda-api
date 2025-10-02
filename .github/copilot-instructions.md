@@ -70,7 +70,7 @@ uvicorn src.senda.api.main:app --reload --log-level debug
 
 ### 4. Database Migrations
 ```powershell
-# Generate migration and then modify the generated file
+# Generate an empty migration template. Then you MUST modify the generated file to add the desired changes.
 alembic revision -m "description"
 
 # Apply migrations
