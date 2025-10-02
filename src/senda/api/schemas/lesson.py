@@ -36,6 +36,17 @@ class LessonCreate(LessonBase):
     pass
 
 
+class LessonUpdate(BaseModel):
+    title: Optional[str] = None
+    core_practice: Optional[str] = Field(None, alias="corePractice")
+    key_point: Optional[str] = Field(None, alias="keyPoint")
+    tone: Optional[str] = None
+    duration_minutes: Optional[int] = Field(None, alias="durationMinutes")
+
+    class Config:
+        populate_by_name = True
+
+
 class Lesson(LessonBase):
     id: UUID
     status: LessonStatus = LessonStatus.PENDING
@@ -43,6 +54,7 @@ class Lesson(LessonBase):
     audio_url: Optional[HttpUrl] = Field(None, alias="audioUrl")
     script_generated_at: Optional[datetime] = Field(None, alias="scriptGeneratedAt")
     audio_generated_at: Optional[datetime] = Field(None, alias="audioGeneratedAt")
+    needs_regeneration: bool = Field(..., alias="needsRegeneration")
     created_at: Optional[datetime] = Field(None, alias="createdAt")
     updated_at: Optional[datetime] = Field(None, alias="updatedAt")
 

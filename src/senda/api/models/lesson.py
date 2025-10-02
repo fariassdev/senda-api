@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, Integer, DateTime
+from sqlalchemy import Column, String, ForeignKey, Integer, DateTime, Boolean
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from src.senda.api.core.database import Base
@@ -35,6 +35,7 @@ class Lesson(Base):
     audio_url = Column(String, nullable=True)
     script_generated_at = Column(DateTime(timezone=True), nullable=True)
     audio_generated_at = Column(DateTime(timezone=True), nullable=True)
+    needs_regeneration = Column(Boolean, default=False)
 
     course = relationship("Course", back_populates="lessons")
     created_at = Column(DateTime(timezone=True), server_default=func.now())

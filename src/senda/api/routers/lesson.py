@@ -7,6 +7,7 @@ from src.senda.api.core.database import get_db
 from src.senda.api.repositories.course import CourseRepository
 from src.senda.api.repositories.lesson import LessonRepository
 from src.senda.api.models.lesson import LessonStatus
+from src.senda.api.schemas.lesson import LessonUpdate, Lesson
 from src.senda.api.services.lesson_service import LessonService
 from src.senda.api.services.audio_service import AudioService
 from src.senda.api.services.s3_service import S3Service
@@ -126,3 +127,30 @@ async def generate_lesson_script(
     _generating_lessons.add((lesson_id))
     background_tasks.add_task(_generate_lesson_task, lesson_id, lesson_service)
     return {"message": "Script generation for lesson started in background"}
+
+
+@router.patch("/{lesson_id}", response_model=Lesson)
+def update_lesson(
+    lesson_id: UUID,
+    lesson_update: LessonUpdate,
+    lesson_repo: LessonRepository = Depends(get_lesson_repository),
+):
+    lesson = lesson_repo.get_lesson(lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    # Check if lesson is currently being generated
+    if lesson.status in [LessonStatus.SCRIPT_GENERATING, LessonStatus.AUDIO_GENERATING]:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot update lesson while generation is in progress",
+        )
+
+    return lesson_repo.update_lesson_metadata(
+        lesson,
+        title=lesson_update.title,
+        core_practice=lesson_update.core_practice,
+        key_point=lesson_update.key_point,
+        tone=lesson_update.tone,
+        duration_minutes=lesson_update.duration_minutes,
+    )
