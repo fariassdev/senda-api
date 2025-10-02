@@ -1,4 +1,5 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, joinedload
 from uuid import UUID
 from src.senda.api.schemas.course import CourseCreate, CourseUpdate
 from src.senda.api.models.course import Course
@@ -10,7 +11,12 @@ class CourseRepository:
         self.db = db
 
     def get_course(self, course_id: UUID):
-        return self.db.query(Course).filter(Course.id == course_id).first()
+        query = (
+            select(Course)
+            .options(joinedload(Course.lessons))
+            .filter(Course.id == course_id)
+        )
+        return self.db.scalar(query)
 
     def get_courses(self, skip: int = 0, limit: int = 10):
         return self.db.query(Course).offset(skip).limit(limit).all()

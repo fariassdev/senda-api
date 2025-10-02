@@ -31,10 +31,13 @@ class LessonService:
         if not course:
             raise ValueError(f"Course with ID {lesson.course_id} not found")
 
+        # Get total lessons count for the course
+        total_lessons = len(course.lessons)
+
         course_context = {
             "name": course.title,
             "description": course.description,
-            "totalLessons": course.total_lessons,
+            "totalLessons": total_lessons,
         }
         lesson_details = {
             "lessonNumber": lesson.lesson_number,
