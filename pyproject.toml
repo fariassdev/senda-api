@@ -1,3 +1,15 @@
+[tool.pytest.ini_options]
+addopts = "-ra -q"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+branch = true
+source = ["src/senda/api"]
+
+[tool.coverage.report]
+omit = ["*/__init__.py"]
 [project]
 name = "senda"
 version = "0.1.0"
@@ -39,4 +51,7 @@ where = ["src"]
 dev = [
     "pre-commit==4.2.0",
     "ruff==0.12.7",
+    "pytest==8.4.2",
+    "httpx==0.28.1",
+    "coverage==7.10.7",
 ]

@@ -16,8 +16,7 @@ class ScriptPart(BaseModel):
     content: Optional[str] = None
     duration: Optional[float] = None
 
-    class Config:
-        use_enum_values = True
+    model_config = dict(use_enum_values=True)
 
 
 class LessonBase(BaseModel):
@@ -28,8 +27,7 @@ class LessonBase(BaseModel):
     key_point: str = Field(..., alias="keyPoint")
     tone: str
 
-    class Config:
-        populate_by_name = True
+    model_config = dict(populate_by_name=True)
 
 
 class LessonCreate(LessonBase):
@@ -46,6 +44,4 @@ class Lesson(LessonBase):
     created_at: Optional[datetime] = Field(None, alias="createdAt")
     updated_at: Optional[datetime] = Field(None, alias="updatedAt")
 
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    model_config = dict(from_attributes=True, populate_by_name=True)
