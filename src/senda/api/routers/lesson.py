@@ -5,7 +5,7 @@ from uuid import UUID
 from src.senda.api.core.database import get_db
 from src.senda.api.repositories.course import CourseRepository
 from src.senda.api.repositories.lesson import LessonRepository
-from src.senda.api.services.lesson_service import LessonService
+from src.senda.api.services.lesson_script_service import LessonScriptService
 from src.senda.api.services.audio_service import AudioService
 from src.senda.api.services.s3_service import S3Service
 from src.senda.api.services.lesson_script_writer import (
@@ -36,9 +36,9 @@ def get_lesson_service(
     script_writer: LessonScriptWriter = Depends(get_lesson_script_writer),
     course_repository: CourseRepository = Depends(get_course_repository),
     lesson_repository: LessonRepository = Depends(get_lesson_repository),
-) -> LessonService:
-    """Dependency provider for the LessonService."""
-    return LessonService(script_writer, course_repository, lesson_repository)
+) -> LessonScriptService:
+    """Dependency provider for the LessonScriptService."""
+    return LessonScriptService(script_writer, course_repository, lesson_repository)
 
 
 def get_s3_service() -> S3Service:
@@ -72,7 +72,7 @@ async def _generate_audio_task(
 
 async def _generate_lesson_task(
     lesson_id: UUID,
-    lesson_service: LessonService,
+    lesson_service: LessonScriptService,
 ):
     """Background task for generating lesson script."""
     try:
@@ -98,7 +98,7 @@ async def generate_lesson_audio(
 async def generate_lesson_script(
     lesson_id: UUID,
     background_tasks: BackgroundTasks,
-    lesson_service: LessonService = Depends(get_lesson_service),
+    lesson_service: LessonScriptService = Depends(get_lesson_service),
 ):
     if (lesson_id) in _generating_lessons:
         raise HTTPException(

@@ -8,7 +8,7 @@ from src.senda.api.services.lesson_script_writer.lesson_script_writer import (
 from src.senda.api.services.event_publisher import EventPublisher
 
 
-class LessonService:
+class LessonScriptService:
     def __init__(
         self,
         script_writer: LessonScriptWriter,

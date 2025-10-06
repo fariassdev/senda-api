@@ -15,7 +15,7 @@ from src.senda.api.services.lesson_script_writer import (
     LessonScriptWriter,
     GeminiLessonScriptWriter,
 )
-from src.senda.api.services.lesson_service import LessonService
+from src.senda.api.services.lesson_script_service import LessonScriptService
 from src.senda.api.services.s3_service import S3Service
 
 router = APIRouter(
@@ -46,9 +46,9 @@ def get_lesson_service(
     script_writer: LessonScriptWriter = Depends(get_lesson_script_writer),
     course_repository: CourseRepository = Depends(get_course_repository),
     lesson_repository: LessonRepository = Depends(get_lesson_repository),
-) -> LessonService:
-    """Dependency provider for the LessonService."""
-    return LessonService(script_writer, course_repository, lesson_repository)
+) -> LessonScriptService:
+    """Dependency provider for the LessonScriptService."""
+    return LessonScriptService(script_writer, course_repository, lesson_repository)
 
 
 def get_s3_service() -> S3Service:
@@ -126,7 +126,9 @@ def update_course(
     return course_repository.update_course(db_course, course_update)
 
 
-async def _generate_all_lessons_task(course_id: UUID, lesson_service: LessonService):
+async def _generate_all_lessons_task(
+    course_id: UUID, lesson_service: LessonScriptService
+):
     """Background task for generating all lesson scripts in a course."""
     try:
         lesson_service.generate_and_save_all_lesson_scripts(course_id)
@@ -138,7 +140,7 @@ async def _generate_all_lessons_task(course_id: UUID, lesson_service: LessonServ
 async def generate_all_lessons_scripts(
     course_id: UUID,
     background_tasks: BackgroundTasks,
-    lesson_service: LessonService = Depends(get_lesson_service),
+    lesson_service: LessonScriptService = Depends(get_lesson_service),
 ):
     if course_id in _generating_courses:
         raise HTTPException(
