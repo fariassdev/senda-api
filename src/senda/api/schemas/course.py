@@ -10,8 +10,7 @@ class CourseBase(BaseModel):
     description: str
     tags: list[str]
 
-    class Config:
-        populate_by_name = True
+    model_config = dict(populate_by_name=True)
 
 
 class CourseCreate(CourseBase):
@@ -27,9 +26,7 @@ class Course(CourseBase):
     created_at: Optional[datetime] = Field(None, alias="createdAt")
     updated_at: Optional[datetime] = Field(None, alias="updatedAt")
 
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    model_config = dict(from_attributes=True, populate_by_name=True)
 
 
 class CourseCreatePrompt(BaseModel):
@@ -44,5 +41,4 @@ class CourseUpdate(BaseModel):
     author: Optional[str] = None
     image_placeholder_url: Optional[HttpUrl] = Field(None, alias="imagePlaceholderUrl")
 
-    class Config:
-        populate_by_name = True
+    model_config = dict(populate_by_name=True)
