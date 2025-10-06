@@ -1,12 +1,16 @@
 import io
 import tempfile
 from pathlib import Path
+from uuid import UUID
+from datetime import datetime, timezone
 
 import requests
 from pydub import AudioSegment
 
-from src.senda.api.models.lesson import Lesson
+from src.senda.api.models.lesson import Lesson, LessonStatus
 from src.senda.api.services.s3_service import S3Service
+from src.senda.api.services.event_publisher import EventPublisher
+from src.senda.api.repositories.course import CourseRepository
 
 KOKORO_API_URL = "http://localhost:8880/v1/audio/speech"
 MODEL_VOICE = "af_nicole"
@@ -83,3 +87,66 @@ class AudioService:
         Path(tmp_file.name).unlink()
 
         return s3_url
+
+    def generate_lesson_audio(
+        self,
+        lesson: Lesson,
+        lesson_repository,
+    ) -> str | None:
+        """Generate audio for a lesson, always emitting per-lesson events."""
+        if not lesson.script or not isinstance(lesson.script, list):
+            EventPublisher.publish_lesson_audio_failed(lesson.id, "No script available")
+            return None
+
+        # Always publish audio generation started event
+        EventPublisher.publish_lesson_audio_started(lesson.id)
+        lesson.status = LessonStatus.AUDIO_GENERATING
+        lesson_repository.update_lesson(lesson)
+
+        try:
+            audio_url = self.generate_and_upload_lesson_audio(lesson)
+            if audio_url:
+                lesson.audio_url = audio_url
+                lesson.status = LessonStatus.AUDIO_COMPLETED
+                lesson.audio_generated_at = datetime.now(timezone.utc)
+                lesson_repository.update_lesson(lesson)
+                # Always publish audio generation completed event
+                EventPublisher.publish_lesson_audio_completed(lesson.id, audio_url)
+                return audio_url
+            else:
+                lesson.status = LessonStatus.AUDIO_FAILED
+                lesson_repository.update_lesson(lesson)
+                # Always publish audio generation failed event
+                EventPublisher.publish_lesson_audio_failed(
+                    lesson.id, "No audio URL returned"
+                )
+                return None
+        except Exception as e:
+            lesson.status = LessonStatus.AUDIO_FAILED
+            lesson_repository.update_lesson(lesson)
+            # Always publish audio generation failed event
+            EventPublisher.publish_lesson_audio_failed(lesson.id, str(e))
+            raise
+
+    def generate_course_audios(
+        self, course_id: UUID, course_repository: CourseRepository
+    ):
+        """Generate audio for all lessons in a course, emitting only per-lesson events."""
+        lessons = course_repository.get_lessons_by_course_id(course_id)
+
+        if not lessons:
+            print(f"No lessons found for course {course_id}")
+            return
+
+        for lesson in lessons:
+            if lesson.script:
+                try:
+                    audio_url = self.generate_lesson_audio(lesson, course_repository)
+                    if audio_url:
+                        print(f"Audio generated for lesson {lesson.id}")
+                    else:
+                        print(
+                            f"Audio generation failed for lesson {lesson.id}: No audio URL returned."
+                        )
+                except Exception as e:
+                    print(f"Failed to generate audio for lesson {lesson.id}: {e}")
