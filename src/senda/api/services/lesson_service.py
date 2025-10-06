@@ -25,7 +25,6 @@ class LessonService:
         if not lesson:
             raise ValueError(f"Lesson with ID {lesson_id} not found")
 
-        # Always publish script generation started event
         EventPublisher.publish_lesson_script_started(lesson_id)
 
         self.lesson_repository.update_lesson_status(
@@ -36,7 +35,6 @@ class LessonService:
         if not course:
             raise ValueError(f"Course with ID {lesson.course_id} not found")
 
-        # Get total lessons count for the course
         total_lessons = len(course.lessons)
 
         course_context = {
@@ -61,7 +59,7 @@ class LessonService:
             updated_lesson = self.lesson_repository.update_lesson_script(
                 lesson, script_content, LessonStatus.SCRIPT_COMPLETED
             )
-            # Always publish script generation completed event
+
             EventPublisher.publish_lesson_script_completed(
                 lesson_id, updated_lesson.script
             )
@@ -71,7 +69,7 @@ class LessonService:
             self.lesson_repository.update_lesson_status(
                 lesson, LessonStatus.SCRIPT_FAILED
             )
-            # Always publish script generation failed event
+
             EventPublisher.publish_lesson_script_failed(lesson_id, str(e))
             raise
 

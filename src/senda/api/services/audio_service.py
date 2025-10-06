@@ -98,7 +98,6 @@ class AudioService:
             EventPublisher.publish_lesson_audio_failed(lesson.id, "No script available")
             return None
 
-        # Always publish audio generation started event
         EventPublisher.publish_lesson_audio_started(lesson.id)
         lesson.status = LessonStatus.AUDIO_GENERATING
         lesson_repository.update_lesson(lesson)
@@ -110,13 +109,13 @@ class AudioService:
                 lesson.status = LessonStatus.AUDIO_COMPLETED
                 lesson.audio_generated_at = datetime.now(timezone.utc)
                 lesson_repository.update_lesson(lesson)
-                # Always publish audio generation completed event
+
                 EventPublisher.publish_lesson_audio_completed(lesson.id, audio_url)
                 return audio_url
             else:
                 lesson.status = LessonStatus.AUDIO_FAILED
                 lesson_repository.update_lesson(lesson)
-                # Always publish audio generation failed event
+
                 EventPublisher.publish_lesson_audio_failed(
                     lesson.id, "No audio URL returned"
                 )
@@ -124,7 +123,7 @@ class AudioService:
         except Exception as e:
             lesson.status = LessonStatus.AUDIO_FAILED
             lesson_repository.update_lesson(lesson)
-            # Always publish audio generation failed event
+
             EventPublisher.publish_lesson_audio_failed(lesson.id, str(e))
             raise
 
