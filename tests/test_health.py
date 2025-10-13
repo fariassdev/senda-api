@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from src.senda.api.main import app
+from api import app
 
 client = TestClient(app)
 

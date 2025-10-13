@@ -6,10 +6,11 @@ pythonpath = ["src"]
 
 [tool.coverage.run]
 branch = true
-source = ["src/senda/api"]
+source = ["src"]
 
 [tool.coverage.report]
 omit = ["*/__init__.py"]
+
 [project]
 name = "senda"
 version = "0.1.0"
@@ -44,8 +45,19 @@ dependencies = [
     "redis==6.4.0",
 ]
 
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["models*", "services*", "repositories*", "schemas*", "core*", "routers*", "utils*"]
+
+[project.scripts]
+senda = "main:main"
 
 [dependency-groups]
 dev = [

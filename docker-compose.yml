@@ -47,7 +47,7 @@ services:
 #    depends_on:
 #      - db
 #      - kokoro_tts
-#    command: uvicorn src.senda.api.main:app --host 0.0.0.0 --port 8000 --reload
+#    command: uvicorn api:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:
   pg_data:
