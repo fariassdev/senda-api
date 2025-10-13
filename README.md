@@ -65,12 +65,12 @@ There are several ways to start the server:
 
 1. **Development mode with auto-reload** (recommended during development):
 ```sh
-uvicorn main:app --reload
+uvicorn api:app --reload
 ```
 
 2. **Debug mode** (includes detailed error traces):
 ```sh
-uvicorn main:app --reload --log-level debug
+uvicorn api:app --reload --log-level debug
 ```
 
 3. **Using Python directly**:
@@ -88,7 +88,8 @@ The API will be available at `http://localhost:8000/api`. You can access:
 *   📦 **Package Management**: The project uses `uv` for managing dependencies, as defined in `pyproject.toml`.
 *   🔑 **Environment Variables**: A `.env` file is used to store the environment variables.
 *   📁 **Source Code**: All Python source code is located in the `src/` directory with a clean, flat structure:
-    - `src/main.py` - FastAPI application entry point
+    - `src/api.py` - FastAPI application and all API routes
+    - `src/main.py` - Server entry point (runs the FastAPI app)
     - `src/models/` - SQLAlchemy database models
     - `src/services/` - Business logic and AI integration
     - `src/repositories/` - Database operations layer

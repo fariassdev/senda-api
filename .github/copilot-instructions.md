@@ -12,7 +12,8 @@ Senda is a meditation content generation platform with three core services:
 Key components:
 ```
 src/
-├── main.py           # FastAPI application entry point
+├── main.py          # Entry point (runs server)
+├── api.py           # FastAPI app & routes
 ├── services/         # Core business logic
 │   ├── course_architect/     # AI course generation (Gemini)
 │   ├── lesson_script_writer/ # AI script generation (Gemini)
@@ -59,10 +60,10 @@ uv pip install -e .
 docker-compose up --build
 
 # Run API locally (recommended for development)
-uvicorn main:app --reload
+uvicorn api:app --reload
 
 # With debug logging
-uvicorn main:app --reload --log-level debug
+uvicorn api:app --reload --log-level debug
 
 # Or using Python directly
 python -m main
@@ -220,7 +221,7 @@ from models.lesson import Lesson
 
 # ❌ AVOID - Package-level imports that could create circular dependencies
 from services import LessonScriptService  # If __init__.py had imports
-from src.senda.api import models  # If __init__.py had imports
+from models import Lesson  # If __init__.py had imports
 ```
 
 This pattern ensures:

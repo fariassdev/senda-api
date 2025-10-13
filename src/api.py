@@ -13,7 +13,7 @@ load_dotenv()
 
 
 @asynccontextmanager
-def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup: Start the Redis listener for WebSocket broadcasts
     from routers.websocket import start_redis_listener
