@@ -6,7 +6,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from contextlib import asynccontextmanager
 
-from src.senda.api.routers import course, lesson, auth, websocket
+from routers import course, lesson, auth, websocket
 
 # Load environment variables from .env file
 load_dotenv()
@@ -16,14 +16,14 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup: Start the Redis listener for WebSocket broadcasts
-    from src.senda.api.routers.websocket import start_redis_listener
+    from routers.websocket import start_redis_listener
 
     start_redis_listener()
 
     yield
 
     # Shutdown: Clean up resources
-    from src.senda.api.core.redis import RedisClient
+    from core.redis import RedisClient
 
     RedisClient.close()
 

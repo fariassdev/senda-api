@@ -2,7 +2,7 @@
 addopts = "-ra -q"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-pythonpath = ["src"]
+pythonpath = ["src/senda/api"]
 
 [tool.coverage.run]
 branch = true
@@ -10,6 +10,7 @@ source = ["src/senda/api"]
 
 [tool.coverage.report]
 omit = ["*/__init__.py"]
+
 [project]
 name = "senda"
 version = "0.1.0"
@@ -44,8 +45,17 @@ dependencies = [
     "redis==6.4.0",
 ]
 
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["models*", "services*", "repositories*", "schemas*", "core*", "routers*", "utils*", "senda*"]
+
 
 [dependency-groups]
 dev = [
