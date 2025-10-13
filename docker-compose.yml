@@ -11,6 +11,15 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
   kokoro_tts:
     image: ghcr.io/remsky/kokoro-fastapi-gpu:latest
     restart: always
@@ -42,3 +51,4 @@ services:
 
 volumes:
   pg_data:
+  redis_data:

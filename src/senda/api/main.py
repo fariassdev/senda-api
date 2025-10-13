@@ -4,11 +4,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from contextlib import asynccontextmanager
 
-from src.senda.api.routers import course, lesson, auth
+from src.senda.api.routers import course, lesson, auth, websocket
 
 # Load environment variables from .env file
 load_dotenv()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager."""
+    # Startup: Start the Redis listener for WebSocket broadcasts
+    from src.senda.api.routers.websocket import start_redis_listener
+
+    start_redis_listener()
+
+    yield
+
+    # Shutdown: Clean up resources
+    from src.senda.api.core.redis import RedisClient
+
+    RedisClient.close()
+
 
 app = FastAPI(
     title="Senda CMS API",
@@ -17,6 +35,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    lifespan=lifespan,
 )
 
 # Set up rate limiter
@@ -46,6 +65,7 @@ async def health_check():
 app.include_router(auth.router, prefix="/api")
 app.include_router(course.router, prefix="/api")
 app.include_router(lesson.router, prefix="/api")
+app.include_router(websocket.router, prefix="/api")
 
 if __name__ == "__main__":
     import uvicorn

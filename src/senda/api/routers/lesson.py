@@ -1,13 +1,11 @@
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
-from datetime import datetime, timezone
 
 from src.senda.api.core.database import get_db
 from src.senda.api.repositories.course import CourseRepository
 from src.senda.api.repositories.lesson import LessonRepository
-from src.senda.api.models.lesson import LessonStatus
-from src.senda.api.services.lesson_service import LessonService
+from src.senda.api.services.lesson_script_service import LessonScriptService
 from src.senda.api.services.audio_service import AudioService
 from src.senda.api.services.s3_service import S3Service
 from src.senda.api.services.lesson_script_writer import (
@@ -38,9 +36,9 @@ def get_lesson_service(
     script_writer: LessonScriptWriter = Depends(get_lesson_script_writer),
     course_repository: CourseRepository = Depends(get_course_repository),
     lesson_repository: LessonRepository = Depends(get_lesson_repository),
-) -> LessonService:
-    """Dependency provider for the LessonService."""
-    return LessonService(script_writer, course_repository, lesson_repository)
+) -> LessonScriptService:
+    """Dependency provider for the LessonScriptService."""
+    return LessonScriptService(script_writer, course_repository, lesson_repository)
 
 
 def get_s3_service() -> S3Service:
@@ -60,43 +58,27 @@ async def _generate_audio_task(
     lesson_repo: LessonRepository,
     audio_service: AudioService,
 ):
+    """Background task for generating lesson audio."""
     lesson = lesson_repo.get_lesson(lesson_id)
     if not lesson:
         print(f"Lesson with id {lesson_id} not found.")
         return
 
-    lesson.status = LessonStatus.AUDIO_GENERATING
-    lesson_repo.update_lesson(lesson)
-
     try:
-        audio_url = audio_service.generate_and_upload_lesson_audio(lesson)
-        if audio_url:
-            lesson.audio_url = audio_url
-            lesson.status = LessonStatus.AUDIO_COMPLETED
-            lesson.audio_generated_at = datetime.now(timezone.utc)
-            lesson_repo.update_lesson(lesson)
-            print(f"Audio generated successfully for lesson {lesson_id}")
-        else:
-            lesson.status = LessonStatus.AUDIO_FAILED
-            lesson_repo.update_lesson(lesson)
-            print(
-                f"Audio generation failed for lesson {lesson_id}: No audio URL returned."
-            )
+        audio_service.generate_lesson_audio(lesson, lesson_repo)
     except Exception as e:
-        lesson.status = LessonStatus.AUDIO_FAILED
-        lesson_repo.update_lesson(lesson)
         print(f"Failed to generate audio for lesson {lesson_id}: {e}")
 
 
 async def _generate_lesson_task(
     lesson_id: UUID,
-    lesson_service: LessonService,
+    lesson_service: LessonScriptService,
 ):
+    """Background task for generating lesson script."""
     try:
         lesson_service.generate_and_save_lesson_script(lesson_id)
     except Exception as e:
         print(f"Error generating script for lesson {lesson_id}: {e}")
-        # Optionally, update lesson status to FAILED here if not handled in service
 
 
 @router.post("/{lesson_id}/generate-audio", status_code=202)
@@ -116,7 +98,7 @@ async def generate_lesson_audio(
 async def generate_lesson_script(
     lesson_id: UUID,
     background_tasks: BackgroundTasks,
-    lesson_service: LessonService = Depends(get_lesson_service),
+    lesson_service: LessonScriptService = Depends(get_lesson_service),
 ):
     if (lesson_id) in _generating_lessons:
         raise HTTPException(

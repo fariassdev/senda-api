@@ -5,7 +5,6 @@ from uuid import UUID
 from src.senda.api.core.database import get_db
 from src.senda.api.repositories.lesson import LessonRepository
 from src.senda.api.repositories.course import CourseRepository
-from src.senda.api.models.lesson import LessonStatus
 from src.senda.api.schemas.course import CourseCreatePrompt, CourseUpdate, Course
 from src.senda.api.services.audio_service import AudioService
 from src.senda.api.services.course_architect import (
@@ -16,7 +15,7 @@ from src.senda.api.services.lesson_script_writer import (
     LessonScriptWriter,
     GeminiLessonScriptWriter,
 )
-from src.senda.api.services.lesson_service import LessonService
+from src.senda.api.services.lesson_script_service import LessonScriptService
 from src.senda.api.services.s3_service import S3Service
 
 router = APIRouter(
@@ -47,9 +46,9 @@ def get_lesson_service(
     script_writer: LessonScriptWriter = Depends(get_lesson_script_writer),
     course_repository: CourseRepository = Depends(get_course_repository),
     lesson_repository: LessonRepository = Depends(get_lesson_repository),
-) -> LessonService:
-    """Dependency provider for the LessonService."""
-    return LessonService(script_writer, course_repository, lesson_repository)
+) -> LessonScriptService:
+    """Dependency provider for the LessonScriptService."""
+    return LessonScriptService(script_writer, course_repository, lesson_repository)
 
 
 def get_s3_service() -> S3Service:
@@ -127,7 +126,10 @@ def update_course(
     return course_repository.update_course(db_course, course_update)
 
 
-async def _generate_all_lessons_task(course_id: UUID, lesson_service: LessonService):
+async def _generate_all_lessons_task(
+    course_id: UUID, lesson_service: LessonScriptService
+):
+    """Background task for generating all lesson scripts in a course."""
     try:
         lesson_service.generate_and_save_all_lesson_scripts(course_id)
     except Exception as e:
@@ -138,7 +140,7 @@ async def _generate_all_lessons_task(course_id: UUID, lesson_service: LessonServ
 async def generate_all_lessons_scripts(
     course_id: UUID,
     background_tasks: BackgroundTasks,
-    lesson_service: LessonService = Depends(get_lesson_service),
+    lesson_service: LessonScriptService = Depends(get_lesson_service),
 ):
     if course_id in _generating_courses:
         raise HTTPException(
@@ -155,35 +157,13 @@ async def generate_all_lessons_scripts(
 async def _generate_course_audios_task(
     course_id: UUID,
     audio_service: AudioService,
-    course_repository: CourseRepository = Depends(get_course_repository),
+    course_repository: CourseRepository,
 ):
-    lessons = course_repository.get_lessons_by_course_id(course_id)
-
-    if not lessons:
-        print(f"No lessons found for course {course_id}")
-        return
-
-    for lesson in lessons:
-        if lesson.script:
-            lesson.status = LessonStatus.AUDIO_GENERATING
-            course_repository.update_lesson(lesson)
-            try:
-                audio_url = audio_service.generate_and_upload_lesson_audio(lesson)
-                if audio_url:
-                    lesson.audio_url = audio_url
-                    lesson.status = LessonStatus.AUDIO_COMPLETED
-                    course_repository.update_lesson(lesson)
-                    print(f"Audio generated for lesson {lesson.id}")
-                else:
-                    lesson.status = LessonStatus.AUDIO_FAILED
-                    course_repository.update_lesson(lesson)
-                    print(
-                        f"Audio generation failed for lesson {lesson.id}: No audio URL returned."
-                    )
-            except Exception as e:
-                lesson.status = LessonStatus.AUDIO_FAILED
-                course_repository.update_lesson(lesson)
-                print(f"Failed to generate audio for lesson {lesson.id}: {e}")
+    """Background task for generating all audio files in a course."""
+    try:
+        audio_service.generate_course_audios(course_id, course_repository)
+    except Exception as e:
+        print(f"Error generating audios for course {course_id}: {e}")
 
 
 @router.post("/{course_id}/generate-audios", status_code=202)
@@ -191,6 +171,9 @@ async def generate_course_audios(
     course_id: UUID,
     background_tasks: BackgroundTasks,
     audio_service: AudioService = Depends(get_audio_service),
+    course_repository: CourseRepository = Depends(get_course_repository),
 ):
-    background_tasks.add_task(_generate_course_audios_task, course_id, audio_service)
+    background_tasks.add_task(
+        _generate_course_audios_task, course_id, audio_service, course_repository
+    )
     return {"message": "Audio generation for course started in background"}
