@@ -2,11 +2,11 @@
 addopts = "-ra -q"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-pythonpath = ["src/senda/api"]
+pythonpath = ["src"]
 
 [tool.coverage.run]
 branch = true
-source = ["src/senda/api"]
+source = ["src"]
 
 [tool.coverage.report]
 omit = ["*/__init__.py"]
@@ -54,8 +54,10 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["models*", "services*", "repositories*", "schemas*", "core*", "routers*", "utils*", "senda*"]
+include = ["models*", "services*", "repositories*", "schemas*", "core*", "routers*", "utils*"]
 
+[project.scripts]
+senda = "main:main"
 
 [dependency-groups]
 dev = [

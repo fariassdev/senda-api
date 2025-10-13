@@ -65,12 +65,17 @@ There are several ways to start the server:
 
 1. **Development mode with auto-reload** (recommended during development):
 ```sh
-uvicorn src.senda.api.main:app --reload
+uvicorn main:app --reload
 ```
 
 2. **Debug mode** (includes detailed error traces):
 ```sh
-uvicorn src.senda.api.main:app --reload --log-level debug
+uvicorn main:app --reload --log-level debug
+```
+
+3. **Using Python directly**:
+```sh
+python -m main
 ```
 
 The API will be available at `http://localhost:8000/api`. You can access:
@@ -82,5 +87,13 @@ The API will be available at `http://localhost:8000/api`. You can access:
 
 *   📦 **Package Management**: The project uses `uv` for managing dependencies, as defined in `pyproject.toml`.
 *   🔑 **Environment Variables**: A `.env` file is used to store the environment variables.
-*   📁 **Source Code**: All Python source code is located in the `src/senda` directory.
+*   📁 **Source Code**: All Python source code is located in the `src/` directory with a clean, flat structure:
+    - `src/main.py` - FastAPI application entry point
+    - `src/models/` - SQLAlchemy database models
+    - `src/services/` - Business logic and AI integration
+    - `src/repositories/` - Database operations layer
+    - `src/routers/` - FastAPI route handlers
+    - `src/schemas/` - Pydantic request/response models
+    - `src/core/` - Core utilities (database, auth, Redis)
+    - `src/utils/` - Helper functions
 

@@ -5,25 +5,27 @@ This guide helps AI agents understand the key aspects of the Senda codebase for 
 ## Architecture Overview
 
 Senda is a meditation content generation platform with three core services:
-- **FastAPI Backend** (`src/senda/api/`): Manages courses and lessons with AI-powered content generation
+- **FastAPI Backend** (`src/`): Manages courses and lessons with AI-powered content generation
 - **PostgreSQL Database**: Stores course/lesson data with UUIDv7 primary keys (port 5433)
 - **Kokoro TTS**: Local text-to-speech service for audio generation (port 8880)
 
 Key components:
 ```
-src/senda/api/
-├── services/           # Core business logic
+src/
+├── main.py           # FastAPI application entry point
+├── services/         # Core business logic
 │   ├── course_architect/     # AI course generation (Gemini)
 │   ├── lesson_script_writer/ # AI script generation (Gemini)
 │   ├── audio_service.py     # TTS + S3 integration
-│   ├── lesson_service.py    # Orchestrates script generation
+│   ├── lesson_script_service.py  # Orchestrates script generation
 │   ├── auth_service.py      # JWT authentication logic
+│   ├── event_publisher.py   # Redis pub/sub for WebSocket events
 │   └── s3_service.py        # AWS S3 file uploads
-├── models/            # SQLAlchemy models (Course, Lesson, User)
-├── repositories/      # Database operations layer
-├── routers/          # FastAPI endpoints (/courses, /lessons, /auth)
+├── models/           # SQLAlchemy models (Course, Lesson, User)
+├── repositories/     # Database operations layer
+├── routers/          # FastAPI endpoints (/courses, /lessons, /auth, /ws)
 ├── schemas/          # Pydantic request/response models
-├── core/             # Database connection + auth utilities
+├── core/             # Database connection + auth + Redis utilities
 └── utils/            # UUIDv7 generation utilities
 ```
 
@@ -57,10 +59,13 @@ uv pip install -e .
 docker-compose up --build
 
 # Run API locally (recommended for development)
-uvicorn src.senda.api.main:app --reload
+uvicorn main:app --reload
 
 # With debug logging
-uvicorn src.senda.api.main:app --reload --log-level debug
+uvicorn main:app --reload --log-level debug
+
+# Or using Python directly
+python -m main
 ```
 
 **API Endpoints:**
@@ -87,11 +92,11 @@ alembic downgrade -1
 
 ```python
 # ❌ WRONG - Direct model usage in router
-from src.senda.api.models.lesson import Lesson
+from models.lesson import Lesson
 lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
 
 # ✅ CORRECT - Use repository
-from src.senda.api.repositories.lesson import LessonRepository
+from repositories.lesson import LessonRepository
 lesson_repo = LessonRepository(db)
 lesson = lesson_repo.get_lesson(lesson_id)
 ```
@@ -176,7 +181,7 @@ Audio generation in `services/audio_service.py` processes these sequentially, co
 All entities use UUIDv7 (time-ordered UUIDs) for better database performance:
 
 ```python
-from src.senda.api.utils.uuid_utils import generate_uuidv7
+from utils.uuid_utils import generate_uuidv7
 
 class Lesson(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=generate_uuidv7)
@@ -209,12 +214,12 @@ class LessonBase(BaseModel):
 
 ```python
 # ✅ CORRECT - Direct imports
-from src.senda.api.services.lesson_service import LessonService
-from src.senda.api.repositories.lesson import LessonRepository
-from src.senda.api.models.lesson import Lesson
+from services.lesson_script_service import LessonScriptService
+from repositories.lesson import LessonRepository
+from models.lesson import Lesson
 
 # ❌ AVOID - Package-level imports that could create circular dependencies
-from src.senda.api.services import LessonService  # If __init__.py had imports
+from services import LessonScriptService  # If __init__.py had imports
 from src.senda.api import models  # If __init__.py had imports
 ```
 

@@ -67,7 +67,13 @@ app.include_router(course.router, prefix="/api")
 app.include_router(lesson.router, prefix="/api")
 app.include_router(websocket.router, prefix="/api")
 
-if __name__ == "__main__":
+
+def main():
+    """Entry point for running the Senda API server."""
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+if __name__ == "__main__":
+    main()
