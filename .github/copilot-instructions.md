@@ -32,20 +32,38 @@ src/
 
 ## Development Workflow
 
-### 1. Setup
+### 1. Setup (mandatory venv activation)
+
+Before running any Python command in this repository you MUST activate the project's virtual environment. Failing to activate the venv can cause dependency, linting, formatting, or runtime errors. CI pipelines must also use the pinned environment or lockfile.
+
+Windows (PowerShell - recommended):
 ```powershell
-# Windows
-uv venv
-.venv\Scripts\activate
+# activate the venv in PowerShell (mandatory before running python/uv commands)
+. .venv\Scripts\Activate.ps1
+
+# install editable package
 uv pip install -e .
 ```
 
-```bash
-# Unix
-uv venv
-source .venv/bin/activate
+Windows (cmd.exe):
+```bat
+# activate the venv in cmd.exe (mandatory before running python/uv commands)
+.venv\Scripts\activate
+
+# install editable package
 uv pip install -e .
 ```
+
+Unix / macOS (bash/zsh):
+```bash
+# activate the venv (mandatory before running python/uv commands)
+source .venv/bin/activate
+
+# install editable package
+uv pip install -e .
+```
+
+CI note: ensure CI creates and activates the same venv or uses the repository lockfile to reproduce the exact environment before running linters and tests.
 
 ### 2. Configuration
 - Copy `.env.example` to `.env`
