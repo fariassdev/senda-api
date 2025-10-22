@@ -114,13 +114,12 @@ def update_course(
     if not db_course:
         raise HTTPException(status_code=404, detail="Course not found")
 
-    # Check if the course is being activated and if all lessons are generated
+    # Check if the course is being activated and if all lessons are READY_TO_PUBLISH
     if course_update.active and not db_course.active:
-        ungenerated_lessons = course_repository.get_ungenerated_lessons(course_id)
-        if ungenerated_lessons:
+        if not course_repository.is_course_ready_to_publish(course_id):
             raise HTTPException(
                 status_code=400,
-                detail="Cannot activate course: Not all lessons have been generated.",
+                detail="Cannot activate course: Not all lessons are marked as READY_TO_PUBLISH.",
             )
 
     return course_repository.update_course(db_course, course_update)

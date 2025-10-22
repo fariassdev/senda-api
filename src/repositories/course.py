@@ -53,15 +53,17 @@ class CourseRepository:
         self.db.refresh(db_course)
         return db_course
 
-    def get_ungenerated_lessons(self, course_id: UUID):
-        return (
+    def is_course_ready_to_publish(self, course_id: UUID) -> bool:
+        """Check if all lessons in a course are marked as READY_TO_PUBLISH."""
+        lessons_not_ready = (
             self.db.query(Lesson)
             .filter(
                 Lesson.course_id == course_id,
-                Lesson.status.in_([LessonStatus.PENDING, LessonStatus.SCRIPT_FAILED]),
+                Lesson.status != LessonStatus.READY_TO_PUBLISH,
             )
-            .all()
+            .first()
         )
+        return lessons_not_ready is None
 
     def get_lessons_by_course_id(self, course_id: UUID):
         return self.db.query(Lesson).filter(Lesson.course_id == course_id).all()
