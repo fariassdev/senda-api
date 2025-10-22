@@ -46,3 +46,11 @@ class LessonRepository:
         self.db.commit()
         self.db.refresh(lesson)
         return lesson
+
+    def mark_as_reviewed(self, lesson: Lesson) -> Lesson:
+        """Mark a lesson as ready to publish after review."""
+        lesson.status = LessonStatus.READY_TO_PUBLISH
+        self.db.add(lesson)
+        self.db.commit()
+        self.db.refresh(lesson)
+        return lesson

@@ -108,3 +108,28 @@ async def generate_lesson_script(
     _generating_lessons.add((lesson_id))
     background_tasks.add_task(_generate_lesson_task, lesson_id, lesson_service)
     return {"message": "Script generation for lesson started in background"}
+
+
+@router.post("/{lesson_id}/mark-as-reviewed", status_code=200)
+async def mark_lesson_as_reviewed(
+    lesson_id: UUID,
+    lesson_repo: LessonRepository = Depends(get_lesson_repository),
+):
+    """
+    Mark a lesson as reviewed and ready to publish.
+
+    The lesson must have audio completed before it can be marked as reviewed.
+    """
+    lesson = lesson_repo.get_lesson(lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    # Only allow marking as reviewed if audio is completed
+    if lesson.status != "AUDIO_COMPLETED":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Lesson must have AUDIO_COMPLETED status to be marked as reviewed. Current status: {lesson.status}",
+        )
+
+    updated_lesson = lesson_repo.mark_as_reviewed(lesson)
+    return updated_lesson
