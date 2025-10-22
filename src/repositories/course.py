@@ -27,6 +27,7 @@ class CourseRepository:
             title=course.title,
             description=course.description,
             tags=course.tags,
+            difficulty_level=course.difficulty_level,
         )
         self.db.add(db_course)
         self.db.commit()

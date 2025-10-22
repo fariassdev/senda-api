@@ -4,6 +4,13 @@ from sqlalchemy.orm import relationship
 from core.database import Base
 from utils.uuid_utils import generate_uuidv7
 from sqlalchemy.sql import func
+import enum
+
+
+class CourseDifficultyLevel(str, enum.Enum):
+    BEGINNER = "BEGINNER"
+    INTERMEDIATE = "INTERMEDIATE"
+    ADVANCED = "ADVANCED"
 
 
 class Course(Base):
@@ -15,6 +22,9 @@ class Course(Base):
     title = Column(String, index=True)
     description = Column(String)
     tags = Column(JSONB)
+    difficulty_level = Column(
+        String, default=CourseDifficultyLevel.BEGINNER, nullable=False
+    )
     active = Column(Boolean, default=False, nullable=False)
 
     author = Column(String, default="Senda AI")

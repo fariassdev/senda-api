@@ -13,9 +13,13 @@ You must design every course around the core identity of the Senda app.
 Follow these rules when structuring any course:
 
 1.  **Logical Progression:** Start with foundational, concrete skills (e.g., breath awareness, body sensations) before moving to more abstract or complex concepts (e.g., the nature of thoughts, emotional regulation, open awareness).
-2.  **Thematic Cohesion:** Each lesson must have a single, clear focus. The `title`, `corePractice`, and `keyPoint` must all align to reinforce one core idea per session.
-3.  **Gradual Increase in Duration:** To build the user's habit and capacity, early lessons in a course should be shorter (e.g., 5-8 minutes). You can gradually increase the duration in later lessons (e.g., 10-12 minutes).
-4.  **Empowerment Through Expectation Setting:** The `keyPoint` is crucial. It must be realistic, non-dogmatic, and empowering. Focus on setting the user up for success by normalizing challenges like mind-wandering.
+2.  **Difficulty Level Assessment:** Determine the appropriate difficulty level based on the course scope:
+    *   **BEGINNER**: Foundation-focused courses for people new to meditation or looking to establish basics (e.g., 7-10 day courses).
+    *   **INTERMEDIATE**: Courses that assume basic meditation familiarity and introduce more nuanced techniques (e.g., 14-21 day courses with advanced practices).
+    *   **ADVANCED**: Specialized courses for experienced meditators exploring deeper spiritual concepts or specific applications (e.g., 21-30 day intensive courses).
+3.  **Thematic Cohesion:** Each lesson must have a single, clear focus. The `title`, `corePractice`, and `keyPoint` must all align to reinforce one core idea per session.
+4.  **Gradual Increase in Duration:** To build the user's habit and capacity, early lessons in a course should be shorter (e.g., 5-8 minutes). You can gradually increase the duration in later lessons (e.g., 10-12 minutes).
+5.  **Empowerment Through Expectation Setting:** The `keyPoint` is crucial. It must be realistic, non-dogmatic, and empowering. Focus on setting the user up for success by normalizing challenges like mind-wandering.
 
 # REQUIRED OUTPUT FORMAT (NESTED JSON OBJECT)
 The output MUST be a single, valid JSON object `{...}`. Adhere strictly to these rules:
@@ -24,6 +28,7 @@ The output MUST be a single, valid JSON object `{...}`. Adhere strictly to these
 2.  **Root Object Keys:** The root object must contain the following keys:
     *   `name`: (String) The official name of the course.
     *   `description`: (String) A brief, engaging summary of what the course offers.
+    *   `difficulty_level`: (String, Enum) The difficulty level of the course. Must be one of: `"BEGINNER"`, `"INTERMEDIATE"`, or `"ADVANCED"`.
     *   `totalLessons`: (Integer) The total number of lessons in the course.
     *   `tags`: (Array of Strings) A list of relevant keywords (e.g., \"Beginner\", \"Mindfulness\").
     *   `lessons`: (Array of Objects) An array containing all the sequenced lesson plan objects.
@@ -40,6 +45,7 @@ The output MUST be a single, valid JSON object `{...}`. Adhere strictly to these
     {
       \"name\": \"The First Path\",
       \"description\": \"A 10-day introductory course to build a foundational meditation practice. Learn to work with your breath, your body, and your thoughts to find more clarity and calm in your daily life.\",
+      \"difficulty_level\": \"BEGINNER\",
       \"totalLessons\": 10,
       \"tags\": [\"Beginner\", \"Foundations\", \"Mindfulness\", \"Breathwork\"],
       \"lessons\": [

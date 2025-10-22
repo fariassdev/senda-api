@@ -3,12 +3,20 @@ from typing import Optional
 from uuid import UUID
 from schemas.lesson import Lesson, LessonCreate
 from datetime import datetime
+from enum import Enum
+
+
+class CourseDifficultyLevel(str, Enum):
+    BEGINNER = "BEGINNER"
+    INTERMEDIATE = "INTERMEDIATE"
+    ADVANCED = "ADVANCED"
 
 
 class CourseBase(BaseModel):
     title: str
     description: str
     tags: list[str]
+    difficulty_level: CourseDifficultyLevel = Field(..., alias="difficultyLevel")
 
     model_config = dict(populate_by_name=True)
 
@@ -39,6 +47,9 @@ class CourseUpdate(BaseModel):
     tags: Optional[list[str]] = None
     active: Optional[bool] = None
     author: Optional[str] = None
+    difficulty_level: Optional[CourseDifficultyLevel] = Field(
+        None, alias="difficultyLevel"
+    )
     image_placeholder_url: Optional[HttpUrl] = Field(None, alias="imagePlaceholderUrl")
 
     model_config = dict(populate_by_name=True)
