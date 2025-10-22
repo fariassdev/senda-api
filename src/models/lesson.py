@@ -15,6 +15,7 @@ class LessonStatus(str, enum.Enum):
     AUDIO_GENERATING = "AUDIO_GENERATING"
     AUDIO_COMPLETED = "AUDIO_COMPLETED"
     AUDIO_FAILED = "AUDIO_FAILED"
+    READY_TO_PUBLISH = "READY_TO_PUBLISH"
 
 
 class Lesson(Base):
