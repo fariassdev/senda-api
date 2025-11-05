@@ -223,7 +223,7 @@ Schemas use camelCase for API (JavaScript convention) but snake_case internally:
 class LessonBase(BaseModel):
     lesson_number: int = Field(..., alias="lessonNumber")
     core_practice: str = Field(..., alias="corePractice")
-    
+
     class Config:
         populate_by_name = True  # Accept both camelCase and snake_case
 ```
@@ -280,7 +280,7 @@ This pattern ensures:
 
 ## Development Notes
 
-- **Python Version**: Requires 3.13+
+- **Python Version**: Requires 3.12+
 - **Docker Compose**: Includes DB + TTS, but API typically runs locally during development
 - **Environment**: Use `.env` file for secrets, never commit it
 - **Scripts**: AI-generated scripts are regenerated, not edited - AI is source of truth

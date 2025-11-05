@@ -1,4 +1,4 @@
-FROM python:3.13.5-slim
+FROM python:3.12.5-slim
 
 # Install system dependencies required for Python packages
 # - build-essential: For compiling C code (needed by many packages)

@@ -24,7 +24,7 @@ This will start the PostgreSQL database, the Kokoro TTS service, and the FastAPI
 
 ### Running Locally
 
-To run the application locally, you will need to have Python 3.13+ and `uv` installed.
+To run the application locally, you will need to have Python 3.12+ and `uv` installed.
 
 #### Installation
 
@@ -97,4 +97,3 @@ The API will be available at `http://localhost:8000/api`. You can access:
     - `src/schemas/` - Pydantic request/response models
     - `src/core/` - Core utilities (database, auth, Redis)
     - `src/utils/` - Helper functions
-

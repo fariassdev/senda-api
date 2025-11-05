@@ -44,24 +44,3 @@ This feature enables the generation of detailed meditation scripts for individua
 *   **Implementation Details:**
     *   The "Lesson Script Writer" is also designed as an interface for provider flexibility.
     *   Scripts are intended to be regenerated rather than manually edited, ensuring consistency with AI-generated content.
-
-## Technical Specification
-
-For a detailed technical definition of the API, including endpoints, request/response schemas, and data models, please refer to the OpenAPI specification. This document will be updated to reflect the new functionalities.
-
--   **[OpenAPI Specification](./openapi.yaml)**
-
-## UI/UX Design
-
-For a detailed description of the front-end application, its components, and user flows that will consume this API, please refer to the UI Design document.
-
--   **[UI Design Document](./ui_design.md)**
-
-## Future Work
-
-The following features are planned for future development:
-
-1.  **Audio File Generation:** Implement functionality to generate audio files (e.g., MP3) from the saved lesson scripts.
-2.  **Robust Test Suite:** Develop a comprehensive suite of automated tests to ensure the stability, reliability, and correctness of the API.
-3.  **Generate course images**: Implement a image generation service to set representative course images following the Senda style, guidelines and philosophy.
-4.  **Basic CMS UI:** Implement a foundational user interface for the CMS to facilitate interaction with the API's functionalities.
