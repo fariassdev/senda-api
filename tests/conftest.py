@@ -234,7 +234,7 @@ async def admin_jwt_token(
 
 
 @pytest.fixture
-async def admin_client(application: FastAPI, admin_jwt_token: str) -> AsyncClient:
+async def admin_test_client(application: FastAPI, admin_jwt_token: str) -> AsyncClient:
     """AsyncClient with admin authentication."""
     async with AsyncClient(
         transport=ASGITransport(app=application),

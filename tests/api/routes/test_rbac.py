@@ -47,9 +47,9 @@ class TestAdminUserCreation:
     """Test admin user creation endpoint (admin-only)."""
 
     @pytest.mark.anyio
-    async def test_admin_can_create_admin_user(self, admin_client: AsyncClient):
+    async def test_admin_can_create_admin_user(self, admin_test_client: AsyncClient):
         """Admin users should be able to create other admin users."""
-        response = await admin_client.post(
+        response = await admin_test_client.post(
             "/user/admin",
             json={
                 "user": {
@@ -107,10 +107,10 @@ class TestUserPromotion:
 
     @pytest.mark.anyio
     async def test_admin_can_promote_user(
-        self, admin_client: AsyncClient, test_user: UserDTO
+        self, admin_test_client: AsyncClient, test_user: UserDTO
     ):
         """Admin users should be able to promote regular users to admin."""
-        response = await admin_client.put(f"/user/{test_user.id}/promote")
+        response = await admin_test_client.put(f"/user/{test_user.id}/promote")
 
         assert response.status_code == 200
         data = response.json()
@@ -152,10 +152,10 @@ class TestAIGenerationEndpoints:
 
     @pytest.mark.anyio
     async def test_admin_can_access_generate_course_endpoint(
-        self, admin_client: AsyncClient
+        self, admin_test_client: AsyncClient
     ):
         """Admin users should be able to access the course generation endpoint."""
-        response = await admin_client.post(
+        response = await admin_test_client.post(
             "/courses/generate",
             json={
                 "prompt": "Create a meditation course",
@@ -212,10 +212,10 @@ class TestDeletionEndpoints:
 
     @pytest.mark.anyio
     async def test_admin_can_delete_course(
-        self, admin_client: AsyncClient, test_course: UserDTO
+        self, admin_test_client: AsyncClient, test_course: UserDTO
     ):
         """Admin users should be able to delete any course."""
-        response = await admin_client.delete(f"/courses/{test_course.slug}")
+        response = await admin_test_client.delete(f"/courses/{test_course.slug}")
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
 

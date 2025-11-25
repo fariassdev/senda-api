@@ -50,7 +50,7 @@ DBSession = Annotated[AsyncSession, Depends(container.session)]
 ```python
 async def create_course(
     session: DBSession,              # Auto-injected database session
-    current_user: CurrentUser,       # Auto-injected + authenticated user
+    current_user: AuthenticatedUser,       # Auto-injected + authenticated user
     course_service: ICourseService,  # Auto-injected service
 ) -> CourseResponse:
     ...
@@ -135,7 +135,7 @@ External services (AI, storage, TTS) implement provider interfaces from `domain/
 ### 4. Authentication
 - JWT tokens managed by `AuthTokenService`
 - Token format: `Authorization: Token xxxxxx.yyyyyyy.zzzzzz`
-- Use `CurrentUser` dependency for protected routes, `CurrentOptionalUser` for public routes with optional auth
+- Use `AdminUser` for Admin-protected routes, `AuthenticatedUser` dependency for protected routes, `OptionalUser` for public routes with optional auth
 
 ### 5. Error Handling
 Custom exceptions in `domain/exceptions/` with matching HTTP handlers in `core/exceptions.py`:

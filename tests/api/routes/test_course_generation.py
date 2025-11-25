@@ -42,24 +42,22 @@ class TestCourseGenerationAPI:
     )
 
     @pytest.mark.anyio
-    async def test_generate_course_missing_prompt(
-        self, authorized_test_client: AsyncClient
-    ):
+    async def test_generate_course_missing_prompt(self, admin_test_client: AsyncClient):
         """Test validation error for missing prompt"""
         payload = {"difficultyLevel": "beginner"}
 
-        response = await authorized_test_client.post("/courses/generate", json=payload)
+        response = await admin_test_client.post("/courses/generate", json=payload)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     @pytest.mark.anyio
     async def test_generate_course_invalid_difficulty(
-        self, authorized_test_client: AsyncClient
+        self, admin_test_client: AsyncClient
     ):
         """Test validation error for invalid difficulty"""
         payload = {"prompt": "Create a course", "difficultyLevel": "invalid_level"}
 
-        response = await authorized_test_client.post("/courses/generate", json=payload)
+        response = await admin_test_client.post("/courses/generate", json=payload)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -73,13 +71,21 @@ class TestCourseGenerationAPI:
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     @pytest.mark.anyio
-    async def test_generate_course_empty_prompt(
+    async def test_generate_course_user_not_admin(
         self, authorized_test_client: AsyncClient
     ):
+        """Test unauthorized access is rejected"""
+        payload = {"prompt": "Create a mindfulness course"}
+
+        response = await authorized_test_client.post("/courses/generate", json=payload)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.anyio
+    async def test_generate_course_empty_prompt(self, admin_test_client: AsyncClient):
         """Test validation error for empty prompt"""
         payload = {"prompt": "", "difficultyLevel": "beginner"}
 
-        response = await authorized_test_client.post("/courses/generate", json=payload)
+        response = await admin_test_client.post("/courses/generate", json=payload)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -87,9 +93,9 @@ class TestCourseGenerationAPI:
     @pytest.mark.parametrize("difficulty", ["BEGINNER", "INTERMEDIATE", "ADVANCED"])
     async def test_generate_course_all_difficulty_levels(
         self,
-        authorized_test_client: AsyncClient,
+        admin_test_client: AsyncClient,
         difficulty: str,
-        test_user,
+        admin_user,
         mock_gemini_api_globally,
     ):
         """Test course generation with all valid difficulty levels succeeds"""
@@ -97,7 +103,7 @@ class TestCourseGenerationAPI:
 
         payload = {"prompt": "Create a test course", "difficultyLevel": difficulty}
 
-        response = await authorized_test_client.post("/courses/generate", json=payload)
+        response = await admin_test_client.post("/courses/generate", json=payload)
 
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
@@ -106,7 +112,7 @@ class TestCourseGenerationAPI:
         course = data["course"]
         assert course["title"] == self.MOCK_COURSE_SCHEMA.title
         assert course["description"] == self.MOCK_COURSE_SCHEMA.description
-        assert course["author"]["username"] == test_user.username
+        assert course["author"]["username"] == admin_user.username
 
         assert "lessons" in course
         lessons = course["lessons"]
@@ -116,14 +122,14 @@ class TestCourseGenerationAPI:
 
     @pytest.mark.anyio
     async def test_generate_course_no_difficulty_defaults_to_beginner(
-        self, authorized_test_client: AsyncClient, test_user, mock_gemini_api_globally
+        self, admin_test_client: AsyncClient, admin_user, mock_gemini_api_globally
     ):
         """Test course generation without difficulty level succeeds with default"""
         mock_gemini_api_globally.return_value = self.MOCK_COURSE_SCHEMA
 
         payload = {"prompt": "Create a test course"}
 
-        response = await authorized_test_client.post("/courses/generate", json=payload)
+        response = await admin_test_client.post("/courses/generate", json=payload)
 
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
@@ -131,7 +137,7 @@ class TestCourseGenerationAPI:
         assert "course" in data
         course = data["course"]
         assert course["title"] == self.MOCK_COURSE_SCHEMA.title
-        assert course["author"]["username"] == test_user.username
+        assert course["author"]["username"] == admin_user.username
 
         assert "lessons" in course
         lessons = course["lessons"]

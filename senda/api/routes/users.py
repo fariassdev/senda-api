@@ -3,13 +3,13 @@ from fastapi import APIRouter
 from senda.api.schemas.requests.user import AdminUserCreationRequest, UserUpdateRequest
 from senda.api.schemas.responses.user import (
     AdminUserCreationResponse,
-    CurrentUserResponse,
+    AuthenticatedUserResponse,
     UpdatedUserResponse,
     UserPromotionResponse,
 )
 from senda.core.dependencies import (
-    CurrentAdminUser,
-    CurrentUser,
+    AdminUser,
+    AuthenticatedUser,
     DBSession,
     IUserService,
     JWTToken,
@@ -18,14 +18,14 @@ from senda.core.dependencies import (
 router = APIRouter()
 
 
-@router.get("", response_model=CurrentUserResponse)
+@router.get("", response_model=AuthenticatedUserResponse)
 async def get_current_user(
-    token: JWTToken, current_user: CurrentUser
-) -> CurrentUserResponse:
+    token: JWTToken, current_user: AuthenticatedUser
+) -> AuthenticatedUserResponse:
     """
     Return current user.
     """
-    return CurrentUserResponse.from_dto(dto=current_user, token=token)
+    return AuthenticatedUserResponse.from_dto(dto=current_user, token=token)
 
 
 @router.put("", response_model=UpdatedUserResponse)
@@ -33,7 +33,7 @@ async def update_current_user(
     payload: UserUpdateRequest,
     token: JWTToken,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AuthenticatedUser,
     user_service: IUserService,
 ) -> UpdatedUserResponse:
     """
@@ -49,7 +49,7 @@ async def update_current_user(
 async def create_admin_user(
     payload: AdminUserCreationRequest,
     session: DBSession,
-    current_user: CurrentAdminUser,
+    current_user: AdminUser,
     user_service: IUserService,
 ) -> AdminUserCreationResponse:
     """
@@ -65,7 +65,7 @@ async def create_admin_user(
 async def promote_user_to_admin(
     user_id: int,
     session: DBSession,
-    current_user: CurrentAdminUser,
+    current_user: AdminUser,
     user_service: IUserService,
 ) -> UserPromotionResponse:
     """

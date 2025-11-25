@@ -1,11 +1,19 @@
 import enum
+from functools import total_ordering
 
 
+@total_ordering
 class UserRole(str, enum.Enum):
-    """User role enumeration"""
+    """User role enumeration with ordering support (USER < ADMIN)"""
 
     USER = "USER"
     ADMIN = "ADMIN"
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, UserRole):
+            return NotImplemented
+        role_order = {UserRole.USER: 1, UserRole.ADMIN: 2}
+        return role_order[self] < role_order[other]
 
 
 class DifficultyLevel(str, enum.Enum):

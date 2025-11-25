@@ -30,7 +30,7 @@ class RegisteredUserData(UserIDData, UserBaseData):
     pass
 
 
-class CurrentUserData(UserIDData, UserBaseData):
+class AuthenticatedUserData(UserIDData, UserBaseData):
     pass
 
 
@@ -73,13 +73,13 @@ class UserLoginResponse(BaseModel):
         )
 
 
-class CurrentUserResponse(BaseModel):
-    user: CurrentUserData
+class AuthenticatedUserResponse(BaseModel):
+    user: AuthenticatedUserData
 
     @classmethod
-    def from_dto(cls, dto: UserDTO, token: str) -> "CurrentUserResponse":
-        return CurrentUserResponse(
-            user=CurrentUserData(
+    def from_dto(cls, dto: UserDTO, token: str) -> "AuthenticatedUserResponse":
+        return AuthenticatedUserResponse(
+            user=AuthenticatedUserData(
                 id=dto.id,
                 email=dto.email,
                 username=dto.username,
