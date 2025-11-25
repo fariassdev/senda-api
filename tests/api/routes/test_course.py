@@ -1,4 +1,5 @@
 import pytest
+from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +11,9 @@ from tests.utils import create_another_test_course, create_another_test_user
 
 
 @pytest.mark.anyio
-async def test_user_can_create_new_course(authorized_test_client: AsyncClient) -> None:
+async def test_user_can_not_create_new_course(
+    authorized_test_client: AsyncClient,
+) -> None:
     payload = {
         "course": {
             "title": "Test Course1",
@@ -20,12 +23,26 @@ async def test_user_can_create_new_course(authorized_test_client: AsyncClient) -
         }
     }
     response = await authorized_test_client.post(url="/courses", json=payload)
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.anyio
-async def test_user_can_create_course_without_tags(
-    authorized_test_client: AsyncClient, test_course: CourseDTO
+async def test_admin_can_create_new_course(admin_test_client: AsyncClient) -> None:
+    payload = {
+        "course": {
+            "title": "Test Course1",
+            "difficultyLevel": "Beginner",
+            "description": "test description",
+            "tagList": ["tag1", "tag2", "tag3"],
+        }
+    }
+    response = await admin_test_client.post(url="/courses", json=payload)
+    assert response.status_code == status.HTTP_201_CREATED
+
+
+@pytest.mark.anyio
+async def test_user_can_not_create_course_without_tags(
+    authorized_test_client: AsyncClient,
 ) -> None:
     payload = {
         "course": {
@@ -36,12 +53,28 @@ async def test_user_can_create_course_without_tags(
         }
     }
     response = await authorized_test_client.post(url="/courses", json=payload)
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.anyio
-async def test_user_can_create_course_without_duplicated_tags(
-    authorized_test_client: AsyncClient,
+async def test_admin_can_create_course_without_tags(
+    admin_test_client: AsyncClient,
+) -> None:
+    payload = {
+        "course": {
+            "title": "Test Course",
+            "difficultyLevel": "Beginner",
+            "description": "test description",
+            "tagList": [],
+        }
+    }
+    response = await admin_test_client.post(url="/courses", json=payload)
+    assert response.status_code == status.HTTP_201_CREATED
+
+
+@pytest.mark.anyio
+async def test_admin_can_create_course_without_duplicated_tags(
+    admin_test_client: AsyncClient,
 ) -> None:
     payload = {
         "course": {
@@ -51,14 +84,14 @@ async def test_user_can_create_course_without_duplicated_tags(
             "tagList": ["tag1", "tag2", "tag2", "tag3", "tag3"],
         }
     }
-    response = await authorized_test_client.post(url="/courses", json=payload)
+    response = await admin_test_client.post(url="/courses", json=payload)
     course = CourseResponse(**response.json())
     assert set(course.course.tags) == {"tag1", "tag2", "tag3"}
 
 
 @pytest.mark.anyio
-async def test_user_can_create_course_with_existing_title(
-    authorized_test_client: AsyncClient, test_course: CourseDTO
+async def test_admin_can_create_course_with_existing_title(
+    admin_test_client: AsyncClient, test_course: CourseDTO
 ) -> None:
     payload = {
         "course": {
@@ -68,27 +101,25 @@ async def test_user_can_create_course_with_existing_title(
             "tagList": test_course.tags,
         }
     }
-    response = await authorized_test_client.post(url="/courses", json=payload)
-    assert response.status_code == 201
+    response = await admin_test_client.post(url="/courses", json=payload)
+    assert response.status_code == status.HTTP_201_CREATED
 
 
 @pytest.mark.anyio
 async def test_user_can_retrieve_course_without_tags(
     authorized_test_client: AsyncClient,
+    session: AsyncSession,
+    user_repository: IUserRepository,
+    course_repository: ICourseRepository,
 ) -> None:
-    payload = {
-        "course": {
-            "title": "Test Course",
-            "difficultyLevel": "Beginner",
-            "description": "test description",
-            "tagList": [],
-        }
-    }
-    response = await authorized_test_client.post(url="/courses", json=payload)
-    assert response.status_code == 201
+    new_user = await create_another_test_user(
+        session=session, user_repository=user_repository
+    )
+    new_course = await create_another_test_course(
+        session=session, course_repository=course_repository, author_id=new_user.id
+    )
 
-    course = CourseResponse(**response.json())
-    response = await authorized_test_client.get(url=f"/courses/{course.course.slug}")
+    response = await authorized_test_client.get(url=f"/courses/{new_course.slug}")
     assert response.status_code == 200
 
 
@@ -112,8 +143,8 @@ async def test_user_can_retrieve_course_if_exists(
 
 
 @pytest.mark.anyio
-async def test_user_can_not_delete_foreign_course(
-    authorized_test_client: AsyncClient,
+async def test_admin_can_delete_a_existing_course_belonging_to_another_user(
+    admin_test_client: AsyncClient,
     session: AsyncSession,
     user_repository: IUserRepository,
     course_repository: ICourseRepository,
@@ -124,36 +155,5 @@ async def test_user_can_not_delete_foreign_course(
     new_course = await create_another_test_course(
         session=session, course_repository=course_repository, author_id=new_user.id
     )
-    response = await authorized_test_client.delete(url=f"/courses/{new_course.slug}")
-    assert response.status_code == 403
-
-
-@pytest.mark.anyio
-async def test_user_can_not_update_foreign_course(
-    authorized_test_client: AsyncClient,
-    session: AsyncSession,
-    user_repository: IUserRepository,
-    course_repository: ICourseRepository,
-) -> None:
-    new_user = await create_another_test_user(
-        session=session, user_repository=user_repository
-    )
-    new_course = await create_another_test_course(
-        session=session, course_repository=course_repository, author_id=new_user.id
-    )
-    response = await authorized_test_client.put(
-        url=f"/courses/{new_course.slug}",
-        json={"course": {"title": "New Updated Title"}},
-    )
-    assert response.status_code == 403
-
-
-@pytest.mark.anyio
-async def test_user_can_delete_own_course(
-    authorized_test_client: AsyncClient, test_course: CourseDTO
-) -> None:
-    response = await authorized_test_client.delete(url=f"/courses/{test_course.slug}")
-    assert response.status_code == 204
-
-    response = await authorized_test_client.get(url=f"/courses/{test_course.slug}")
-    assert response.status_code == 404
+    response = await admin_test_client.delete(url=f"/courses/{new_course.slug}")
+    assert response.status_code == status.HTTP_204_NO_CONTENT

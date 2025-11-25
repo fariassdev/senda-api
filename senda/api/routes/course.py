@@ -85,7 +85,7 @@ async def get_course(
 async def create_course(
     payload: CreateCourseRequest,
     session: DBSession,
-    current_user: AuthenticatedUser,
+    current_user: AdminUser,
     course_service: ICourseService,
 ) -> CourseResponse:
     """
@@ -153,7 +153,7 @@ async def update_course(
     slug: str,
     payload: UpdateCourseRequest,
     session: DBSession,
-    current_user: AuthenticatedUser,
+    current_user: AdminUser,
     course_service: ICourseService,
 ) -> CourseResponse:
     """

@@ -80,7 +80,7 @@ async def update_lesson(
     slug: str,
     payload: UpdateLessonRequest,
     session: DBSession,
-    current_user: AuthenticatedUser,
+    current_user: AdminUser,
     lesson_service: ILessonService,
     lesson_id: int = Path(..., alias="id"),
 ) -> LessonResponse:
