@@ -55,3 +55,26 @@ class UserUpdateRequest(BaseModel):
             bio=self.user.bio,
             image_url=self.user.image,
         )
+
+
+class AdminUserCreationData(BaseModel):
+    """Schema for creating an admin user."""
+
+    email: EmailStr
+    name: str | None = Field(None)
+    password: str = Field(..., min_length=8)
+    username: str = Field(..., min_length=3)
+
+
+class AdminUserCreationRequest(BaseModel):
+    """Request to create a new admin user (admin-only endpoint)."""
+
+    user: AdminUserCreationData
+
+    def to_dto(self) -> CreateUserDTO:
+        return CreateUserDTO(
+            username=self.user.username,
+            email=self.user.email,
+            password=self.user.password,
+            name=self.user.name,
+        )

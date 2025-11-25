@@ -2,6 +2,7 @@ from collections.abc import Collection
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from senda.core.enums import UserRole
 from senda.core.exceptions import (
     EmailAlreadyTakenException,
     UserNameAlreadyTakenException,
@@ -76,4 +77,37 @@ class UserService(IUserService):
             name=updated_user.name,
             bio=updated_user.bio,
             image=updated_user.image_url,
+        )
+
+    async def create_admin_user(
+        self, session: AsyncSession, user_to_create: CreateUserDTO
+    ) -> UserDTO:
+        """Create a new admin user. Only callable by existing admin users."""
+        if await self._user_repo.get_by_email_or_none(
+            session=session, email=user_to_create.email
+        ):
+            raise EmailAlreadyTakenException()
+
+        if await self._user_repo.get_by_username_or_none(
+            session=session, username=user_to_create.username
+        ):
+            raise UserNameAlreadyTakenException()
+
+        # Override role to ADMIN
+        admin_user_dto = CreateUserDTO(
+            username=user_to_create.username,
+            email=user_to_create.email,
+            password=user_to_create.password,
+            name=user_to_create.name,
+            role=UserRole.ADMIN,
+        )
+
+        return await self._user_repo.add(session=session, create_item=admin_user_dto)
+
+    async def promote_user_to_admin(
+        self, session: AsyncSession, user_id: int
+    ) -> UserDTO:
+        """Promote an existing user to admin role."""
+        return await self._user_repo.update_user_role(
+            session=session, user_id=user_id, role=UserRole.ADMIN
         )

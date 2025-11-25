@@ -2,6 +2,7 @@ import abc
 from collections.abc import Collection, Mapping
 from typing import Any
 
+from senda.core.enums import UserRole
 from senda.domain.dtos.user import CreateUserDTO, UpdateUserDTO, UserDTO
 
 
@@ -41,4 +42,9 @@ class IUserRepository(abc.ABC):
     @abc.abstractmethod
     async def update(
         self, session: Any, user_id: int, update_item: UpdateUserDTO
+    ) -> UserDTO: ...
+
+    @abc.abstractmethod
+    async def update_user_role(
+        self, session: Any, user_id: int, role: UserRole
     ) -> UserDTO: ...

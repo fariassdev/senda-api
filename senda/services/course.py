@@ -3,6 +3,7 @@ from dataclasses import asdict
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from senda.core.enums import DifficultyLevel, UserRole
 from senda.core.exceptions import (
     CourseAlreadyFavoritedException,
     CourseGenerationException,
@@ -206,7 +207,8 @@ class CourseService(ICourseService):
     ) -> None:
         course = await self._course_repo.get_by_slug(session=session, slug=slug)
 
-        if course.author_id != current_user.id:
+        # Admins can delete any course, regular users only their own
+        if current_user.role != UserRole.ADMIN and course.author_id != current_user.id:
             raise CoursePermissionException()
 
         await self._course_repo.delete_by_slug(session=session, slug=slug)
@@ -220,7 +222,8 @@ class CourseService(ICourseService):
     ) -> CourseDTO:
         course = await self._course_repo.get_by_slug(session=session, slug=slug)
 
-        if course.author_id != current_user.id:
+        # Admins can update any course, regular users only their own
+        if current_user.role != UserRole.ADMIN and course.author_id != current_user.id:
             raise CoursePermissionException()
 
         course = await self._course_repo.update_by_slug(

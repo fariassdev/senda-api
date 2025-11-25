@@ -277,6 +277,13 @@ class StorageProviderException(BaseInternalException):
     _message = "Failed to upload audio to storage service."
 
 
+class InsufficientPermissionsException(BaseInternalException):
+    """Exception raised when user lacks required permissions for action."""
+
+    _status_code = 403
+    _message = "You don't have permission to perform this action."
+
+
 def add_internal_exception_handler(app: FastAPI) -> None:
     """
     Handle all internal exceptions.

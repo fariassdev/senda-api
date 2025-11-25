@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from senda.api.schemas.requests.course import CoursesFilters, CoursesPagination
 from senda.core.container import container
+from senda.core.enums import UserRole
+from senda.core.exceptions import InsufficientPermissionsException
 from senda.core.security import HTTPTokenHeader
 from senda.domain.dtos.user import UserDTO
 from senda.services.audio_generation import AudioGenerationService
@@ -94,7 +96,17 @@ async def get_current_user(
     return current_user_dto
 
 
+async def get_current_admin_user(
+    current_user: Annotated[UserDTO, Depends(get_current_user)],
+) -> UserDTO:
+    """Require admin role for the current user."""
+    if current_user.role != UserRole.ADMIN:
+        raise InsufficientPermissionsException()
+    return current_user
+
+
 Pagination = Annotated[CoursesPagination, Depends(get_courses_pagination)]
 QueryFilters = Annotated[CoursesFilters, Depends(get_courses_filters)]
 CurrentOptionalUser = Annotated[UserDTO | None, Depends(get_current_user_or_none)]
 CurrentUser = Annotated[UserDTO, Depends(get_current_user)]
+CurrentAdminUser = Annotated[UserDTO, Depends(get_current_admin_user)]

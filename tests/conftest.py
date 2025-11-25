@@ -209,3 +209,39 @@ async def authorized_test_client(application: FastAPI, jwt_token: str) -> AsyncC
         },
     ) as client:
         yield client
+
+
+@pytest.fixture
+async def admin_user(
+    session: AsyncSession, user_repository: IUserRepository
+) -> UserDTO:
+    """Create an admin user for testing."""
+    admin_dto = CreateUserDTO(
+        username="admin",
+        email="admin@test.com",
+        password="adminpass123",
+        role=UserRole.ADMIN,
+    )
+    return await user_repository.add(session=session, create_item=admin_dto)
+
+
+@pytest.fixture
+async def admin_jwt_token(
+    auth_token_service: IAuthTokenService, admin_user: UserDTO
+) -> str:
+    """Generate JWT token for admin user."""
+    return auth_token_service.generate_jwt_token(user=admin_user)
+
+
+@pytest.fixture
+async def admin_client(application: FastAPI, admin_jwt_token: str) -> AsyncClient:
+    """AsyncClient with admin authentication."""
+    async with AsyncClient(
+        transport=ASGITransport(app=application),
+        base_url="http://testserver/api",
+        headers={
+            "Authorization": f"Token {admin_jwt_token}",
+            "Content-Type": "application/json",
+        },
+    ) as client:
+        yield client

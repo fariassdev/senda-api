@@ -14,6 +14,7 @@ from senda.api.schemas.responses.script_generation import (
     ScriptGenerationStatusResponse,
 )
 from senda.core.dependencies import (
+    CurrentAdminUser,
     CurrentOptionalUser,
     CurrentUser,
     DBSession,
@@ -100,7 +101,7 @@ async def update_lesson(
 async def delete_lesson(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: CurrentAdminUser,
     lesson_service: ILessonService,
     lesson_id: int = Path(..., alias="id"),
 ) -> None:
@@ -123,7 +124,7 @@ async def delete_lesson(
 async def generate_lesson_script(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: CurrentAdminUser,
     script_service: IScriptGenerationService,
     lesson_id: int = Path(..., alias="id"),
 ) -> ScriptGenerationResponse:
@@ -147,7 +148,7 @@ async def generate_lesson_script(
 async def generate_course_scripts(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: CurrentAdminUser,
     script_service: IScriptGenerationService,
 ) -> CourseScriptsGenerationResponse:
     """
@@ -196,7 +197,7 @@ async def get_lesson_script_status(
 async def generate_lesson_audio(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: CurrentAdminUser,
     audio_service: IAudioGenerationService,
     lesson_id: int = Path(..., alias="id"),
 ) -> AudioGenerationResponse:
@@ -218,7 +219,7 @@ async def generate_lesson_audio(
 async def generate_course_audios(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: CurrentAdminUser,
     audio_service: IAudioGenerationService,
 ) -> CourseAudiosGenerationResponse:
     """

@@ -6,6 +6,7 @@ from senda.api.schemas.requests.course_generation import CourseGenerationRequest
 from senda.api.schemas.responses.course import CourseResponse, CoursesFeedResponse
 from senda.api.schemas.responses.course_generation import CourseGenerationResponse
 from senda.core.dependencies import (
+    CurrentAdminUser,
     CurrentOptionalUser,
     CurrentUser,
     DBSession,
@@ -110,7 +111,7 @@ async def create_course(
 async def generate_course(
     payload: CourseGenerationRequest,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: CurrentAdminUser,
     course_service: ICourseService,
 ) -> CourseGenerationResponse:
     """
@@ -171,7 +172,7 @@ async def update_course(
 async def delete_course(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: CurrentAdminUser,
     course_service: ICourseService,
 ) -> None:
     """
