@@ -141,7 +141,7 @@ External services (AI, storage, TTS) implement provider interfaces from `domain/
 Custom exceptions in `domain/exceptions/` with matching HTTP handlers in `core/exceptions.py`:
 ```python
 raise CourseNotFoundException(f"Course {slug} not found")  # → 404
-raise CoursePermissionException("Not authorized")          # → 403
+raise InsufficientPermissionsException("Not authorized")   # → 403
 raise AIProviderUnavailableException("Gemini unavailable") # → 503
 ```
 

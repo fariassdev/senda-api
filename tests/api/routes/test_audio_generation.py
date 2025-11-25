@@ -244,27 +244,6 @@ class TestAudioGenerationAPI:
         assert len(data["generated_audios"]) == 0
 
     @pytest.mark.anyio
-    @pytest.mark.skip(
-        reason="Requires second_authorized_test_client fixture - implement when adding permission tests"
-    )
-    async def test_generate_course_audios_permission_denied(
-        self, authorized_test_client: AsyncClient, test_course
-    ):
-        """Test error when user doesn't own the course."""
-        from senda.core.exceptions import CoursePermissionException
-
-        with patch(
-            "senda.services.audio_generation.AudioGenerationService.generate_course_audios",
-            new_callable=AsyncMock,
-            side_effect=CoursePermissionException(),
-        ):
-            response = await authorized_test_client.post(
-                f"/courses/{test_course.slug}/generate-all-audios"
-            )
-
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    @pytest.mark.anyio
     async def test_get_lesson_audio_status_success(
         self, authorized_test_client: AsyncClient, test_course, session
     ):

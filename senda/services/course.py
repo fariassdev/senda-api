@@ -8,7 +8,6 @@ from senda.core.exceptions import (
     CourseAlreadyFavoritedException,
     CourseGenerationException,
     CourseNotFavoritedException,
-    CoursePermissionException,
 )
 from senda.domain.dtos.course import (
     CourseAuthorDTO,
@@ -205,12 +204,6 @@ class CourseService(ICourseService):
     async def delete_course_by_slug(
         self, session: AsyncSession, slug: str, current_user: UserDTO
     ) -> None:
-        course = await self._course_repo.get_by_slug(session=session, slug=slug)
-
-        # Admins can delete any course, regular users only their own
-        if current_user.role != UserRole.ADMIN and course.author_id != current_user.id:
-            raise CoursePermissionException()
-
         await self._course_repo.delete_by_slug(session=session, slug=slug)
 
     async def update_course_by_slug(
@@ -221,10 +214,6 @@ class CourseService(ICourseService):
         current_user: UserDTO,
     ) -> CourseDTO:
         course = await self._course_repo.get_by_slug(session=session, slug=slug)
-
-        # Admins can update any course, regular users only their own
-        if current_user.role != UserRole.ADMIN and course.author_id != current_user.id:
-            raise CoursePermissionException()
 
         course = await self._course_repo.update_by_slug(
             session=session, slug=slug, update_item=course_to_update

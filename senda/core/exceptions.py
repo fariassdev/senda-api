@@ -61,25 +61,11 @@ class UserNotFoundException(BaseInternalException):
     _message = "User with this username does not exist."
 
 
-class ArticleNotFoundException(BaseInternalException):
-    """Exception raised when article not found in database."""
-
-    _status_code = 404
-    _message = "Article with this slug does not exist."
-
-
 class CourseNotFoundException(BaseInternalException):
     """Exception raised when course not found in database."""
 
     _status_code = 404
     _message = "Course with this slug does not exist."
-
-
-class ArticleAlreadyFavoritedException(BaseInternalException):
-    """Exception raised when article already marked favorited."""
-
-    _status_code = 400
-    _message = "Article has already been marked as a favorite."
 
 
 class CourseAlreadyFavoritedException(BaseInternalException):
@@ -89,13 +75,6 @@ class CourseAlreadyFavoritedException(BaseInternalException):
     _message = "Course has already been marked as a favorite."
 
 
-class ArticleNotFavoritedException(BaseInternalException):
-    """Exception raised when article is not favorited."""
-
-    _status_code = 400
-    _message = "Article is not favorited."
-
-
 class CourseNotFavoritedException(BaseInternalException):
     """Exception raised when course is not favorited."""
 
@@ -103,46 +82,11 @@ class CourseNotFavoritedException(BaseInternalException):
     _message = "Course is not favorited."
 
 
-class ArticlePermissionException(BaseInternalException):
-    """Exception raised when user does not have permission to access the article."""
-
-    _status_code = 403
-    _message = "Current user does not have permission to access the article."
-
-
-class CoursePermissionException(BaseInternalException):
-    """Exception raised when user does not have permission to access the course."""
-
-    _status_code = 403
-    _message = "Current user does not have permission to access the course."
-
-
-class CommentNotFoundException(BaseInternalException):
-    """Exception raised when comment not found in database."""
-
-    _status_code = 404
-    _message = "Comment with this id does not exist."
-
-
 class LessonNotFoundException(BaseInternalException):
     """Exception raised when lesson not found in database."""
 
     _status_code = 404
     _message = "Lesson with this id does not exist."
-
-
-class CommentPermissionException(BaseInternalException):
-    """Exception raised when user does not have permission to access the comment."""
-
-    _status_code = 403
-    _message = "Current user does not have permission to access the comment."
-
-
-class LessonPermissionException(BaseInternalException):
-    """Exception raised when user does not have permission to access the lesson."""
-
-    _status_code = 403
-    _message = "Current user does not have permission to access the lesson."
 
 
 class EmailAlreadyTakenException(BaseInternalException):
@@ -254,13 +198,6 @@ class InvalidLessonStateException(BaseInternalException):
 
     _status_code = 400
     _message = "Lesson must have SCRIPT_COMPLETED status to generate audio."
-
-
-class AudioGenerationPermissionException(BaseInternalException):
-    """Exception raised when user lacks permission to generate audio for lesson."""
-
-    _status_code = 403
-    _message = "You don't have permission to generate audio for this lesson."
 
 
 class AudioProviderException(BaseInternalException):

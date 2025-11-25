@@ -9,9 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from senda.core.enums import LessonStatus
 from senda.core.exceptions import (
     CourseNotFoundException,
-    CoursePermissionException,
     LessonNotFoundException,
-    LessonPermissionException,
     ScriptGenerationException,
 )
 from senda.domain.dtos.lesson import UpdateLessonDTO
@@ -54,7 +52,6 @@ class ScriptGenerationService(IScriptGenerationService):
         Raises:
             LessonNotFoundException: If lesson not found
             ScriptGenerationException: If generation fails or provider not configured
-            LessonPermissionException: If user lacks permission
         """
         if not self._script_provider:
             raise ScriptGenerationException(
@@ -78,10 +75,6 @@ class ScriptGenerationService(IScriptGenerationService):
             )
             if not course_record:
                 raise CourseNotFoundException()
-
-            # Check permission (user must be course author)
-            if course_record.author_id != request.user_id:
-                raise LessonPermissionException()
 
             # Update lesson status to generating
             await self._lesson_repo.update(
@@ -142,7 +135,6 @@ class ScriptGenerationService(IScriptGenerationService):
         except (
             LessonNotFoundException,
             CourseNotFoundException,
-            LessonPermissionException,
             ScriptGenerationException,
         ):
             # Update status to failed and re-raise known exceptions
@@ -176,7 +168,6 @@ class ScriptGenerationService(IScriptGenerationService):
         Raises:
             CourseNotFoundException: If course not found
             ScriptGenerationException: If generation fails
-            CoursePermissionException: If user lacks permission
         """
         if not self._script_provider:
             raise ScriptGenerationException(
@@ -189,8 +180,6 @@ class ScriptGenerationService(IScriptGenerationService):
         course_record = await self._course_repo.get_by_slug(
             session=session, slug=request.slug
         )
-        if course_record.author_id != request.user_id:
-            raise CoursePermissionException()
 
         # Get all lessons for the course and filter ungenerated ones
         all_lessons = await self._lesson_repo.list_by_course(
@@ -248,7 +237,6 @@ class ScriptGenerationService(IScriptGenerationService):
 
         Raises:
             LessonNotFoundException: If lesson not found
-            LessonPermissionException: If user lacks permission
         """
         lesson_record = await self._lesson_repo.get_or_none(
             session=session, lesson_id=lesson_id
@@ -262,9 +250,5 @@ class ScriptGenerationService(IScriptGenerationService):
         )
         if not course_record:
             raise CourseNotFoundException()
-
-        # Check permission (user must be course author)
-        if course_record.author_id != user_id:
-            raise LessonPermissionException()
 
         return lesson_record.status
