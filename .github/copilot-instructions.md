@@ -1,318 +1,193 @@
-# Senda AI Assistant Instructions
+# Senda AI Platform - Copilot Instructions
 
-This guide helps AI agents understand the key aspects of the Senda codebase for effective development assistance.
+## Project Overview
+Senda is an AI-powered meditation course platform built with **Clean Architecture** principles. It generates meditation courses and lessons using Gemini AI, converts them to speech via Kokoro TTS, and stores audio on AWS S3. Recently migrated from monolithic architecture to clean architecture (PR #31).
 
-## Architecture Overview
+**Tech Stack:** FastAPI, SQLAlchemy (async), PostgreSQL, Gemini AI, AWS S3, Kokoro TTS, UV package manager
 
-Senda is a meditation content generation platform with three core services:
-- **FastAPI Backend** (`src/`): Manages courses and lessons with AI-powered content generation
-- **PostgreSQL Database**: Stores course/lesson data with UUIDv7 primary keys (port 5433)
-- **Kokoro TTS**: Local text-to-speech service for audio generation (port 8880)
+## Architecture: Four-Layer Clean Architecture
 
-Key components:
+The codebase strictly follows Clean Architecture with dependency inversion at every layer:
+
 ```
-src/
-├── main.py          # Entry point (runs server)
-├── api.py           # FastAPI app & routes
-├── services/         # Core business logic
-│   ├── course_architect/     # AI course generation (Gemini)
-│   ├── lesson_script_writer/ # AI script generation (Gemini)
-│   ├── audio_service.py     # TTS + S3 integration
-│   ├── lesson_script_service.py  # Orchestrates script generation
-│   ├── auth_service.py      # JWT authentication logic
-│   ├── event_publisher.py   # Redis pub/sub for WebSocket events
-│   └── s3_service.py        # AWS S3 file uploads
-├── models/           # SQLAlchemy models (Course, Lesson, User)
-├── repositories/     # Database operations layer
-├── routers/          # FastAPI endpoints (/courses, /lessons, /auth, /ws)
-├── schemas/          # Pydantic request/response models
-├── core/             # Database connection + auth + Redis utilities
-└── utils/            # UUIDv7 generation utilities
+senda/
+├── api/              # HTTP layer (routes, schemas, middleware)
+├── services/         # Business logic implementations
+├── domain/           # Business rules + interfaces (ABC only, no implementations)
+│   ├── dtos/         # Data transfer objects
+│   ├── repositories/ # Repository interfaces (ABC)
+│   └── services/     # Service interfaces (ABC)
+└── infrastructure/   # External services (DB, AI providers, storage)
+    ├── models.py     # SQLAlchemy models
+    ├── mappers/      # Model ↔ DTO conversion
+    ├── repositories/ # Repository implementations
+    └── providers/    # External API implementations (Gemini, S3, Kokoro)
 ```
+
+**Critical Rule:** Domain layer (`domain/`) contains ONLY abstract interfaces (ABC). Never put implementations in domain layer - they belong in `services/` or `infrastructure/`.
+
+## Dependency Injection Pattern
+
+All dependencies flow through `senda/core/container.py` using constructor injection:
+
+```python
+# Container creates and wires dependencies
+class Container:
+    def course_service(self) -> ICourseService:
+        return CourseService(
+            course_repo=self.course_repository(),
+            generation_provider=self.course_generation_provider()
+        )
+```
+
+**FastAPI Integration:** Dependencies are injected via `senda/core/dependencies.py`:
+```python
+ICourseService = Annotated[CourseService, Depends(container.course_service)]
+DBSession = Annotated[AsyncSession, Depends(container.session)]
+```
+
+**Usage in Routes:**
+```python
+async def create_course(
+    session: DBSession,              # Auto-injected database session
+    current_user: CurrentUser,       # Auto-injected + authenticated user
+    course_service: ICourseService,  # Auto-injected service
+) -> CourseResponse:
+    ...
+```
+
+## Data Flow & Mappers
+
+**Model ↔ DTO Conversion:** Use dedicated mappers in `infrastructure/mappers/`:
+- `UserModelMapper`, `CourseModelMapper`, `LessonModelMapper`, `TagModelMapper`
+- Implement `IModelMapper[Model, DTO]` interface with `to_dto()` and `from_dto()`
+- **Never** convert models directly - always use mappers
+
+**Request/Response Conversion:**
+- API schemas in `api/schemas/` have `.to_dto()` and `.from_dto()` methods
+- Routes receive Request schemas → convert to DTOs → pass to services
+- Services return DTOs → routes convert to Response schemas
 
 ## Development Workflow
 
-### 1. Setup (mandatory venv activation)
+**All commands use `uv run` - never use pip/python directly:**
 
-Before running any Python command in this repository you MUST activate the project's virtual environment. Failing to activate the venv can cause dependency, linting, formatting, or runtime errors. CI pipelines must also use the pinned environment or lockfile.
-
-Windows (PowerShell - recommended):
-```powershell
-# activate the venv in PowerShell (mandatory before running python/uv commands)
-. .venv\Scripts\Activate.ps1
-
-# install editable package
-uv pip install -e .
-```
-
-Windows (cmd.exe):
-```bat
-# activate the venv in cmd.exe (mandatory before running python/uv commands)
-.venv\Scripts\activate
-
-# install editable package
-uv pip install -e .
-```
-
-Unix / macOS (bash/zsh):
 ```bash
-# activate the venv (mandatory before running python/uv commands)
-source .venv/bin/activate
-
-# install editable package
-uv pip install -e .
+make setup              # First-time setup (venv + deps + migrations)
+make runserver-dev      # Dev server on :8081 with auto-reload
+make test               # Run pytest with .env.test
+make test-cov           # Tests with coverage report
+make migration message="add field"  # Create Alembic migration
+make migrate            # Apply migrations
+make check              # Run all quality checks (lint + format + types)
+make fix                # Auto-fix all issues
 ```
 
-CI note: ensure CI creates and activates the same venv or uses the repository lockfile to reproduce the exact environment before running linters and tests.
+**Database:** PostgreSQL with async SQLAlchemy. Alembic config at `senda/infrastructure/alembic.ini`.
 
-### 2. Configuration
-- Copy `.env.example` to `.env`
-- **Required**: `GEMINI_API_KEY` for AI generation
-- **Database**: PostgreSQL on port 5433 (non-standard to avoid conflicts)
-- **Authentication**: Generate JWT secret with `openssl rand -hex 32`
-- **AWS**: Configure S3 credentials for audio storage
+## Code Quality Standards
 
-### 3. Running Services
-```powershell
-# Start PostgreSQL + Kokoro TTS (Docker)
-docker-compose up --build
+**Use Ruff for everything** (replaces black, isort, flake8, pyupgrade):
+- `make lint` - Check linting
+- `make format` - Check formatting
+- `make types` - MyPy type checking
+- `make fix` - Auto-fix lint + format issues
 
-# Run API locally (recommended for development)
-uvicorn api:app --reload
+**Type Hints Required:** All functions/methods must have full type hints. Use `Any` for SQLAlchemy session types in repository interfaces.
 
-# With debug logging
-uvicorn api:app --reload --log-level debug
+**Import Order:** Ruff handles this automatically. First-party imports: `senda`.
 
-# Or using Python directly
-python -m main
-```
+## Key Patterns & Conventions
 
-**API Endpoints:**
-- Swagger docs: `http://localhost:8000/api/docs`
-- ReDoc: `http://localhost:8000/api/redoc`
-- Health check: `http://localhost:8000/api/health`
-
-### 4. Database Migrations
-```powershell
-# Generate an empty migration template. Then you MUST modify the generated file to add the desired changes.
-alembic revision -m "description"
-
-# Apply migrations
-alembic upgrade head
-
-# Rollback one migration
-alembic downgrade -1
-```
-
-## Critical Patterns
-
-### 1. Repository Pattern (Strictly Enforced)
-**Never use SQLAlchemy models directly in routers.** All database operations go through repository classes:
-
+### 1. Repository Pattern
+Repositories live in `infrastructure/repositories/` and implement interfaces from `domain/repositories/`:
 ```python
-# ❌ WRONG - Direct model usage in router
-from models.lesson import Lesson
-lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+class CourseRepository(ICourseRepository):
+    def __init__(self, course_mapper: IModelMapper):
+        self._mapper = course_mapper
 
-# ✅ CORRECT - Use repository
-from repositories.lesson import LessonRepository
-lesson_repo = LessonRepository(db)
-lesson = lesson_repo.get_lesson(lesson_id)
+    async def add(self, session: Any, author_id: int, create_item: CreateCourseDTO) -> CourseRecordDTO:
+        model = self._mapper.from_dto(create_item)
+        session.add(model)
+        await session.flush()
+        return self._mapper.to_dto(model)
 ```
 
-Example: `src/senda/api/repositories/lesson.py` for reference implementation.
-
-### 2. Dependency Injection Pattern
-All services use FastAPI's `Depends()` for injection:
-
+### 2. Service Pattern
+Services in `services/` implement `domain/services/` interfaces and orchestrate business logic:
 ```python
-def get_lesson_repository(db: Session = Depends(get_db)) -> LessonRepository:
-    return LessonRepository(db)
-
-@router.get("/lessons/{lesson_id}")
-def get_lesson(
-    lesson_id: UUID,
-    lesson_repo: LessonRepository = Depends(get_lesson_repository),
-):
-    return lesson_repo.get_lesson(lesson_id)
+class CourseService(ICourseService):
+    def __init__(
+        self,
+        course_repo: ICourseRepository,
+        generation_provider: ICourseGenerationProvider | None
+    ):
+        self._course_repo = course_repo
+        self._generation_provider = generation_provider
 ```
 
-Example: `src/senda/api/routers/course.py` for dependency chain patterns.
+### 3. Provider Pattern
+External services (AI, storage, TTS) implement provider interfaces from `domain/services/`:
+- `GeminiCourseGenerationProvider` → implements `ICourseGenerationProvider`
+- `KokoroAudioProvider` → implements `IAudioProvider`
+- `S3StorageProvider` → implements `IStorageProvider`
 
-### 3. AI Generation Pipeline
-**Two-stage generation process:**
+### 4. Authentication
+- JWT tokens managed by `AuthTokenService`
+- Token format: `Authorization: Token xxxxxx.yyyyyyy.zzzzzz`
+- Use `CurrentUser` dependency for protected routes, `CurrentOptionalUser` for public routes with optional auth
 
-1. **Course Architecture** (via `GeminiCourseArchitect`):
-   - Input: User prompt
-   - Output: `CourseCreate` schema with lessons list
-   - System prompt: `services/course_architect/system_prompt.md`
-   - Uses Gemini's structured JSON response mode
-
-2. **Lesson Scripts** (via `GeminiLessonScriptWriter`):
-   - Input: Course context + lesson details
-   - Output: `List[ScriptPart]` with speak/pause actions
-   - System prompt: `services/lesson_script_writer/system_prompt.md`
-   - Stored as JSONB in PostgreSQL (not external files)
-
-Example: See `services/course_architect/gemini_course_architect.py` for Gemini API configuration with `response_schema` and `thinking_config`.
-
-### 4. Lesson Status State Machine
-```
-PENDING → SCRIPT_GENERATING → SCRIPT_COMPLETED → AUDIO_GENERATING → AUDIO_COMPLETED
-         ↓                     ↓
-         SCRIPT_FAILED         AUDIO_FAILED
-```
-
-**Critical:** Always check `lesson.status` before operations. Status tracked in `models/lesson.py:LessonStatus` enum.
-
-### 5. Asynchronous Processing Pattern
-Background tasks via FastAPI's `BackgroundTasks` for long-running operations:
-
+### 5. Error Handling
+Custom exceptions in `domain/exceptions/` with matching HTTP handlers in `core/exceptions.py`:
 ```python
-# In-memory tracking sets prevent duplicate operations
-_generating_courses = set()  # in routers/course.py
-_generating_lessons = set()  # in routers/lesson.py
-
-# Check before starting background task
-if course_id in _generating_courses:
-    raise HTTPException(status_code=409, detail="Course generation already in progress")
-
-_generating_courses.add(course_id)
-background_tasks.add_task(_generate_course_task, course_id, ...)
+raise CourseNotFoundException(f"Course {slug} not found")  # → 404
+raise CoursePermissionException("Not authorized")          # → 403
+raise AIProviderUnavailableException("Gemini unavailable") # → 503
 ```
 
-**⚠️ Limitation**: No persistent task queue - background tasks reset on server restart. Consider adding Celery/Redis for production.
+## AI Integration Specifics
 
-### 6. Script Data Structure
-Scripts are `List[ScriptPart]` with two action types:
+**Gemini AI:** Course/lesson generation via `infrastructure/providers/gemini_*_provider.py`
+- Prompts loaded from `infrastructure/prompts/*.md`
+- Uses structured output with Pydantic models
+- Always check if provider exists (returns `None` if API key not configured)
 
-```python
-# Speak action - generates audio via TTS
-{"type": "speak", "content": "Close your eyes and take a deep breath..."}
+**Audio Generation:** Multi-step async pipeline in `services/audio_generation.py`
+- Parallel TTS processing (configurable concurrency via `MAX_CONCURRENT_TTS`)
+- Lesson state machine: `DRAFT` → `SCRIPT_COMPLETED` → `AUDIO_COMPLETED`
+- Chunked text processing for long scripts
 
-# Pause action - inserts silence
-{"type": "pause", "duration": 3.0}  # seconds
-```
+**Prompts:** Stored as Markdown in `infrastructure/prompts/`, loaded via `PromptLoader`
 
-Audio generation in `services/audio_service.py` processes these sequentially, concatenates audio, and uploads to S3.
+## Testing Guidelines
 
-### 7. UUIDv7 for Primary Keys
-All entities use UUIDv7 (time-ordered UUIDs) for better database performance:
+- Tests in `tests/` mirror `senda/` structure
+- Use fixtures from `tests/conftest.py` (test_user, test_course, authorized_test_client)
+- Global Gemini API mock in conftest - configure per test:
+  ```python
+  def test_generation(mock_gemini_api_globally):
+      mock_gemini_api_globally.return_value = CourseStructureDTO(...)
+  ```
+- All tests run with `.env.test` environment
+- Database recreated for each test session
 
-```python
-from utils.uuid_utils import generate_uuidv7
+## Common Gotchas
 
-class Lesson(Base):
-    id = Column(UUID(as_uuid=True), primary_key=True, default=generate_uuidv7)
-```
+1. **Don't bypass the container** - Always use DI, never instantiate services/repos directly
+2. **Async all the way** - All DB operations are async (SQLAlchemy AsyncSession)
+3. **Model conversion** - Use mappers for Model↔DTO, not manual assignment
+4. **UV commands** - Use `uv run` prefix for all Python commands (not `python` or `pip`)
+5. **Session management** - Never create sessions manually; use `DBSession` dependency
+6. **Port 8081** - Dev server runs on 8081 (not 8000)
 
-**Why UUIDv7?** Time-ordered structure reduces B-tree index fragmentation compared to random UUIDv4. Implementation in `utils/uuid_utils.py`.
+## File Organization Tips
 
-### 8. Authentication & Rate Limiting
-- **JWT-based authentication** with access tokens (30 min) and refresh tokens (7 days)
-- **Rate limiting** via `slowapi`:
-  - Login: 5 attempts/minute per IP
-  - Token refresh: 10 attempts/minute per IP
-- **Security**: Passwords hashed with bcrypt, refresh tokens hashed before storage
-- Example: `routers/auth.py` for `@limiter.limit()` decorator usage
+- One entity = One file in each layer (user.py, course.py, lesson.py, etc.)
+- DTOs grouped by entity in `domain/dtos/`
+- API schemas split into `requests/` and `responses/`
+- Keep provider implementations self-contained in `infrastructure/providers/`
 
-### 9. Pydantic Schema Aliases
-Schemas use camelCase for API (JavaScript convention) but snake_case internally:
+## Additional Resources
 
-```python
-class LessonBase(BaseModel):
-    lesson_number: int = Field(..., alias="lessonNumber")
-    core_practice: str = Field(..., alias="corePractice")
-
-    class Config:
-        populate_by_name = True  # Accept both camelCase and snake_case
-```
-
-### 10. Import Conventions
-**Keep `__init__.py` files empty.** All imports should be direct to specific files to make dependencies explicit and avoid circular imports:
-
-```python
-# ✅ CORRECT - Direct imports
-from services.lesson_script_service import LessonScriptService
-from repositories.lesson import LessonRepository
-from models.lesson import Lesson
-
-# ❌ AVOID - Package-level imports that could create circular dependencies
-from services import LessonScriptService  # If __init__.py had imports
-from models import Lesson  # If __init__.py had imports
-```
-
-This pattern ensures:
-- **Explicit dependencies**: Clear which specific modules are imported
-- **No circular imports**: Empty `__init__.py` files prevent import cycles
-- **Better IDE support**: Direct imports are easier to trace and refactor
-
-- **Package Management**: `uv` (not pip/poetry) - faster, resolves dependencies better
-- **AI**: `google-genai==1.28.0` (Gemini) for content generation
-- **Database**: `sqlalchemy==2.0.42` + `psycopg[binary,pool]==3.2.9` + `alembic==1.16.4`
-- **API**: `fastapi==0.116.1` + `uvicorn[standard]==0.0.35.0`
-- **Audio**: `pydub==0.25.1` + `pyaudio==0.2.14` for audio processing
-- **Storage**: `boto3==1.40.7` for S3 audio uploads
-- **Auth**: `PyJWT==2.10.1` + `bcrypt==5.0.0` + `slowapi==0.1.9` (rate limiting)
-
-## Integration Points
-
-### 1. Gemini AI
-- **Usage**: Course structure + script generation with structured JSON responses
-- **Configuration**: System instructions from markdown files, structured output via `response_schema`
-- **Example**: `GeminiCourseArchitect` uses `response_schema=CourseCreate` for type-safe generation
-
-### 2. Kokoro TTS
-- **Endpoint**: `http://localhost:8880/v1/audio/speech`
-- **Voice**: `af_nicole` (default)
-- **Format**: PCM stream, converted to MP3 via pydub
-- **Integration**: `services/audio_service.py` handles streaming + concatenation
-
-### 3. AWS S3
-- **Purpose**: Store generated audio files
-- **Naming**: `audio/{lesson_id}_{title}_{random}.mp3`
-- **Service**: `services/s3_service.py` with boto3 client
-
-### 4. PostgreSQL
-- **Port**: 5433 (non-standard to avoid conflicts)
-- **JSONB**: Scripts stored as JSONB for flexible querying
-- **Pooling**: Connection pool managed by SQLAlchemy (`DB_POOL_MIN=2`, `DB_POOL_MAX=10`)
-
-## Development Notes
-
-- **Python Version**: Requires 3.12+
-- **Docker Compose**: Includes DB + TTS, but API typically runs locally during development
-- **Environment**: Use `.env` file for secrets, never commit it
-- **Scripts**: AI-generated scripts are regenerated, not edited - AI is source of truth
-- **Error Handling**: Background task errors log to console (needs improvement for production)
-- **CORS**: Configured for `http://localhost:3000` (frontend development)
-- **Pre-commit**: Configured with ruff for linting (see `.pre-commit-config.yaml`)
-
-## Common Tasks
-
-### Generate a course
-```powershell
-# POST /api/courses with prompt
-# Returns Course with PENDING lessons
-# Use BackgroundTasks to generate all lesson scripts
-```
-
-### Generate lesson script
-```powershell
-# POST /api/lessons/{lesson_id}/generate
-# Updates status to SCRIPT_GENERATING → SCRIPT_COMPLETED/SCRIPT_FAILED
-# Returns immediately, generation runs in background
-```
-
-### Generate audio
-```powershell
-# POST /api/lessons/{lesson_id}/generate-audio
-# Requires lesson.status == SCRIPT_COMPLETED
-# Updates status to AUDIO_GENERATING → AUDIO_COMPLETED/AUDIO_FAILED
-```
-
-### Check migration status
-```powershell
-alembic current
-alembic history
-```
+- Dev commands: `SENDA_DEV_GUIDE.md`
+- API docs: http://localhost:8081 (when server running)
