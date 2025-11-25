@@ -76,6 +76,33 @@ make docker-build      # Build and start containers
 make docker-up         # Start existing containers
 make docker-down       # Stop containers
 make docker-logs       # View logs
+
+### Seeding the Database
+
+We use a SQL-only approach for database seeding. The API container does NOT automatically run migrations or seed data on startup — instead, we provide a one-off `db_seed` service that applies an idempotent SQL seed file. The recommended workflow is:
+
+1. Run database migrations
+
+```bash
+make migrate
+```
+
+2. Run the SQL seeder via Docker Compose
+
+```bash
+make docker-seed
+```
+
+The seeder waits for Postgres to be ready and for migrations to be applied (it checks for the presence of the `alembic_version` or `user` table) before running the SQL seed. The seed SQL file is idempotent, meaning it will not duplicate data if records already exist.
+
+To force a reseed or re-apply SQL manually, use `psql` locally after running migrations (note: the SQL file is idempotent):
+
+```bash
+# Run migrations first
+uv run alembic -c senda/infrastructure/alembic.ini upgrade head
+# Apply the SQL seed file using psql (adjust your env variables accordingly)
+psql "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}" -f docker/postgres_init/seed_db.sql
+```
 ```
 
 ## Project Structure

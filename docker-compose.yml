@@ -2,15 +2,17 @@ services:
 #  api:
 #    build: .
 #    container_name: senda-api
-#    command: uvicorn senda.app:app --host 0.0.0.0 --port 8080
-#    environment:
-#      POSTGRES_HOST: postgres
 #    env_file:
 #      - .env
+#    environment:
+#      POSTGRES_HOST: postgres
 #    ports:
-#      - "8080:8080"
+#      - "8081:8081"
 #    volumes:
-#      - .:/senda
+#      - ./:/app
+#    depends_on:
+#      - postgres
+#    restart: always
 
   postgres:
     image: postgres:18
@@ -26,6 +28,57 @@ services:
       retries: 5
     volumes:
       - pg_data:/var/lib/postgresql/18/docker
+
+  db_seed:
+    image: postgres:18
+    container_name: senda-db-seed
+    env_file:
+      - .env
+    volumes:
+      - ./docker/postgres_init:/docker-entrypoint-initdb.d:ro
+    depends_on:
+      - postgres
+    entrypoint:
+      - sh
+      - -c
+      - |
+        # Wait for Postgres to be ready
+        until pg_isready -h postgres -p 5432 -U "$POSTGRES_USER"; do
+          echo "Waiting for Postgres to be ready...";
+          sleep 1;
+        done;
+
+        export PGPASSWORD="$POSTGRES_PASSWORD";
+
+        # Wait for migrations to be applied by checking for either
+        # the alembic_version table or the 'user' table.
+        tries=0
+        max_tries=60
+        while true; do
+          if psql -h postgres -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1 FROM alembic_version LIMIT 1;" >/dev/null 2>&1; then
+            echo "Detected alembic_version. Proceeding to seed...";
+            break;
+          fi
+          if psql -h postgres -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1 FROM \"user\" LIMIT 1;" >/dev/null 2>&1; then
+            echo "Detected user table. Proceeding to seed...";
+            break;
+          fi
+          if [ "$tries" -ge "$max_tries" ]; then
+            echo "Timed out waiting for migrations (alembic_version or user table) to appear. Exiting with error.";
+            exit 1;
+          fi
+          tries=$((tries+1));
+          echo "Waiting for migrations to be applied (try ${tries}/${max_tries})...";
+          sleep 1;
+        done;
+
+        # Run the seed SQL if the file is present
+        if [ -f /docker-entrypoint-initdb.d/seed_db.sql ]; then
+          psql -h postgres -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /docker-entrypoint-initdb.d/seed_db.sql;
+        else
+          echo "Seed SQL file not found, skipping.";
+        fi
+    restart: "no"
 
   kokoro_tts:
     image: ghcr.io/remsky/kokoro-fastapi-gpu:latest

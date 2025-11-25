@@ -83,6 +83,10 @@ docker-build:
 docker-up:
 	docker-compose up -d
 
+docker-seed:
+		$(MAKE) migrate
+		docker compose up --build db_seed
+
 docker-down:
 	docker-compose down
 
