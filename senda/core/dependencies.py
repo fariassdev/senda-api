@@ -22,13 +22,13 @@ from senda.services.user import UserService
 token_security = HTTPTokenHeader(
     name="Authorization",
     scheme_name="JWT Token",
-    description="Token Format: `Token xxxxxx.yyyyyyy.zzzzzz`",
+    description="Token Format: `Token xxxxxx.yyyyyyy.zzzzzz` or `Bearer xxxxxx.yyyyyyy.zzzzzz`",
     raise_error=True,
 )
 token_security_optional = HTTPTokenHeader(
     name="Authorization",
     scheme_name="JWT Token",
-    description="Token Format: `Token xxxxxx.yyyyyyy.zzzzzz`",
+    description="Token Format: `Token xxxxxx.yyyyyyy.zzzzzz` or `Bearer xxxxxx.yyyyyyy.zzzzzz`",
     raise_error=False,
 )
 

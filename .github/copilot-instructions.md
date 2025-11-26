@@ -134,7 +134,7 @@ External services (AI, storage, TTS) implement provider interfaces from `domain/
 
 ### 4. Authentication
 - JWT tokens managed by `AuthTokenService`
-- Token format: `Authorization: Token xxxxxx.yyyyyyy.zzzzzz`
+- Token format: `Authorization: Token xxxxxx.yyyyyyy.zzzzzz` or `Authorization: Bearer xxxxxx.yyyyyyy.zzzzzz`
 - Use `AdminUser` for Admin-protected routes, `AuthenticatedUser` dependency for protected routes, `OptionalUser` for public routes with optional auth
 
 ### 5. Error Handling

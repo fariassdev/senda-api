@@ -120,7 +120,7 @@ async def test_user_can_retrieve_course_without_tags(
     )
 
     response = await authorized_test_client.get(url=f"/courses/{new_course.slug}")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.anyio
@@ -128,7 +128,7 @@ async def test_user_can_not_retrieve_not_existing_course(
     authorized_test_client: AsyncClient,
 ) -> None:
     response = await authorized_test_client.get(url="/courses/not-existing-course-slug")
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.anyio
@@ -140,6 +140,17 @@ async def test_user_can_retrieve_course_if_exists(
     assert course.course.slug == test_course.slug
     assert course.course.description == test_course.description
     assert course.course.difficulty_level == test_course.difficulty_level
+
+
+@pytest.mark.anyio
+async def test_bearer_auth_for_get_courses_endpoint(
+    test_client: AsyncClient, jwt_token: str
+) -> None:
+    # The global courses feed accepts optional auth, and 'Bearer' should be accepted now
+    response = await test_client.get(
+        url="/courses", headers={"Authorization": f"Bearer {jwt_token}"}
+    )
+    assert response.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.anyio
