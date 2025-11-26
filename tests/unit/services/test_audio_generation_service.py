@@ -12,9 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from senda.core.enums import LessonStatus
 from senda.core.exceptions import (
     AudioGenerationException,
-    AudioGenerationPermissionException,
     AudioProviderException,
     CourseNotFoundException,
+    InsufficientPermissionsException,
     InvalidLessonStateException,
     LessonNotFoundException,
     StorageProviderException,
@@ -215,27 +215,6 @@ class TestAudioGenerationService:
         mock_lesson_repo.get_or_none = AsyncMock(return_value=pending_lesson)
 
         with pytest.raises(InvalidLessonStateException):
-            await audio_service.generate_lesson_audio(
-                session=mock_session, request=request
-            )
-
-    @pytest.mark.asyncio
-    async def test_generate_lesson_audio_permission_denied(
-        self,
-        audio_service,
-        mock_session,
-        sample_lesson_record,
-        sample_course_record,
-        mock_lesson_repo,
-        mock_course_repo,
-    ):
-        """Test error when user does not own the course"""
-        request = AudioGenerationRequestDTO(lesson_id=1, user_id=999)
-
-        mock_lesson_repo.get_or_none = AsyncMock(return_value=sample_lesson_record)
-        mock_course_repo.get_by_id = AsyncMock(return_value=sample_course_record)
-
-        with pytest.raises(AudioGenerationPermissionException):
             await audio_service.generate_lesson_audio(
                 session=mock_session, request=request
             )

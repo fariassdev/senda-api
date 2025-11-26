@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+from senda.core.enums import UserRole
 from senda.domain.dtos.user import (
     CreatedUserDTO,
     LoggedInUserDTO,
@@ -29,7 +30,7 @@ class RegisteredUserData(UserIDData, UserBaseData):
     pass
 
 
-class CurrentUserData(UserIDData, UserBaseData):
+class AuthenticatedUserData(UserIDData, UserBaseData):
     pass
 
 
@@ -72,13 +73,13 @@ class UserLoginResponse(BaseModel):
         )
 
 
-class CurrentUserResponse(BaseModel):
-    user: CurrentUserData
+class AuthenticatedUserResponse(BaseModel):
+    user: AuthenticatedUserData
 
     @classmethod
-    def from_dto(cls, dto: UserDTO, token: str) -> "CurrentUserResponse":
-        return CurrentUserResponse(
-            user=CurrentUserData(
+    def from_dto(cls, dto: UserDTO, token: str) -> "AuthenticatedUserResponse":
+        return AuthenticatedUserResponse(
+            user=AuthenticatedUserData(
                 id=dto.id,
                 email=dto.email,
                 username=dto.username,
@@ -104,5 +105,51 @@ class UpdatedUserResponse(BaseModel):
                 bio=dto.bio,
                 image=dto.image,
                 token=token,
+            )
+        )
+
+
+class AdminUserData(BaseModel):
+    """Admin user data with role information."""
+
+    id: int
+    email: str
+    username: str
+    name: str | None
+    role: str
+
+
+class AdminUserCreationResponse(BaseModel):
+    """Response for admin user creation."""
+
+    user: AdminUserData
+
+    @classmethod
+    def from_dto(cls, dto: UserDTO) -> "AdminUserCreationResponse":
+        return AdminUserCreationResponse(
+            user=AdminUserData(
+                id=dto.id,
+                email=dto.email,
+                username=dto.username,
+                name=dto.name,
+                role=dto.role.value,
+            )
+        )
+
+
+class UserPromotionResponse(BaseModel):
+    """Response for user promotion to admin."""
+
+    user: AdminUserData
+
+    @classmethod
+    def from_dto(cls, dto: UserDTO) -> "UserPromotionResponse":
+        return UserPromotionResponse(
+            user=AdminUserData(
+                id=dto.id,
+                email=dto.email,
+                username=dto.username,
+                name=dto.name,
+                role=dto.role.value,
             )
         )

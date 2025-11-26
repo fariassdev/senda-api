@@ -16,7 +16,7 @@ class TestAudioGenerationAPI:
 
     @pytest.mark.anyio
     async def test_generate_lesson_audio_success(
-        self, authorized_test_client: AsyncClient, test_user, test_course, session
+        self, admin_test_client: AsyncClient, test_user, test_course, session
     ):
         """Test successful lesson audio generation."""
         from senda.infrastructure.models import Course, Lesson
@@ -51,7 +51,7 @@ class TestAudioGenerationAPI:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            response = await authorized_test_client.post(
+            response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/lessons/{lesson_id}/generate-audio"
             )
 
@@ -75,8 +75,19 @@ class TestAudioGenerationAPI:
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     @pytest.mark.anyio
-    async def test_generate_lesson_audio_lesson_not_found(
+    async def test_generate_lesson_audio_user_not_admin(
         self, authorized_test_client: AsyncClient, test_course
+    ):
+        """Test unauthorized access is rejected."""
+        response = await authorized_test_client.post(
+            f"/courses/{test_course.slug}/lessons/1/generate-audio"
+        )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.anyio
+    async def test_generate_lesson_audio_lesson_not_found(
+        self, admin_test_client: AsyncClient, test_course
     ):
         """Test error when lesson does not exist."""
         from senda.core.exceptions import LessonNotFoundException
@@ -86,7 +97,7 @@ class TestAudioGenerationAPI:
             new_callable=AsyncMock,
             side_effect=LessonNotFoundException(),
         ):
-            response = await authorized_test_client.post(
+            response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/lessons/99999/generate-audio"
             )
 
@@ -94,7 +105,7 @@ class TestAudioGenerationAPI:
 
     @pytest.mark.anyio
     async def test_generate_lesson_audio_invalid_state(
-        self, authorized_test_client: AsyncClient, test_course, session
+        self, admin_test_client: AsyncClient, test_course, session
     ):
         """Test error when lesson is not ready for audio generation."""
         from senda.core.exceptions import InvalidLessonStateException
@@ -122,7 +133,7 @@ class TestAudioGenerationAPI:
             new_callable=AsyncMock,
             side_effect=InvalidLessonStateException(),
         ):
-            response = await authorized_test_client.post(
+            response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/lessons/{lesson_id}/generate-audio"
             )
 
@@ -130,7 +141,7 @@ class TestAudioGenerationAPI:
 
     @pytest.mark.anyio
     async def test_generate_course_audios_success(
-        self, authorized_test_client: AsyncClient, test_user, test_course, session
+        self, admin_test_client: AsyncClient, test_user, test_course, session
     ):
         """Test successful bulk audio generation for course."""
         from senda.infrastructure.models import Course, Lesson
@@ -188,7 +199,7 @@ class TestAudioGenerationAPI:
             new_callable=AsyncMock,
             return_value=mock_results,
         ):
-            response = await authorized_test_client.post(
+            response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-all-audios"
             )
 
@@ -225,7 +236,7 @@ class TestAudioGenerationAPI:
 
     @pytest.mark.anyio
     async def test_generate_course_audios_no_ready_lessons(
-        self, authorized_test_client: AsyncClient, test_course
+        self, admin_test_client: AsyncClient, test_course
     ):
         """Test bulk generation when no lessons are ready."""
         with patch(
@@ -233,7 +244,7 @@ class TestAudioGenerationAPI:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            response = await authorized_test_client.post(
+            response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-all-audios"
             )
 
@@ -242,27 +253,6 @@ class TestAudioGenerationAPI:
 
         assert data["total_lessons_processed"] == 0
         assert len(data["generated_audios"]) == 0
-
-    @pytest.mark.anyio
-    @pytest.mark.skip(
-        reason="Requires second_authorized_test_client fixture - implement when adding permission tests"
-    )
-    async def test_generate_course_audios_permission_denied(
-        self, authorized_test_client: AsyncClient, test_course
-    ):
-        """Test error when user doesn't own the course."""
-        from senda.core.exceptions import CoursePermissionException
-
-        with patch(
-            "senda.services.audio_generation.AudioGenerationService.generate_course_audios",
-            new_callable=AsyncMock,
-            side_effect=CoursePermissionException(),
-        ):
-            response = await authorized_test_client.post(
-                f"/courses/{test_course.slug}/generate-all-audios"
-            )
-
-        assert response.status_code == status.HTTP_403_FORBIDDEN
 
     @pytest.mark.anyio
     async def test_get_lesson_audio_status_success(

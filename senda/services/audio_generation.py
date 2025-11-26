@@ -10,10 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from senda.core.enums import LessonStatus
 from senda.core.exceptions import (
     AudioGenerationException,
-    AudioGenerationPermissionException,
     AudioProviderException,
     CourseNotFoundException,
-    CoursePermissionException,
     InvalidLessonStateException,
     LessonNotFoundException,
     StorageProviderException,
@@ -64,7 +62,6 @@ class AudioGenerationService(IAudioGenerationService):
         Raises:
             LessonNotFoundException: If lesson not found
             InvalidLessonStateException: If lesson not in SCRIPT_COMPLETED state
-            AudioGenerationPermissionException: If user lacks permission
             AudioProviderException: If TTS generation fails
             StorageProviderException: If storage upload fails
             AudioGenerationException: For other errors
@@ -91,9 +88,6 @@ class AudioGenerationService(IAudioGenerationService):
             )
             if not course_record:
                 raise CourseNotFoundException()
-
-            if course_record.author_id != request.user_id:
-                raise AudioGenerationPermissionException()
 
             await self._lesson_repo.update(
                 session=session,
@@ -157,7 +151,6 @@ class AudioGenerationService(IAudioGenerationService):
             LessonNotFoundException,
             CourseNotFoundException,
             InvalidLessonStateException,
-            AudioGenerationPermissionException,
             AudioProviderException,
             StorageProviderException,
         ):
@@ -191,7 +184,6 @@ class AudioGenerationService(IAudioGenerationService):
 
         Raises:
             CourseNotFoundException: If course not found
-            CoursePermissionException: If user not authorized
             AudioGenerationException: For other errors
 
         Note:
@@ -203,8 +195,6 @@ class AudioGenerationService(IAudioGenerationService):
         course_record = await self._course_repo.get_by_slug(
             session=session, slug=request.slug
         )
-        if course_record.author_id != request.user_id:
-            raise CoursePermissionException()
 
         all_lessons = await self._lesson_repo.list_by_course(
             session=session, course_id=course_record.id

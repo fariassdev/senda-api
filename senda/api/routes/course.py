@@ -6,10 +6,11 @@ from senda.api.schemas.requests.course_generation import CourseGenerationRequest
 from senda.api.schemas.responses.course import CourseResponse, CoursesFeedResponse
 from senda.api.schemas.responses.course_generation import CourseGenerationResponse
 from senda.core.dependencies import (
-    CurrentOptionalUser,
-    CurrentUser,
+    AdminUser,
+    AuthenticatedUser,
     DBSession,
     ICourseService,
+    OptionalUser,
     Pagination,
     QueryFilters,
 )
@@ -26,7 +27,7 @@ router = APIRouter()
 async def get_course_feed(
     pagination: Pagination,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AuthenticatedUser,
     course_service: ICourseService,
 ) -> CoursesFeedResponse:
     """
@@ -46,7 +47,7 @@ async def get_global_course_feed(
     pagination: Pagination,
     courses_filters: QueryFilters,
     session: DBSession,
-    current_user: CurrentOptionalUser,
+    current_user: OptionalUser,
     course_service: ICourseService,
 ) -> CoursesFeedResponse:
     """
@@ -68,7 +69,7 @@ async def get_global_course_feed(
 async def get_course(
     slug: str,
     session: DBSession,
-    current_user: CurrentOptionalUser,
+    current_user: OptionalUser,
     course_service: ICourseService,
 ) -> CourseResponse:
     """
@@ -84,7 +85,7 @@ async def get_course(
 async def create_course(
     payload: CreateCourseRequest,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     course_service: ICourseService,
 ) -> CourseResponse:
     """
@@ -110,7 +111,7 @@ async def create_course(
 async def generate_course(
     payload: CourseGenerationRequest,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     course_service: ICourseService,
 ) -> CourseGenerationResponse:
     """
@@ -152,7 +153,7 @@ async def update_course(
     slug: str,
     payload: UpdateCourseRequest,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     course_service: ICourseService,
 ) -> CourseResponse:
     """
@@ -171,7 +172,7 @@ async def update_course(
 async def delete_course(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     course_service: ICourseService,
 ) -> None:
     """
@@ -186,7 +187,7 @@ async def delete_course(
 async def favorite_course(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AuthenticatedUser,
     course_service: ICourseService,
 ) -> CourseResponse:
     """
@@ -202,7 +203,7 @@ async def favorite_course(
 async def unfavorite_course(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AuthenticatedUser,
     course_service: ICourseService,
 ) -> CourseResponse:
     """

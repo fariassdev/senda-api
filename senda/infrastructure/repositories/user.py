@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from senda.core.enums import UserRole
 from senda.core.exceptions import UserNotFoundException
 from senda.domain.dtos.user import CreateUserDTO, UpdateUserDTO, UserDTO
 from senda.domain.mapper import IModelMapper
@@ -28,6 +29,7 @@ class UserRepository(IUserRepository):
                 image_url="https://api.realworld.io/images/smiley-cyrus.jpeg",
                 bio=None,
                 name=create_item.name,
+                role=create_item.role,
                 created_at=datetime.now(),
             )
             .returning(User)
@@ -103,3 +105,18 @@ class UserRepository(IUserRepository):
 
         result = await session.execute(query)
         return self._user_mapper.to_dto(result.scalar())
+
+    async def update_user_role(
+        self, session: AsyncSession, user_id: int, role: UserRole
+    ) -> UserDTO:
+        """Update user's role."""
+        query = (
+            update(User)
+            .where(User.id == user_id)
+            .values(role=role, updated_at=datetime.now())
+            .returning(User)
+        )
+        result = await session.execute(query)
+        if not (user := result.scalar()):
+            raise UserNotFoundException()
+        return self._user_mapper.to_dto(user)

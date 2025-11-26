@@ -1,10 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from senda.core.exceptions import LessonPermissionException
+from senda.core.enums import UserRole
 from senda.domain.dtos.lesson import (
     CreateLessonDTO,
     LessonDTO,
-    LessonRecordDTO,
     LessonsListDTO,
     UpdateLessonDTO,
 )
@@ -93,11 +92,6 @@ class LessonService(ILessonService):
     async def delete_course_lesson(
         self, session: AsyncSession, slug: str, lesson_id: int, current_user: UserDTO
     ) -> None:
-        course = await self._course_repo.get_by_slug(session=session, slug=slug)
-
-        if course.author_id != current_user.id:
-            raise LessonPermissionException()
-
         await self._lesson_repo.delete(session=session, lesson_id=lesson_id)
 
     async def update_course_lesson(
@@ -108,11 +102,6 @@ class LessonService(ILessonService):
         lesson_to_update: UpdateLessonDTO,
         current_user: UserDTO,
     ) -> LessonDTO:
-        course = await self._course_repo.get_by_slug(session=session, slug=slug)
-
-        if course.author_id != current_user.id:
-            raise LessonPermissionException()
-
         lesson_record_dto = await self._lesson_repo.update(
             session=session, lesson_id=lesson_id, update_item=lesson_to_update
         )

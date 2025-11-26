@@ -56,7 +56,6 @@ class IScriptGenerationService(abc.ABC):
         Raises:
             LessonNotFoundException: If lesson not found
             ScriptGenerationException: If generation fails
-            LessonPermissionException: If user lacks permission
         """
         pass
 
@@ -77,7 +76,6 @@ class IScriptGenerationService(abc.ABC):
         Raises:
             CourseNotFoundException: If course not found
             ScriptGenerationException: If generation fails
-            CoursePermissionException: If user lacks permission
         """
         pass
 
@@ -98,6 +96,5 @@ class IScriptGenerationService(abc.ABC):
 
         Raises:
             LessonNotFoundException: If lesson not found
-            LessonPermissionException: If user lacks permission
         """
         pass

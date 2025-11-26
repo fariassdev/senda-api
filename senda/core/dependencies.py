@@ -1,10 +1,12 @@
-from typing import Annotated
+from typing import Annotated, Awaitable, Callable
 
-from fastapi import Depends, Query
+from fastapi import Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from senda.api.schemas.requests.course import CoursesFilters, CoursesPagination
 from senda.core.container import container
+from senda.core.enums import UserRole
+from senda.core.exceptions import InsufficientPermissionsException
 from senda.core.security import HTTPTokenHeader
 from senda.domain.dtos.user import UserDTO
 from senda.services.audio_generation import AudioGenerationService
@@ -67,34 +69,67 @@ def get_courses_filters(
     return CoursesFilters(tag=tag, author=author, favorited=favorited)
 
 
-async def get_current_user_or_none(
-    token: JWTTokenOptional,
-    session: DBSession,
-    auth_token_service: IAuthTokenService,
-    user_service: IUserService,
-) -> UserDTO | None:
-    if token:
-        jwt_user = auth_token_service.parse_jwt_token(token=token)
-        current_user_dto = await user_service.get_user_by_id(
-            session=session, user_id=jwt_user.user_id
-        )
-        return current_user_dto
+def require_auth(
+    min_role: UserRole | None = None,
+) -> Callable[..., Awaitable[UserDTO | None]]:
+    """
+    Unified authentication dependency factory with incremental permission checks.
 
+    Args:
+        min_role: Minimum required role. None allows unauthenticated access.
+                  USER requires authenticated user, ADMIN requires admin role.
 
-async def get_current_user(
-    token: JWTToken,
-    session: DBSession,
-    auth_token_service: IAuthTokenService,
-    user_service: IUserService,
-) -> UserDTO:
-    jwt_user = auth_token_service.parse_jwt_token(token=token)
-    current_user_dto = await user_service.get_user_by_id(
-        session=session, user_id=jwt_user.user_id
-    )
-    return current_user_dto
+    Returns:
+        FastAPI dependency that returns UserDTO | None (if min_role=None) or UserDTO.
+
+    Raises:
+        HTTPException: 403 if authentication required but token missing/invalid.
+        InsufficientPermissionsException: If user role is below minimum required.
+
+    Examples:
+        # Public route with optional authentication
+        current_user: Annotated[UserDTO | None, Depends(require_auth(min_role=None))]
+
+        # Authenticated user required
+        current_user: Annotated[UserDTO, Depends(require_auth(min_role=UserRole.USER))]
+
+        # Admin only
+        current_user: Annotated[UserDTO, Depends(require_auth(min_role=UserRole.ADMIN))]
+    """
+
+    async def _auth_dependency(
+        token: Annotated[str, Depends(token_security_optional)],
+        session: DBSession,
+        auth_token_service: IAuthTokenService,
+        user_service: IUserService,
+    ) -> UserDTO | None:
+        # Try to get user from token if present
+        user: UserDTO | None = None
+        if token:
+            jwt_user = auth_token_service.parse_jwt_token(token=token)
+            user = await user_service.get_user_by_id(
+                session=session, user_id=jwt_user.user_id
+            )
+
+        # If no minimum role required, return user (or None for public access)
+        if min_role is None:
+            return user
+
+        # Authentication required but no user found
+        if user is None:
+            raise HTTPException(status_code=403, detail="Authentication required.")
+
+        # Check if user has sufficient permissions
+        if user.role < min_role:
+            raise InsufficientPermissionsException()
+
+        return user
+
+    return _auth_dependency
 
 
 Pagination = Annotated[CoursesPagination, Depends(get_courses_pagination)]
 QueryFilters = Annotated[CoursesFilters, Depends(get_courses_filters)]
-CurrentOptionalUser = Annotated[UserDTO | None, Depends(get_current_user_or_none)]
-CurrentUser = Annotated[UserDTO, Depends(get_current_user)]
+OptionalUser = Annotated[UserDTO | None, Depends(require_auth(min_role=None))]
+AuthenticatedUser = Annotated[UserDTO, Depends(require_auth(min_role=UserRole.USER))]
+AdminUser = Annotated[UserDTO, Depends(require_auth(min_role=UserRole.ADMIN))]

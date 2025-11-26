@@ -14,12 +14,13 @@ from senda.api.schemas.responses.script_generation import (
     ScriptGenerationStatusResponse,
 )
 from senda.core.dependencies import (
-    CurrentOptionalUser,
-    CurrentUser,
+    AdminUser,
+    AuthenticatedUser,
     DBSession,
     IAudioGenerationService,
     ILessonService,
     IScriptGenerationService,
+    OptionalUser,
 )
 from senda.core.exceptions import LessonNotFoundException
 from senda.domain.dtos.audio_generation import (
@@ -38,7 +39,7 @@ router = APIRouter()
 async def get_lessons(
     slug: str,
     session: DBSession,
-    current_user: CurrentOptionalUser,
+    current_user: OptionalUser,
     lesson_service: ILessonService,
 ) -> LessonsListResponse:
     """
@@ -59,7 +60,7 @@ async def create_lesson(
     slug: str,
     payload: CreateLessonRequest,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AuthenticatedUser,
     lesson_service: ILessonService,
 ) -> LessonResponse:
     """
@@ -79,7 +80,7 @@ async def update_lesson(
     slug: str,
     payload: UpdateLessonRequest,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     lesson_service: ILessonService,
     lesson_id: int = Path(..., alias="id"),
 ) -> LessonResponse:
@@ -100,7 +101,7 @@ async def update_lesson(
 async def delete_lesson(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     lesson_service: ILessonService,
     lesson_id: int = Path(..., alias="id"),
 ) -> None:
@@ -123,7 +124,7 @@ async def delete_lesson(
 async def generate_lesson_script(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     script_service: IScriptGenerationService,
     lesson_id: int = Path(..., alias="id"),
 ) -> ScriptGenerationResponse:
@@ -147,7 +148,7 @@ async def generate_lesson_script(
 async def generate_course_scripts(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     script_service: IScriptGenerationService,
 ) -> CourseScriptsGenerationResponse:
     """
@@ -174,7 +175,7 @@ async def generate_course_scripts(
 async def get_lesson_script_status(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AuthenticatedUser,
     script_service: IScriptGenerationService,
     lesson_id: int = Path(..., alias="id"),
 ) -> ScriptGenerationStatusResponse:
@@ -196,7 +197,7 @@ async def get_lesson_script_status(
 async def generate_lesson_audio(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     audio_service: IAudioGenerationService,
     lesson_id: int = Path(..., alias="id"),
 ) -> AudioGenerationResponse:
@@ -218,7 +219,7 @@ async def generate_lesson_audio(
 async def generate_course_audios(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     audio_service: IAudioGenerationService,
 ) -> CourseAudiosGenerationResponse:
     """
@@ -243,7 +244,7 @@ async def generate_course_audios(
 async def get_lesson_audio_status(
     slug: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AuthenticatedUser,
     lesson_service: ILessonService,
     lesson_id: int = Path(..., alias="id"),
 ) -> AudioGenerationStatusResponse:

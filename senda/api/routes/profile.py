@@ -2,10 +2,10 @@ from fastapi import APIRouter
 
 from senda.api.schemas.responses.profile import ProfileResponse
 from senda.core.dependencies import (
-    CurrentOptionalUser,
-    CurrentUser,
+    AuthenticatedUser,
     DBSession,
     IProfileService,
+    OptionalUser,
 )
 
 router = APIRouter()
@@ -15,7 +15,7 @@ router = APIRouter()
 async def get_user_profile(
     username: str,
     session: DBSession,
-    current_user: CurrentOptionalUser,
+    current_user: OptionalUser,
     profile_service: IProfileService,
 ) -> ProfileResponse:
     """
@@ -31,7 +31,7 @@ async def get_user_profile(
 async def follow_username(
     username: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AuthenticatedUser,
     profile_service: IProfileService,
 ) -> ProfileResponse:
     """
@@ -50,7 +50,7 @@ async def follow_username(
 async def unfollow_username(
     username: str,
     session: DBSession,
-    current_user: CurrentUser,
+    current_user: AuthenticatedUser,
     profile_service: IProfileService,
 ) -> ProfileResponse:
     """

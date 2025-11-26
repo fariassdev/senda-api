@@ -29,3 +29,11 @@ class IUserService(abc.ABC):
     async def update_user(
         self, session: Any, current_user: UserDTO, user_to_update: UpdateUserDTO
     ) -> UpdatedUserDTO: ...
+
+    @abc.abstractmethod
+    async def create_admin_user(
+        self, session: Any, user_to_create: CreateUserDTO
+    ) -> UserDTO: ...
+
+    @abc.abstractmethod
+    async def promote_user_to_admin(self, session: Any, user_id: int) -> UserDTO: ...
