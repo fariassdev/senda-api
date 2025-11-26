@@ -1,23 +1,48 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
-
-# Virtual environments
+# Virtual Environments
+.ve
 .venv
+venv/
+env/
 
-# Environment variables
+# UV Cache
+.uv/
+
+# IDE
+.idea
+.vscode
+
+# OS
+.DS_Store
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist/
+build/
+
+# Environment Variables
 .env
+.env.dev
+.env.test
+.env.local
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Other
+google_credentials.json
+./test.py
 
 # Generated data
 generated_courses
-
-# IDE
-.idea/
-.vscode/
 
 # DB
 db/dumps/

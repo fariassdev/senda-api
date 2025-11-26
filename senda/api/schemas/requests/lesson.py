@@ -1,0 +1,76 @@
+from pydantic import BaseModel, Field
+
+from senda.core.enums import LessonStatus, ScriptPartType
+from senda.domain.dtos.lesson import CreateLessonDTO, UpdateLessonDTO
+from senda.domain.dtos.script_generation import ScriptPartDTO
+
+
+class CreateLessonData(BaseModel):
+    lesson_number: int = Field(..., ge=1)
+    title: str = Field(..., min_length=1)
+    core_practice: str = Field(..., min_length=1)
+    key_point: str = Field(..., min_length=1)
+    tone: str = Field(..., min_length=1)
+    duration_minutes: int = Field(..., ge=1)
+
+
+class UpdateLessonData(BaseModel):
+    title: str | None = Field(None)
+    core_practice: str | None = Field(None)
+    key_point: str | None = Field(None)
+    tone: str | None = Field(None)
+    duration_minutes: int | None = Field(None, ge=1)
+    status: str | None = Field(None)
+    script: dict | None = Field(None)
+    audio_url: str | None = Field(None)
+
+
+class CreateLessonRequest(BaseModel):
+    lesson: CreateLessonData
+
+    def to_dto(self) -> CreateLessonDTO:
+        return CreateLessonDTO(
+            lesson_number=self.lesson.lesson_number,
+            title=self.lesson.title,
+            core_practice=self.lesson.core_practice,
+            key_point=self.lesson.key_point,
+            tone=self.lesson.tone,
+            duration_minutes=self.lesson.duration_minutes,
+        )
+
+
+class UpdateLessonRequest(BaseModel):
+    lesson: UpdateLessonData
+
+    def to_dto(self) -> UpdateLessonDTO:
+        script_parts = None
+        if self.lesson.script is not None:
+            try:
+                script_parts = [
+                    ScriptPartDTO(
+                        type=ScriptPartType(part["type"]),
+                        content=part.get("content"),
+                        duration=part.get("duration"),
+                    )
+                    for part in self.lesson.script
+                ]
+            except (KeyError, ValueError, TypeError):
+                script_parts = None
+
+        status_enum = None
+        if self.lesson.status is not None:
+            try:
+                status_enum = LessonStatus(self.lesson.status)
+            except ValueError:
+                status_enum = None
+
+        return UpdateLessonDTO(
+            title=self.lesson.title,
+            core_practice=self.lesson.core_practice,
+            key_point=self.lesson.key_point,
+            tone=self.lesson.tone,
+            duration_minutes=self.lesson.duration_minutes,
+            status=status_enum,
+            script=script_parts,
+            audio_url=self.lesson.audio_url,
+        )

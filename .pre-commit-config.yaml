@@ -1,10 +1,36 @@
 repos:
-- repo: https://github.com/astral-sh/ruff-pre-commit
-  # Ruff version.
-  rev: v0.12.7
-  hooks:
-    # Run the linter.
-    - id: ruff-check
-      args: [ --fix ]
-    # Run the formatter.
-    - id: ruff-format
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+      - id: check-toml
+      - id: check-yaml
+      - id: check-json
+      - id: mixed-line-ending
+      - id: detect-private-key
+      - id: check-case-conflict
+      - id: fix-encoding-pragma
+        args: [--remove]
+
+  # Ruff for Senda (replaces flake8, isort, black, pyupgrade for senda)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.7
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix]
+        files: ^(senda|tests)/
+      # Run the formatter
+      - id: ruff-format
+        files: ^(senda|tests)/
+
+  - repo: local
+    hooks:
+      - id: mypy-senda
+        name: mypy (senda)
+        pass_filenames: false
+        language: python
+        entry: uv run make types
+        files: ^senda/

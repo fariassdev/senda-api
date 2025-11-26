@@ -1,69 +1,104 @@
-[tool.pytest.ini_options]
-addopts = "-ra -q"
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-pythonpath = ["src"]
-
-[tool.coverage.run]
-branch = true
-source = ["src"]
-
-[tool.coverage.report]
-omit = ["*/__init__.py"]
-
 [project]
-name = "senda"
+name = "Senda"
 version = "0.1.0"
-description = "Add your description here"
+description = "Senda - AI-Powered Course Platform with Clean Architecture. A modern FastAPI backend featuring AI-generated course content, parallel audio generation, and scalable clean architecture design. Built for educational platforms with Gemini AI integration for script generation, Kokoro TTS for audio synthesis, AWS S3 storage, and PostgreSQL with async SQLAlchemy. Implements domain-driven design with strict separation of concerns across API, services, infrastructure, and domain layers."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
-    "google-genai==1.28.0",
-    "pyaudio==0.2.14",
-    "python-dotenv==1.1.1",
-    "requests==2.32.4",
-    "pydub==0.25.1",
-    "audioop-lts==0.2.2",
-
-    # API dependencies
-    "fastapi==0.116.1",
-    "uvicorn[standard]==0.35.0",
-    "sqlalchemy==2.0.42",
-    "psycopg[binary,pool]==3.2.9",
-    "alembic==1.16.4",
-    "boto3==1.40.7",
-    
-    # Authentication dependencies
-    "PyJWT==2.10.1",
+    "aioboto3==13.2.0",
+    "alembic==1.13.3",
+    "asyncpg==0.30.0",
     "bcrypt==5.0.0",
-    "python-multipart==0.0.20",
-    "slowapi==0.1.9",
-    "pydantic[email]==2.11.7",
-    "email-validator==2.3.0",
-    
-    # Redis
-    "redis==6.4.0",
+    "fastapi==0.115.4",
+    "google-genai==1.28.0",
+    "greenlet==3.1.1",
+    "httpx==0.28.1",
+    "pydantic-settings==2.6.1",
+    "pydantic[email]==2.9.2",
+    "pydub==0.25.1",
+    "pyjwt==2.9.0",
+    "pytest==8.3.3",
+    "pytest-asyncio==0.24.0",
+    "pytest-cov==6.0.0",
+    "python-slugify==8.0.4",
+    "sqlalchemy==2.0.36",
+    "sqlalchemy-utils==0.41.2",
+    "starlette==0.41.2",
+    "structlog==24.4.0",
+    "uvicorn==0.32.0",
 ]
-
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["models*", "services*", "repositories*", "schemas*", "core*", "routers*", "utils*"]
-
-[project.scripts]
-senda = "main:main"
 
 [dependency-groups]
 dev = [
-    "pre-commit==4.2.0",
+    "mypy==1.9.0",
+    "pre-commit==3.7.0",
+    "psycopg2-binary==2.9.11",
     "ruff==0.12.7",
-    "pytest==8.4.2",
-    "httpx==0.28.1",
-    "coverage==7.10.7",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# ============================================================================
+# Tool Configurations
+# ============================================================================
+
+[tool.hatch.build.targets.wheel]
+packages = ["senda"]
+
+[tool.ruff]
+# Target Python 3.12+
+target-version = "py312"
+line-length = 88
+
+# Include/exclude patterns
+extend-exclude = [
+    ".ve",
+    ".venv",
+]
+include = ["senda/**/*.py", "tests/**/*.py"]
+
+[tool.ruff.lint]
+# Enable basic rule groups
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+]
+
+# Ignore rules matching setup.cfg
+ignore = [
+    "E501",   # Line too long (handled by formatter, matches setup.cfg)
+    "E741",   # Ambiguous variable name
+    "E203",   # Whitespace before ':' (black handles this)
+    "F401",   # Unused import (allowed in setup.cfg)
+    "F403",   # Star import used
+    "F405",   # Name may be undefined due to star import
+    "B008",   # Do not perform function call in argument defaults (matches setup.cfg)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]  # Unused imports in __init__.py
+"tests/**/*.py" = ["ARG", "PT"]  # More relaxed rules for tests
+
+[tool.ruff.lint.isort]
+# isort configuration (matching pyproject.toml [tool.isort])
+known-first-party = ["senda"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+force-single-line = false
+force-wrap-aliases = false
+split-on-trailing-comma = false  # Must be false when skip-magic-trailing-comma=true
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.format]
+# Format configuration (matching Black)
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = true  # Matches Black's skip-magic-trailing-comma
+line-ending = "auto"
