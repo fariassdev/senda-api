@@ -2,19 +2,22 @@ services:
 #  api:
 #    build: .
 #    container_name: senda-api
-#    command: uvicorn senda.app:app --host 0.0.0.0 --port 8080
-#    environment:
-#      POSTGRES_HOST: postgres
 #    env_file:
 #      - .env
+#    environment:
+#      POSTGRES_HOST: postgres
 #    ports:
-#      - "8080:8080"
+#      - "8081:8081"
 #    volumes:
-#      - .:/senda
+#      - ./:/app
+#    depends_on:
+#      - postgres
+#    restart: always
 
   postgres:
     image: postgres:18
     container_name: senda-postgres
+    restart: always
     env_file:
       - .env
     ports:
@@ -26,6 +29,7 @@ services:
       retries: 5
     volumes:
       - pg_data:/var/lib/postgresql/18/docker
+      - ./docker/postgres_init:/docker-entrypoint-initdb.d:ro
 
   kokoro_tts:
     image: ghcr.io/remsky/kokoro-fastapi-gpu:latest

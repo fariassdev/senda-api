@@ -45,11 +45,30 @@ migration:
 migrate:
 	uv run alembic -c senda/infrastructure/alembic.ini upgrade head
 
+migrate-test-db:
+	uv run --env-file .env.test alembic -c senda/infrastructure/alembic.ini upgrade head
+
 migrate-down:
 	uv run alembic -c senda/infrastructure/alembic.ini downgrade -1
 
 migrate-history:
 	uv run alembic -c senda/infrastructure/alembic.ini history
+
+db-seed:
+	$(MAKE) db-init
+	$(MAKE) migrate
+	docker compose up -d postgres
+	@echo "Waiting for Postgres readiness..."
+	docker compose exec -T postgres bash -lc 'until pg_isready -U "$$POSTGRES_USER"; do sleep 1; done'
+	@echo "Running seed SQL file..."
+	docker compose exec -T postgres bash -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -f /docker-entrypoint-initdb.d/seed_db.sql'
+
+db-init:
+	docker compose up -d postgres
+	@echo "Waiting for Postgres readiness..."
+	docker compose exec -T postgres bash -lc 'until pg_isready -U "$$POSTGRES_USER"; do sleep 1; done'
+	@echo "Creating databases if missing..."
+	docker compose exec -T postgres bash -lc '/docker-entrypoint-initdb.d/create_databases.sh'
 
 # Code Quality (using Ruff - replaces flake8, black, isort, pyupgrade)
 lint:
@@ -120,7 +139,8 @@ setup:
 	@echo "3. Installing pre-commit hooks..."
 	uv run pre-commit install
 	@echo "4. Running migrations..."
-	uv run alembic -c senda/infrastructure/alembic.ini upgrade head
+	$(MAKE) migrate
+	$(MAKE) migrate-test-db
 	@echo "✅ Senda setup complete! Run 'make runserver-dev' to start."
 
 # Help

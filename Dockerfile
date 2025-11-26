@@ -8,7 +8,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     portaudio19-dev \
-    libpq-dev && \
+    libpq-dev \
+    postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -29,4 +30,4 @@ COPY . /app
 
 EXPOSE 8000
 
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "senda.app:app", "--host", "0.0.0.0", "--port", "8081"]

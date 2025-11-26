@@ -76,6 +76,53 @@ make docker-build      # Build and start containers
 make docker-up         # Start existing containers
 make docker-down       # Stop containers
 make docker-logs       # View logs
+
+### Seeding the Database
+
+We use a SQL-only approach for database seeding. The API container does NOT automatically run migrations or seed data on startup — instead, seeding is controlled from the host via Makefile targets (see `db-seed`). The recommended workflow is:
+
+1. Run database migrations
+
+```bash
+make migrate
+```
+
+2. Run the SQL seeder via Docker Compose
+
+```bash
+make db-seed
+```
+
+The `db-seed` Makefile target ensures that databases exist and migrations are applied before running the SQL seed; the seed SQL file is idempotent and will not duplicate data if records already exist.
+
+To force a reseed or re-apply SQL manually, use `psql` locally after running migrations (note: the SQL file is idempotent):
+
+```bash
+# Run migrations first
+uv run alembic -c senda/infrastructure/alembic.ini upgrade head
+# Apply the SQL seed file using psql (adjust your env variables accordingly)
+psql "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}" -f docker/postgres_init/seed_db.sql
+
+### Database Initialization (Automatic on Docker Compose)
+
+The Compose setup keeps the `postgres` service simple and we provide Makefile targets which run short commands against the running Postgres container to create and seed databases.
+
+To ensure both the development and test databases exist, run:
+
+```bash
+make db-init
+```
+
+This will start the `postgres` container (if needed), then run a helper script inside it to create a main DB (from `POSTGRES_DB`) and a test DB. By default the test DB name is derived as `${POSTGRES_DB}_test`, but you can set `POSTGRES_DB_TEST` in `.env` to override it.
+
+To seed the database with initial records after migrations are applied:
+
+```bash
+make db-seed
+```
+
+The `db-seed` target runs `make migrate` first and then executes the `seed_db.sql` file inside the running `postgres` container (by using `docker compose exec`).
+```
 ```
 
 ## Project Structure
