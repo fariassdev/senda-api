@@ -17,6 +17,7 @@ services:
   postgres:
     image: postgres:18
     container_name: senda-postgres
+    restart: always
     env_file:
       - .env
     ports:
