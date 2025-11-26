@@ -112,6 +112,17 @@ async def test_user_can_retrieve_course_if_exists(
 
 
 @pytest.mark.anyio
+async def test_bearer_auth_for_get_courses_endpoint(
+    test_client: AsyncClient, jwt_token: str
+) -> None:
+    # The global courses feed accepts optional auth, and 'Bearer' should be accepted now
+    response = await test_client.get(
+        url="/courses", headers={"Authorization": f"Bearer {jwt_token}"}
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.anyio
 async def test_user_can_not_delete_foreign_course(
     authorized_test_client: AsyncClient,
     session: AsyncSession,

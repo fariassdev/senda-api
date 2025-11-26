@@ -43,6 +43,16 @@ async def test_user_can_get_own_profile(
     assert response.status_code == 200
 
 
+@pytest.mark.anyio
+async def test_user_can_get_own_profile_with_bearer_token(
+    test_client: AsyncClient, jwt_token: str
+) -> None:
+    response = await test_client.get(
+        url="/user", headers={"Authorization": f"Bearer {jwt_token}"}
+    )
+    assert response.status_code == 200
+
+
 @pytest.mark.parametrize(
     "update_field, update_value",
     (

@@ -28,7 +28,9 @@ class HTTPTokenHeader(APIKeyHeader):
                 status_code=HTTP_403_FORBIDDEN, detail="Invalid token schema"
             ) from None
 
-        if token_prefix.lower() != "token":
+        # Accept both 'Token' and 'Bearer' prefixes to be compatible with
+        # common clients and libraries that use the Bearer scheme.
+        if token_prefix.lower() not in ("token", "bearer"):
             raise HTTPException(
                 status_code=HTTP_403_FORBIDDEN, detail="Invalid token schema"
             )
