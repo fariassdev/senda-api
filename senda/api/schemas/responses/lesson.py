@@ -2,6 +2,7 @@ import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from senda.api.schemas.responses.script_generation import ScriptPartResponse
 from senda.core.utils.date import convert_datetime_to_realworld
 from senda.domain.dtos.lesson import LessonDTO, LessonsListDTO
 
@@ -15,7 +16,7 @@ class LessonData(BaseModel):
     tone: str
     duration_minutes: int = Field(alias="durationMinutes")
     status: str
-    script: dict | None = None
+    script: list[ScriptPartResponse] | None = None
     audio_url: str | None = Field(alias="audioUrl")
     script_generated_at: datetime.datetime | None = Field(alias="scriptGeneratedAt")
     audio_generated_at: datetime.datetime | None = Field(alias="audioGeneratedAt")
@@ -41,7 +42,14 @@ class LessonResponse(BaseModel):
             tone=dto.tone,
             durationMinutes=dto.duration_minutes,
             status=dto.status.value,
-            script=dto.script,
+            script=[
+                ScriptPartResponse(
+                    type=part.type, content=part.content, duration=part.duration
+                )
+                for part in dto.script
+            ]
+            if dto.script
+            else None,
             audioUrl=dto.audio_url,
             scriptGeneratedAt=dto.script_generated_at,
             audioGeneratedAt=dto.audio_generated_at,
