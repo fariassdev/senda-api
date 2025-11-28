@@ -16,10 +16,18 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
     rate_limit_duration = timedelta(minutes=1)
     rate_limit_requests = 100
 
+    # Status polling endpoints that need much higher limits
+    status_endpoints = ["/script-status", "/audio-status"]
+    status_rate_limit_requests = 1000  # 1000 requests per minute for status endpoints
+
     def __init__(self, *args: Unpack[tuple[Any]], **kwargs: Any):
         super().__init__(*args, **kwargs)
         # Dictionary to store request counts for each IP.
         self.request_counts: dict[str, tuple[int, datetime]] = {}
+
+    def _is_status_endpoint(self, path: str) -> bool:
+        """Check if the request path is a status polling endpoint."""
+        return any(endpoint in path for endpoint in self.status_endpoints)
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
@@ -32,10 +40,17 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         # Calculate the time elapsed since the last request
         elapsed_time = datetime.now() - last_request
 
+        # Determine the appropriate rate limit based on endpoint type
+        max_requests = (
+            self.status_rate_limit_requests
+            if self._is_status_endpoint(request.url.path)
+            else self.rate_limit_requests
+        )
+
         if elapsed_time > self.rate_limit_duration:
             request_count = 1
         else:
-            if request_count >= self.rate_limit_requests:
+            if request_count >= max_requests:
                 return RateLimitExceededException.get_response()
             request_count += 1
 
