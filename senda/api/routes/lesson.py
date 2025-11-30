@@ -1,7 +1,11 @@
 from fastapi import APIRouter, BackgroundTasks, Path
 from starlette import status
 
-from senda.api.schemas.requests.lesson import CreateLessonRequest, UpdateLessonRequest
+from senda.api.schemas.requests.lesson import (
+    CreateLessonRequest,
+    ReorderLessonsRequest,
+    UpdateLessonRequest,
+)
 from senda.api.schemas.responses.audio_generation import (
     AudioGenerationResponse,
     AudioGenerationStatusResponse,
@@ -111,6 +115,26 @@ async def delete_lesson(
     await lesson_service.delete_course_lesson(
         session=session, slug=slug, lesson_id=lesson_id, current_user=current_user
     )
+
+
+@router.patch("/{slug}/lessons/reorder", response_model=LessonsListResponse)
+async def reorder_lessons(
+    slug: str,
+    payload: ReorderLessonsRequest,
+    session: DBSession,
+    current_user: AdminUser,
+    lesson_service: ILessonService,
+) -> LessonsListResponse:
+    """
+    Reorder lessons for a course.
+    """
+    lesson_list_dto = await lesson_service.reorder_course_lessons(
+        session=session,
+        slug=slug,
+        reorder_data=payload.to_dto(),
+        current_user=current_user,
+    )
+    return LessonsListResponse.from_dto(dto=lesson_list_dto)
 
 
 # Script Generation Endpoints

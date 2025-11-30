@@ -1,7 +1,12 @@
 from pydantic import BaseModel, Field
 
 from senda.core.enums import LessonStatus, ScriptPartType
-from senda.domain.dtos.lesson import CreateLessonDTO, UpdateLessonDTO
+from senda.domain.dtos.lesson import (
+    CreateLessonDTO,
+    ReorderLessonDTO,
+    ReorderLessonsDTO,
+    UpdateLessonDTO,
+)
 from senda.domain.dtos.script_generation import ScriptPartDTO
 
 
@@ -73,4 +78,25 @@ class UpdateLessonRequest(BaseModel):
             status=status_enum,
             script=script_parts,
             audio_url=self.lesson.audio_url,
+        )
+
+
+class ReorderLessonItem(BaseModel):
+    lesson_id: int = Field(..., description="The ID of the lesson to reorder")
+    lesson_number: int = Field(..., ge=1, description="The new position/order number")
+
+
+class ReorderLessonsRequest(BaseModel):
+    lessons: list[ReorderLessonItem] = Field(
+        ..., min_length=1, description="List of lessons with their new order"
+    )
+
+    def to_dto(self) -> ReorderLessonsDTO:
+        return ReorderLessonsDTO(
+            lessons=[
+                ReorderLessonDTO(
+                    lesson_id=item.lesson_id, lesson_number=item.lesson_number
+                )
+                for item in self.lessons
+            ]
         )
