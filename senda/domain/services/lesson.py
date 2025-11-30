@@ -5,6 +5,7 @@ from senda.domain.dtos.lesson import (
     CreateLessonDTO,
     LessonDTO,
     LessonsListDTO,
+    ReorderLessonsDTO,
     UpdateLessonDTO,
 )
 from senda.domain.dtos.user import UserDTO
@@ -39,3 +40,12 @@ class ILessonService(abc.ABC):
         lesson_to_update: UpdateLessonDTO,
         current_user: UserDTO,
     ) -> LessonDTO: ...
+
+    @abc.abstractmethod
+    async def reorder_course_lessons(
+        self,
+        session: Any,
+        slug: str,
+        reorder_data: ReorderLessonsDTO,
+        current_user: UserDTO,
+    ) -> LessonsListDTO: ...

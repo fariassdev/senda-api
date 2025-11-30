@@ -81,3 +81,18 @@ class UpdateLessonDTO:
     audio_url: str | None = None
     script_generated_at: datetime.datetime | None = None
     audio_generated_at: datetime.datetime | None = None
+
+
+@dataclass(frozen=True)
+class ReorderLessonDTO:
+    """DTO for a single lesson reorder item."""
+
+    lesson_id: int
+    lesson_number: int
+
+
+@dataclass(frozen=True)
+class ReorderLessonsDTO:
+    """DTO for reordering lessons."""
+
+    lessons: list[ReorderLessonDTO]

@@ -1,7 +1,12 @@
 import abc
 from typing import Any
 
-from senda.domain.dtos.lesson import CreateLessonDTO, LessonRecordDTO, UpdateLessonDTO
+from senda.domain.dtos.lesson import (
+    CreateLessonDTO,
+    LessonRecordDTO,
+    ReorderLessonsDTO,
+    UpdateLessonDTO,
+)
 
 
 class ILessonRepository(abc.ABC):
@@ -35,3 +40,8 @@ class ILessonRepository(abc.ABC):
     async def update(
         self, session: Any, lesson_id: int, update_item: UpdateLessonDTO
     ) -> LessonRecordDTO: ...
+
+    @abc.abstractmethod
+    async def reorder(
+        self, session: Any, course_id: int, reorder_data: ReorderLessonsDTO
+    ) -> list[LessonRecordDTO]: ...

@@ -5,7 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.functions import count
 
 from senda.core.exceptions import LessonNotFoundException
-from senda.domain.dtos.lesson import CreateLessonDTO, LessonRecordDTO, UpdateLessonDTO
+from senda.domain.dtos.lesson import (
+    CreateLessonDTO,
+    LessonRecordDTO,
+    ReorderLessonsDTO,
+    UpdateLessonDTO,
+)
 from senda.domain.dtos.script_generation import ScriptPartDTO
 from senda.domain.mapper import IModelMapper
 from senda.domain.repositories.lesson import ILessonRepository
@@ -108,3 +113,18 @@ class LessonRepository(ILessonRepository):
 
         lesson = await session.scalar(query)
         return self._lesson_mapper.to_dto(lesson)
+
+    async def reorder(
+        self, session: AsyncSession, course_id: int, reorder_data: ReorderLessonsDTO
+    ) -> list[LessonRecordDTO]:
+        # Update each lesson's lesson_number
+        for item in reorder_data.lessons:
+            query = (
+                update(Lesson)
+                .where(Lesson.id == item.lesson_id, Lesson.course_id == course_id)
+                .values(lesson_number=item.lesson_number, updated_at=datetime.now())
+            )
+            await session.execute(query)
+
+        # Return the updated lessons ordered by lesson_number
+        return await self.list_by_course(session=session, course_id=course_id)
