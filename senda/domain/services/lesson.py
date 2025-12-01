@@ -22,6 +22,11 @@ class ILessonService(abc.ABC):
     ) -> LessonDTO: ...
 
     @abc.abstractmethod
+    async def get_course_lesson(
+        self, session: Any, slug: str, lesson_id: int, current_user: UserDTO | None
+    ) -> LessonDTO: ...
+
+    @abc.abstractmethod
     async def get_course_lessons(
         self, session: Any, slug: str, current_user: UserDTO | None
     ) -> LessonsListDTO: ...

@@ -55,6 +55,23 @@ async def get_lessons(
     return LessonsListResponse.from_dto(dto=lesson_list_dto)
 
 
+@router.get("/{slug}/lessons/{id}", response_model=LessonResponse)
+async def get_lesson(
+    slug: str,
+    session: DBSession,
+    current_user: OptionalUser,
+    lesson_service: ILessonService,
+    lesson_id: int = Path(..., alias="id"),
+) -> LessonResponse:
+    """
+    Get a specific lesson for a course.
+    """
+    lesson_dto = await lesson_service.get_course_lesson(
+        session=session, slug=slug, lesson_id=lesson_id, current_user=current_user
+    )
+    return LessonResponse.from_dto(dto=lesson_dto)
+
+
 @router.post(
     "/{slug}/lessons",
     response_model=LessonResponse,

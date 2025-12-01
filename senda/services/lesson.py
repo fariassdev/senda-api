@@ -56,6 +56,38 @@ class LessonService(ILessonService):
             updated_at=lesson_record_dto.updated_at,
         )
 
+    async def get_course_lesson(
+        self,
+        session: AsyncSession,
+        slug: str,
+        lesson_id: int,
+        current_user: UserDTO | None = None,
+    ) -> LessonDTO:
+        # Verify course exists
+        await self._course_repo.get_by_slug(session=session, slug=slug)
+
+        lesson_record_dto = await self._lesson_repo.get(
+            session=session, lesson_id=lesson_id
+        )
+
+        return LessonDTO(
+            id=lesson_record_dto.id,
+            course_id=lesson_record_dto.course_id,
+            lesson_number=lesson_record_dto.lesson_number,
+            title=lesson_record_dto.title,
+            core_practice=lesson_record_dto.core_practice,
+            key_point=lesson_record_dto.key_point,
+            tone=lesson_record_dto.tone,
+            duration_minutes=lesson_record_dto.duration_minutes,
+            status=lesson_record_dto.status,
+            script=LessonScript.deserialize(lesson_record_dto.script),
+            audio_url=lesson_record_dto.audio_url,
+            script_generated_at=lesson_record_dto.script_generated_at,
+            audio_generated_at=lesson_record_dto.audio_generated_at,
+            created_at=lesson_record_dto.created_at,
+            updated_at=lesson_record_dto.updated_at,
+        )
+
     async def get_course_lessons(
         self, session: AsyncSession, slug: str, current_user: UserDTO | None = None
     ) -> LessonsListDTO:
