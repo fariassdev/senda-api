@@ -26,7 +26,7 @@ class UpdateLessonData(BaseModel):
     tone: str | None = Field(None)
     duration_minutes: int | None = Field(None, ge=1)
     status: str | None = Field(None)
-    script: dict | None = Field(None)
+    script: list[ScriptPartDTO] | None = Field(None)
     audio_url: str | None = Field(None)
 
 
@@ -53,9 +53,7 @@ class UpdateLessonRequest(BaseModel):
             try:
                 script_parts = [
                     ScriptPartDTO(
-                        type=ScriptPartType(part["type"]),
-                        content=part.get("content"),
-                        duration=part.get("duration"),
+                        type=part.type, content=part.content, duration=part.duration
                     )
                     for part in self.lesson.script
                 ]
