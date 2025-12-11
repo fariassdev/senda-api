@@ -2,6 +2,8 @@ from fastapi import APIRouter, BackgroundTasks, Path
 from starlette import status
 
 from senda.api.schemas.requests.lesson import (
+    BatchAudioGenerationRequest,
+    BatchScriptGenerationRequest,
     CreateLessonRequest,
     ReorderLessonsRequest,
     UpdateLessonRequest,
@@ -182,20 +184,27 @@ async def generate_lesson_script(
 
 
 @router.post(
-    "/{slug}/generate-all-scripts",
+    "/{slug}/generate-batch-scripts",
     response_model=CourseScriptsGenerationResponse,
     status_code=status.HTTP_200_OK,
 )
 async def generate_course_scripts(
     slug: str,
+    payload: BatchScriptGenerationRequest,
     session: DBSession,
     current_user: AdminUser,
     script_service: IScriptGenerationService,
 ) -> CourseScriptsGenerationResponse:
     """
-    Generate scripts for all ungenerated lessons in a course.
+    Generate scripts for specific lessons in a course.
+
+    - If lesson_ids is not provided: generates for all eligible lessons
+    - If lesson_ids is []: generates nothing
+    - If lesson_ids is [1, 2, 3]: generates only for those specific lessons
     """
-    request = CourseScriptRequestDTO(user_id=current_user.id, slug=slug)
+    request = CourseScriptRequestDTO(
+        user_id=current_user.id, slug=slug, lesson_ids=payload.lesson_ids
+    )
 
     results = await script_service.generate_course_scripts(
         session=session, request=request
@@ -249,20 +258,27 @@ async def generate_lesson_audio(
 
 
 @router.post(
-    "/{slug}/generate-all-audios",
+    "/{slug}/generate-batch-audios",
     response_model=CourseAudiosGenerationResponse,
     status_code=status.HTTP_200_OK,
 )
 async def generate_course_audios(
     slug: str,
+    payload: BatchAudioGenerationRequest,
     session: DBSession,
     current_user: AdminUser,
     audio_service: IAudioGenerationService,
 ) -> CourseAudiosGenerationResponse:
     """
-    Generate audio for all script-completed lessons in a course.
+    Generate audio for specific lessons in a course.
+
+    - If lesson_ids is not provided: generates for all eligible lessons
+    - If lesson_ids is []: generates nothing
+    - If lesson_ids is [1, 2, 3]: generates only for those specific lessons
     """
-    request = CourseAudioGenerationRequestDTO(user_id=current_user.id, slug=slug)
+    request = CourseAudioGenerationRequestDTO(
+        user_id=current_user.id, slug=slug, lesson_ids=payload.lesson_ids
+    )
 
     results = await audio_service.generate_course_audios(
         session=session, request=request

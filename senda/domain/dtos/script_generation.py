@@ -46,6 +46,7 @@ class CourseScriptRequestDTO:
 
     user_id: int
     slug: str
+    lesson_ids: list[int] | None = None  # None = all, [] = none, [ids] = specific
 
 
 @dataclass(frozen=True)

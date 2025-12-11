@@ -17,6 +17,7 @@ class CourseAudioGenerationRequestDTO:
 
     slug: str
     user_id: int
+    lesson_ids: list[int] | None = None  # None = all, [] = none, [ids] = specific
 
 
 @dataclass(frozen=True)

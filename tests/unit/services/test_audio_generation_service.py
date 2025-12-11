@@ -428,9 +428,7 @@ class TestAudioGenerationService:
         mock_lesson_repo,
     ):
         """Test bulk generation when no lessons are ready"""
-        request = CourseAudioGenerationRequestDTO(
-            course_id=1, user_id=1, slug="test-course"
-        )
+        request = CourseAudioGenerationRequestDTO(user_id=1, slug="test-course")
 
         pending_lesson = LessonRecordDTO(
             id=1,
@@ -469,9 +467,7 @@ class TestAudioGenerationService:
         mock_lesson_repo,
     ):
         """Test that bulk generation continues even if individual lessons fail"""
-        request = CourseAudioGenerationRequestDTO(
-            course_id=1, user_id=1, slug="test-course"
-        )
+        request = CourseAudioGenerationRequestDTO(user_id=1, slug="test-course")
 
         lesson1 = LessonRecordDTO(
             id=1,
