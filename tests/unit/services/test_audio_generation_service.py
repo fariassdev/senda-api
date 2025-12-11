@@ -337,9 +337,7 @@ class TestAudioGenerationService:
         mock_lesson_repo,
     ):
         """Test successful bulk audio generation for course"""
-        request = CourseAudioGenerationRequestDTO(
-            course_id=1, user_id=1, slug="test-course"
-        )
+        request = CourseAudioGenerationRequestDTO(user_id=1, slug="test-course")
 
         lesson1 = LessonRecordDTO(
             id=1,

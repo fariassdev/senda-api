@@ -195,11 +195,7 @@ async def generate_course_scripts(
     """
     Generate scripts for all ungenerated lessons in a course.
     """
-    request = CourseScriptRequestDTO(
-        course_id=0,  # Will be resolved in service from slug
-        user_id=current_user.id,
-        slug=slug,
-    )
+    request = CourseScriptRequestDTO(user_id=current_user.id, slug=slug)
 
     results = await script_service.generate_course_scripts(
         session=session, request=request
@@ -266,9 +262,7 @@ async def generate_course_audios(
     """
     Generate audio for all script-completed lessons in a course.
     """
-    request = CourseAudioGenerationRequestDTO(
-        course_id=0, user_id=current_user.id, slug=slug
-    )
+    request = CourseAudioGenerationRequestDTO(user_id=current_user.id, slug=slug)
 
     results = await audio_service.generate_course_audios(
         session=session, request=request

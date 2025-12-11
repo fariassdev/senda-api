@@ -190,7 +190,7 @@ class AudioGenerationService(IAudioGenerationService):
             This method continues processing even if individual lessons fail.
             Failed lessons are logged but don't stop the overall process.
         """
-        logger.info(f"Starting bulk audio generation for course {request.course_id}")
+        logger.info(f"Starting bulk audio generation for course {request.slug}")
 
         course_record = await self._course_repo.get_by_slug(
             session=session, slug=request.slug
@@ -208,13 +208,13 @@ class AudioGenerationService(IAudioGenerationService):
 
         if not ready_lessons:
             logger.info(
-                f"No lessons ready for audio generation in course {request.course_id}"
+                f"No lessons ready for audio generation in course {request.slug}"
             )
             return []
 
         logger.info(
             f"Found {len(ready_lessons)} lessons ready for audio generation "
-            f"in course {request.course_id} (max concurrent: {self._max_concurrent_lessons})"
+            f"in course {request.slug} (max concurrent: {self._max_concurrent_lessons})"
         )
 
         # Create a semaphore to limit concurrent lesson processing
@@ -255,7 +255,7 @@ class AudioGenerationService(IAudioGenerationService):
         ]
 
         logger.info(
-            f"Completed bulk generation for course {request.course_id}: "
+            f"Completed bulk generation for course {request.slug}: "
             f"{len(generated_results)}/{len(ready_lessons)} successful"
         )
 

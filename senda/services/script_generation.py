@@ -174,7 +174,7 @@ class ScriptGenerationService(IScriptGenerationService):
                 message="Script generation provider not configured"
             )
 
-        logger.info(f"Starting bulk script generation for course {request.course_id}")
+        logger.info(f"Starting bulk script generation for course {request.slug}")
 
         # Get course and validate permissions
         course_record = await self._course_repo.get_by_slug(
@@ -195,11 +195,11 @@ class ScriptGenerationService(IScriptGenerationService):
         ]
 
         if not ungenerated_lessons:
-            logger.info(f"No ungenerated lessons found for course {request.course_id}")
+            logger.info(f"No ungenerated lessons found for course {request.slug}")
             return []
 
         logger.info(
-            f"Found {len(ungenerated_lessons)} ungenerated lessons for course {request.course_id}"
+            f"Found {len(ungenerated_lessons)} ungenerated lessons for course {request.slug}"
         )
 
         generated_results: list[ScriptGenerationResultDTO] = []
@@ -223,7 +223,7 @@ class ScriptGenerationService(IScriptGenerationService):
                 # Continue with other lessons even if one fails
 
         logger.info(
-            f"Completed bulk generation for course {request.course_id}: "
+            f"Completed bulk generation for course {request.slug}: "
             f"{len(generated_results)}/{len(ungenerated_lessons)} successful"
         )
 

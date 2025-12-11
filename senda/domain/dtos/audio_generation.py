@@ -15,7 +15,6 @@ class AudioGenerationRequestDTO:
 class CourseAudioGenerationRequestDTO:
     """Request to generate audio for all lessons in a course."""
 
-    course_id: int
     slug: str
     user_id: int
 
