@@ -200,7 +200,7 @@ class TestAudioGenerationAPI:
             return_value=mock_results,
         ):
             response = await admin_test_client.post(
-                f"/courses/{test_course.slug}/generate-all-audios"
+                f"/courses/{test_course.slug}/generate-batch-audios", json={}
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -229,7 +229,7 @@ class TestAudioGenerationAPI:
     ):
         """Test unauthorized access is rejected."""
         response = await test_client.post(
-            f"/courses/{test_course.slug}/generate-all-audios"
+            f"/courses/{test_course.slug}/generate-batch-audios", json={}
         )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -245,7 +245,7 @@ class TestAudioGenerationAPI:
             return_value=[],
         ):
             response = await admin_test_client.post(
-                f"/courses/{test_course.slug}/generate-all-audios"
+                f"/courses/{test_course.slug}/generate-batch-audios", json={}
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -349,3 +349,198 @@ class TestAudioGenerationAPI:
         assert data["lesson_id"] == lesson_id
         assert data["status"] == LessonStatus.SCRIPT_COMPLETED.value
         assert data["audio_url"] is None
+
+
+class TestBatchAudioGeneration:
+    """Test suite for batch audio generation with lesson_ids filtering."""
+
+    @pytest.mark.anyio
+    async def test_generate_batch_audios_specific_lessons(
+        self, admin_test_client: AsyncClient, test_course
+    ):
+        """Test generating audio for specific lesson IDs."""
+        lesson_ids = [1, 2, 3]
+        mock_results = [
+            AudioGenerationResultDTO(
+                lesson_id=1,
+                audio_url="https://s3.amazonaws.com/audio/lesson1.mp3",
+                generation_time_seconds=5.0,
+                file_size_bytes=1024,
+            ),
+            AudioGenerationResultDTO(
+                lesson_id=2,
+                audio_url="https://s3.amazonaws.com/audio/lesson2.mp3",
+                generation_time_seconds=6.0,
+                file_size_bytes=2048,
+            ),
+        ]
+
+        with patch(
+            "senda.services.audio_generation.AudioGenerationService.generate_course_audios",
+            new_callable=AsyncMock,
+            return_value=mock_results,
+        ):
+            response = await admin_test_client.post(
+                f"/courses/{test_course.slug}/generate-batch-audios",
+                json={"lesson_ids": lesson_ids},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["total_lessons_processed"] == 2
+        assert len(data["generated_audios"]) == 2
+
+    @pytest.mark.anyio
+    async def test_generate_batch_audios_empty_array_generates_nothing(
+        self, admin_test_client: AsyncClient, test_course
+    ):
+        """Test that empty lesson_ids array generates nothing."""
+        with patch(
+            "senda.services.audio_generation.AudioGenerationService.generate_course_audios",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
+            response = await admin_test_client.post(
+                f"/courses/{test_course.slug}/generate-batch-audios",
+                json={"lesson_ids": []},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["total_lessons_processed"] == 0
+        assert len(data["generated_audios"]) == 0
+
+    @pytest.mark.anyio
+    async def test_generate_batch_audios_no_lesson_ids_generates_all(
+        self, admin_test_client: AsyncClient, test_course
+    ):
+        """Test that omitting lesson_ids generates for all eligible lessons."""
+        mock_results = [
+            AudioGenerationResultDTO(
+                lesson_id=1,
+                audio_url="https://s3.amazonaws.com/audio/lesson1.mp3",
+                generation_time_seconds=5.0,
+                file_size_bytes=1024,
+            ),
+            AudioGenerationResultDTO(
+                lesson_id=2,
+                audio_url="https://s3.amazonaws.com/audio/lesson2.mp3",
+                generation_time_seconds=6.0,
+                file_size_bytes=2048,
+            ),
+        ]
+
+        with patch(
+            "senda.services.audio_generation.AudioGenerationService.generate_course_audios",
+            new_callable=AsyncMock,
+            return_value=mock_results,
+        ):
+            response = await admin_test_client.post(
+                f"/courses/{test_course.slug}/generate-batch-audios", json={}
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["total_lessons_processed"] == 2
+
+
+class TestBatchScriptGeneration:
+    """Test suite for batch script generation with lesson_ids filtering."""
+
+    @pytest.mark.anyio
+    async def test_generate_batch_scripts_specific_lessons(
+        self, admin_test_client: AsyncClient, test_course
+    ):
+        """Test generating scripts for specific lesson IDs."""
+        from senda.core.enums import ScriptPartType
+        from senda.domain.dtos.script_generation import (
+            ScriptGenerationResultDTO,
+            ScriptPartDTO,
+        )
+
+        lesson_ids = [1, 2]
+        mock_results = [
+            ScriptGenerationResultDTO(
+                lesson_id=1,
+                script=[
+                    ScriptPartDTO(type=ScriptPartType.SPEAK, content="Test script 1")
+                ],
+                generation_time_seconds=3.0,
+            ),
+            ScriptGenerationResultDTO(
+                lesson_id=2,
+                script=[
+                    ScriptPartDTO(type=ScriptPartType.SPEAK, content="Test script 2")
+                ],
+                generation_time_seconds=3.5,
+            ),
+        ]
+
+        with patch(
+            "senda.services.script_generation.ScriptGenerationService.generate_course_scripts",
+            new_callable=AsyncMock,
+            return_value=mock_results,
+        ):
+            response = await admin_test_client.post(
+                f"/courses/{test_course.slug}/generate-batch-scripts",
+                json={"lesson_ids": lesson_ids},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["total_lessons_processed"] == 2
+        assert len(data["generated_scripts"]) == 2
+
+    @pytest.mark.anyio
+    async def test_generate_batch_scripts_empty_array_generates_nothing(
+        self, admin_test_client: AsyncClient, test_course
+    ):
+        """Test that empty lesson_ids array generates nothing."""
+        with patch(
+            "senda.services.script_generation.ScriptGenerationService.generate_course_scripts",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
+            response = await admin_test_client.post(
+                f"/courses/{test_course.slug}/generate-batch-scripts",
+                json={"lesson_ids": []},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["total_lessons_processed"] == 0
+        assert len(data["generated_scripts"]) == 0
+
+    @pytest.mark.anyio
+    async def test_generate_batch_scripts_no_lesson_ids_generates_all(
+        self, admin_test_client: AsyncClient, test_course
+    ):
+        """Test that omitting lesson_ids generates for all eligible lessons."""
+        from senda.core.enums import ScriptPartType
+        from senda.domain.dtos.script_generation import (
+            ScriptGenerationResultDTO,
+            ScriptPartDTO,
+        )
+
+        mock_results = [
+            ScriptGenerationResultDTO(
+                lesson_id=1,
+                script=[
+                    ScriptPartDTO(type=ScriptPartType.SPEAK, content="Test script 1")
+                ],
+                generation_time_seconds=3.0,
+            )
+        ]
+
+        with patch(
+            "senda.services.script_generation.ScriptGenerationService.generate_course_scripts",
+            new_callable=AsyncMock,
+            return_value=mock_results,
+        ):
+            response = await admin_test_client.post(
+                f"/courses/{test_course.slug}/generate-batch-scripts", json={}
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["total_lessons_processed"] == 1

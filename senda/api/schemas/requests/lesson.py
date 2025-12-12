@@ -98,3 +98,21 @@ class ReorderLessonsRequest(BaseModel):
                 for item in self.lessons
             ]
         )
+
+
+class BatchScriptGenerationRequest(BaseModel):
+    lesson_ids: list[int] | None = Field(
+        None,
+        description="Optional list of lesson IDs to generate scripts for. "
+        "If not provided, generates for all eligible lessons. "
+        "If empty list, generates nothing.",
+    )
+
+
+class BatchAudioGenerationRequest(BaseModel):
+    lesson_ids: list[int] | None = Field(
+        None,
+        description="Optional list of lesson IDs to generate audio for. "
+        "If not provided, generates for all eligible lessons. "
+        "If empty list, generates nothing.",
+    )

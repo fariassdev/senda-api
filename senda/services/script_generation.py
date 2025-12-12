@@ -163,7 +163,14 @@ class ScriptGenerationService(IScriptGenerationService):
         self, session: AsyncSession, request: CourseScriptRequestDTO
     ) -> list[ScriptGenerationResultDTO]:
         """
-        Generate scripts for all ungenerated lessons in a course.
+        Generate scripts for lessons in a course.
+
+        Args:
+            session: Database session
+            request: Request with slug and optional lesson_ids
+                - If lesson_ids is None: generate for all eligible lessons
+                - If lesson_ids is []: generate nothing (return empty list)
+                - If lesson_ids is [1, 2, 3]: generate only for those specific lessons
 
         Raises:
             CourseNotFoundException: If course not found
@@ -174,7 +181,14 @@ class ScriptGenerationService(IScriptGenerationService):
                 message="Script generation provider not configured"
             )
 
-        logger.info(f"Starting bulk script generation for course {request.course_id}")
+        # Handle empty array case - explicit request to generate nothing
+        if request.lesson_ids is not None and len(request.lesson_ids) == 0:
+            logger.info(
+                f"Empty lesson_ids provided for course {request.slug} - skipping generation"
+            )
+            return []
+
+        logger.info(f"Starting bulk script generation for course {request.slug}")
 
         # Get course and validate permissions
         course_record = await self._course_repo.get_by_slug(
@@ -194,12 +208,23 @@ class ScriptGenerationService(IScriptGenerationService):
             or lesson.script is None
         ]
 
+        # If specific lesson_ids provided, filter to only those lessons
+        if request.lesson_ids is not None:
+            ungenerated_lessons = [
+                lesson
+                for lesson in ungenerated_lessons
+                if lesson.id in request.lesson_ids
+            ]
+            logger.info(
+                f"Filtered to {len(ungenerated_lessons)} lessons based on provided IDs"
+            )
+
         if not ungenerated_lessons:
-            logger.info(f"No ungenerated lessons found for course {request.course_id}")
+            logger.info(f"No ungenerated lessons found for course {request.slug}")
             return []
 
         logger.info(
-            f"Found {len(ungenerated_lessons)} ungenerated lessons for course {request.course_id}"
+            f"Found {len(ungenerated_lessons)} ungenerated lessons for course {request.slug}"
         )
 
         generated_results: list[ScriptGenerationResultDTO] = []
@@ -223,7 +248,7 @@ class ScriptGenerationService(IScriptGenerationService):
                 # Continue with other lessons even if one fails
 
         logger.info(
-            f"Completed bulk generation for course {request.course_id}: "
+            f"Completed bulk generation for course {request.slug}: "
             f"{len(generated_results)}/{len(ungenerated_lessons)} successful"
         )
 

@@ -177,10 +177,17 @@ class AudioGenerationService(IAudioGenerationService):
     async def generate_course_audios(
         self, session: AsyncSession, request: CourseAudioGenerationRequestDTO
     ) -> list[AudioGenerationResultDTO]:
-        """Generate audio for all script-completed lessons in a course.
+        """Generate audio for script-completed lessons in a course.
 
         This method processes lessons in parallel (up to max_concurrent_lessons at a time)
         for improved performance.
+
+        Args:
+            session: Database session
+            request: Request with slug and optional lesson_ids
+                - If lesson_ids is None: generate for all eligible lessons
+                - If lesson_ids is []: generate nothing (return empty list)
+                - If lesson_ids is [1, 2, 3]: generate only for those specific lessons
 
         Raises:
             CourseNotFoundException: If course not found
@@ -190,7 +197,14 @@ class AudioGenerationService(IAudioGenerationService):
             This method continues processing even if individual lessons fail.
             Failed lessons are logged but don't stop the overall process.
         """
-        logger.info(f"Starting bulk audio generation for course {request.course_id}")
+        # Handle empty array case - explicit request to generate nothing
+        if request.lesson_ids is not None and len(request.lesson_ids) == 0:
+            logger.info(
+                f"Empty lesson_ids provided for course {request.slug} - skipping generation"
+            )
+            return []
+
+        logger.info(f"Starting bulk audio generation for course {request.slug}")
 
         course_record = await self._course_repo.get_by_slug(
             session=session, slug=request.slug
@@ -206,15 +220,24 @@ class AudioGenerationService(IAudioGenerationService):
             if lesson.status == LessonStatus.SCRIPT_COMPLETED
         ]
 
+        # If specific lesson_ids provided, filter to only those lessons
+        if request.lesson_ids is not None:
+            ready_lessons = [
+                lesson for lesson in ready_lessons if lesson.id in request.lesson_ids
+            ]
+            logger.info(
+                f"Filtered to {len(ready_lessons)} lessons based on provided IDs"
+            )
+
         if not ready_lessons:
             logger.info(
-                f"No lessons ready for audio generation in course {request.course_id}"
+                f"No lessons ready for audio generation in course {request.slug}"
             )
             return []
 
         logger.info(
             f"Found {len(ready_lessons)} lessons ready for audio generation "
-            f"in course {request.course_id} (max concurrent: {self._max_concurrent_lessons})"
+            f"in course {request.slug} (max concurrent: {self._max_concurrent_lessons})"
         )
 
         # Create a semaphore to limit concurrent lesson processing
@@ -255,7 +278,7 @@ class AudioGenerationService(IAudioGenerationService):
         ]
 
         logger.info(
-            f"Completed bulk generation for course {request.course_id}: "
+            f"Completed bulk generation for course {request.slug}: "
             f"{len(generated_results)}/{len(ready_lessons)} successful"
         )
 

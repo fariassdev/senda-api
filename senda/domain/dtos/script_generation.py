@@ -44,9 +44,9 @@ class LessonScriptRequestDTO:
 class CourseScriptRequestDTO:
     """Request for generating scripts for all lessons in a course."""
 
-    course_id: int
     user_id: int
     slug: str
+    lesson_ids: list[int] | None = None  # None = all, [] = none, [ids] = specific
 
 
 @dataclass(frozen=True)
