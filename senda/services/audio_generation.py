@@ -19,7 +19,9 @@ from senda.core.exceptions import (
 from senda.domain.dtos.audio_generation import (
     AudioGenerationRequestDTO,
     AudioGenerationResultDTO,
+    BatchAudioGenerationResultDTO,
     CourseAudioGenerationRequestDTO,
+    GenerationErrorDTO,
 )
 from senda.domain.dtos.lesson import LessonRecordDTO, UpdateLessonDTO
 from senda.domain.repositories.course import ICourseRepository
@@ -176,7 +178,7 @@ class AudioGenerationService(IAudioGenerationService):
 
     async def generate_course_audios(
         self, session: AsyncSession, request: CourseAudioGenerationRequestDTO
-    ) -> list[AudioGenerationResultDTO]:
+    ) -> BatchAudioGenerationResultDTO:
         """Generate audio for script-completed lessons in a course.
 
         This method processes lessons in parallel (up to max_concurrent_lessons at a time)
@@ -186,23 +188,27 @@ class AudioGenerationService(IAudioGenerationService):
             session: Database session
             request: Request with slug and optional lesson_ids
                 - If lesson_ids is None: generate for all eligible lessons
-                - If lesson_ids is []: generate nothing (return empty list)
+                - If lesson_ids is []: generate nothing (return empty result)
                 - If lesson_ids is [1, 2, 3]: generate only for those specific lessons
+
+        Returns:
+            BatchAudioGenerationResultDTO with successful results and any errors
 
         Raises:
             CourseNotFoundException: If course not found
-            AudioGenerationException: For other errors
 
         Note:
             This method continues processing even if individual lessons fail.
-            Failed lessons are logged but don't stop the overall process.
+            Failed lessons are included in the errors list.
         """
         # Handle empty array case - explicit request to generate nothing
         if request.lesson_ids is not None and len(request.lesson_ids) == 0:
             logger.info(
                 f"Empty lesson_ids provided for course {request.slug} - skipping generation"
             )
-            return []
+            return BatchAudioGenerationResultDTO(
+                results=[], errors=[], total_requested=0
+            )
 
         logger.info(f"Starting bulk audio generation for course {request.slug}")
 
@@ -233,7 +239,9 @@ class AudioGenerationService(IAudioGenerationService):
             logger.info(
                 f"No lessons ready for audio generation in course {request.slug}"
             )
-            return []
+            return BatchAudioGenerationResultDTO(
+                results=[], errors=[], total_requested=0
+            )
 
         logger.info(
             f"Found {len(ready_lessons)} lessons ready for audio generation "
@@ -242,6 +250,9 @@ class AudioGenerationService(IAudioGenerationService):
 
         # Create a semaphore to limit concurrent lesson processing
         semaphore = asyncio.Semaphore(self._max_concurrent_lessons)
+
+        # Store errors in a list accessible from the inner function
+        generation_errors: list[GenerationErrorDTO] = []
 
         async def process_lesson_with_semaphore(
             lesson_record: LessonRecordDTO,
@@ -260,9 +271,18 @@ class AudioGenerationService(IAudioGenerationService):
                     return result
 
                 except Exception as e:
+                    error_type = type(e).__name__
+                    error_message = str(e)
                     logger.error(
                         f"Failed to generate audio for lesson {lesson_record.id}: {e}",
                         exc_info=True,
+                    )
+                    generation_errors.append(
+                        GenerationErrorDTO(
+                            lesson_id=lesson_record.id,
+                            error_type=error_type,
+                            error_message=error_message,
+                        )
                     )
                     return None
 
@@ -279,7 +299,12 @@ class AudioGenerationService(IAudioGenerationService):
 
         logger.info(
             f"Completed bulk generation for course {request.slug}: "
-            f"{len(generated_results)}/{len(ready_lessons)} successful"
+            f"{len(generated_results)}/{len(ready_lessons)} successful, "
+            f"{len(generation_errors)} errors"
         )
 
-        return generated_results
+        return BatchAudioGenerationResultDTO(
+            results=generated_results,
+            errors=generation_errors,
+            total_requested=len(ready_lessons),
+        )

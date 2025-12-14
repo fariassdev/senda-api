@@ -3,7 +3,10 @@
 from pydantic import BaseModel, Field
 
 from senda.core.enums import ScriptPartType
-from senda.domain.dtos.script_generation import ScriptGenerationResultDTO
+from senda.domain.dtos.script_generation import (
+    BatchScriptGenerationResultDTO,
+    ScriptGenerationResultDTO,
+)
 
 
 class ScriptPartResponse(BaseModel):
@@ -75,21 +78,35 @@ class CourseScriptsGenerationResponse(BaseModel):
         ..., description="List of generated script results"
     )
     total_lessons_processed: int = Field(
-        ..., description="Total number of lessons processed"
+        ..., description="Total number of lessons that were requested for processing"
     )
     successful_generations: int = Field(
         ..., description="Number of successful script generations"
     )
+    errors: list["GenerationErrorResponse"] = Field(
+        default_factory=list, description="List of errors for failed generations"
+    )
 
     @classmethod
-    def from_dtos(
-        cls, dtos: list[ScriptGenerationResultDTO], total_processed: int
+    def from_batch_result(
+        cls, batch_result: "BatchScriptGenerationResultDTO"
     ) -> "CourseScriptsGenerationResponse":
-        """Create response from list of domain DTOs."""
+        """Create response from batch generation result DTO."""
+
         return cls(
-            generated_scripts=[ScriptGenerationResponse.from_dto(dto) for dto in dtos],
-            total_lessons_processed=total_processed,
-            successful_generations=len(dtos),
+            generated_scripts=[
+                ScriptGenerationResponse.from_dto(dto) for dto in batch_result.results
+            ],
+            total_lessons_processed=batch_result.total_requested,
+            successful_generations=len(batch_result.results),
+            errors=[
+                GenerationErrorResponse(
+                    lesson_id=error.lesson_id,
+                    error_type=error.error_type,
+                    error_message=error.error_message,
+                )
+                for error in batch_result.errors
+            ],
         )
 
     class Config:
@@ -108,8 +125,23 @@ class CourseScriptsGenerationResponse(BaseModel):
                 ],
                 "total_lessons_processed": 3,
                 "successful_generations": 1,
+                "errors": [
+                    {
+                        "lesson_id": 2,
+                        "error_type": "ScriptGenerationException",
+                        "error_message": "AI provider timeout",
+                    }
+                ],
             }
         }
+
+
+class GenerationErrorResponse(BaseModel):
+    """Error details for a failed generation attempt."""
+
+    lesson_id: int = Field(..., description="ID of the lesson that failed")
+    error_type: str = Field(..., description="Type/class of the error")
+    error_message: str = Field(..., description="Human-readable error message")
 
 
 class ScriptGenerationStatusResponse(BaseModel):

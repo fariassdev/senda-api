@@ -28,3 +28,21 @@ class AudioGenerationResultDTO:
     audio_url: str
     generation_time_seconds: float
     file_size_bytes: int | None = None
+
+
+@dataclass(frozen=True)
+class GenerationErrorDTO:
+    """Error details for a failed generation attempt."""
+
+    lesson_id: int
+    error_type: str
+    error_message: str
+
+
+@dataclass
+class BatchAudioGenerationResultDTO:
+    """Result of batch audio generation including successes and errors."""
+
+    results: list[AudioGenerationResultDTO]
+    errors: list[GenerationErrorDTO]
+    total_requested: int

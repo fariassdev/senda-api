@@ -2,7 +2,10 @@
 
 from pydantic import BaseModel, Field
 
-from senda.domain.dtos.audio_generation import AudioGenerationResultDTO
+from senda.domain.dtos.audio_generation import (
+    AudioGenerationResultDTO,
+    BatchAudioGenerationResultDTO,
+)
 
 
 class AudioGenerationResponse(BaseModel):
@@ -45,21 +48,35 @@ class CourseAudiosGenerationResponse(BaseModel):
         ..., description="List of generated audio results"
     )
     total_lessons_processed: int = Field(
-        ..., description="Total number of lessons processed"
+        ..., description="Total number of lessons that were requested for processing"
     )
     successful_generations: int = Field(
         ..., description="Number of successful audio generations"
     )
+    errors: list["GenerationErrorResponse"] = Field(
+        default_factory=list, description="List of errors for failed generations"
+    )
 
     @classmethod
-    def from_dtos(
-        cls, dtos: list[AudioGenerationResultDTO], total_processed: int
+    def from_batch_result(
+        cls, batch_result: "BatchAudioGenerationResultDTO"
     ) -> "CourseAudiosGenerationResponse":
-        """Create response from list of domain DTOs."""
+        """Create response from batch generation result DTO."""
+
         return cls(
-            generated_audios=[AudioGenerationResponse.from_dto(dto) for dto in dtos],
-            total_lessons_processed=total_processed,
-            successful_generations=len(dtos),
+            generated_audios=[
+                AudioGenerationResponse.from_dto(dto) for dto in batch_result.results
+            ],
+            total_lessons_processed=batch_result.total_requested,
+            successful_generations=len(batch_result.results),
+            errors=[
+                GenerationErrorResponse(
+                    lesson_id=error.lesson_id,
+                    error_type=error.error_type,
+                    error_message=error.error_message,
+                )
+                for error in batch_result.errors
+            ],
         )
 
     class Config:
@@ -77,8 +94,23 @@ class CourseAudiosGenerationResponse(BaseModel):
                 ],
                 "total_lessons_processed": 5,
                 "successful_generations": 1,
+                "errors": [
+                    {
+                        "lesson_id": 2,
+                        "error_type": "AudioProviderException",
+                        "error_message": "TTS service unavailable",
+                    }
+                ],
             }
         }
+
+
+class GenerationErrorResponse(BaseModel):
+    """Error details for a failed generation attempt."""
+
+    lesson_id: int = Field(..., description="ID of the lesson that failed")
+    error_type: str = Field(..., description="Type/class of the error")
+    error_message: str = Field(..., description="Human-readable error message")
 
 
 class AudioGenerationStatusResponse(BaseModel):

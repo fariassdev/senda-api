@@ -201,18 +201,18 @@ async def generate_course_scripts(
     - If lesson_ids is not provided: generates for all eligible lessons
     - If lesson_ids is []: generates nothing
     - If lesson_ids is [1, 2, 3]: generates only for those specific lessons
+
+    Returns successful generations and any errors that occurred.
     """
     request = CourseScriptRequestDTO(
         user_id=current_user.id, slug=slug, lesson_ids=payload.lesson_ids
     )
 
-    results = await script_service.generate_course_scripts(
+    batch_result = await script_service.generate_course_scripts(
         session=session, request=request
     )
 
-    return CourseScriptsGenerationResponse.from_dtos(
-        dtos=results, total_processed=len(results)
-    )
+    return CourseScriptsGenerationResponse.from_batch_result(batch_result)
 
 
 @router.get(
@@ -275,18 +275,18 @@ async def generate_course_audios(
     - If lesson_ids is not provided: generates for all eligible lessons
     - If lesson_ids is []: generates nothing
     - If lesson_ids is [1, 2, 3]: generates only for those specific lessons
+
+    Returns successful generations and any errors that occurred.
     """
     request = CourseAudioGenerationRequestDTO(
         user_id=current_user.id, slug=slug, lesson_ids=payload.lesson_ids
     )
 
-    results = await audio_service.generate_course_audios(
+    batch_result = await audio_service.generate_course_audios(
         session=session, request=request
     )
 
-    return CourseAudiosGenerationResponse.from_dtos(
-        dtos=results, total_processed=len(results)
-    )
+    return CourseAudiosGenerationResponse.from_batch_result(batch_result)
 
 
 @router.get(

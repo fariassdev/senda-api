@@ -5,6 +5,7 @@ import abc
 from senda.domain.dtos.audio_generation import (
     AudioGenerationRequestDTO,
     AudioGenerationResultDTO,
+    BatchAudioGenerationResultDTO,
     CourseAudioGenerationRequestDTO,
 )
 
@@ -79,7 +80,7 @@ class IAudioGenerationService(abc.ABC):
     @abc.abstractmethod
     async def generate_course_audios(
         self, session: object, request: CourseAudioGenerationRequestDTO
-    ) -> list[AudioGenerationResultDTO]:
+    ) -> BatchAudioGenerationResultDTO:
         """Generate audio for all script-completed lessons in a course.
 
         Args:
@@ -87,14 +88,13 @@ class IAudioGenerationService(abc.ABC):
             request: Course audio generation request
 
         Returns:
-            List of AudioGenerationResultDTO for successfully generated lessons
+            BatchAudioGenerationResultDTO with successful results and any errors
 
         Raises:
             CourseNotFoundException: If course not found
-            AudioGenerationException: For other errors
 
         Note:
             This method continues processing even if individual lessons fail.
-            Failed lessons are logged but don't stop the overall process.
+            Failed lessons are included in the errors list.
         """
         pass

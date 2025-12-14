@@ -77,3 +77,21 @@ class CourseContextDTO:
     name: str
     description: str
     total_lessons: int
+
+
+@dataclass(frozen=True)
+class GenerationErrorDTO:
+    """Error details for a failed generation attempt."""
+
+    lesson_id: int
+    error_type: str
+    error_message: str
+
+
+@dataclass
+class BatchScriptGenerationResultDTO:
+    """Result of batch script generation including successes and errors."""
+
+    results: list[ScriptGenerationResultDTO]
+    errors: list[GenerationErrorDTO]
+    total_requested: int
