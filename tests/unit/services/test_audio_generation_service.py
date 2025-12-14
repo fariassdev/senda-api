@@ -22,6 +22,7 @@ from senda.core.exceptions import (
 from senda.domain.dtos.audio_generation import (
     AudioGenerationRequestDTO,
     AudioGenerationResultDTO,
+    BatchAudioGenerationResultDTO,
     CourseAudioGenerationRequestDTO,
 )
 from senda.domain.dtos.course import CourseRecordDTO
@@ -396,15 +397,18 @@ class TestAudioGenerationService:
             side_effect=mock_generate_lesson_audio
         )
 
-        results = await audio_service.generate_course_audios(
+        batch_result = await audio_service.generate_course_audios(
             session=mock_session, request=request
         )
 
-        assert len(results) == 2
+        assert isinstance(batch_result, BatchAudioGenerationResultDTO)
+        assert len(batch_result.results) == 2
+        assert len(batch_result.errors) == 0
+        assert batch_result.total_requested == 2
         assert audio_service.generate_lesson_audio.call_count == 2
 
         # Validate the results contain valid AudioGenerationResultDTO objects
-        for result in results:
+        for result in batch_result.results:
             assert isinstance(result, AudioGenerationResultDTO)
             assert result.lesson_id in [
                 1,
@@ -415,7 +419,7 @@ class TestAudioGenerationService:
             assert result.file_size_bytes == 1024
 
         # Ensure we have results for both ready lessons
-        lesson_ids = {result.lesson_id for result in results}
+        lesson_ids = {result.lesson_id for result in batch_result.results}
         assert lesson_ids == {1, 2}
 
     @pytest.mark.asyncio
@@ -451,11 +455,14 @@ class TestAudioGenerationService:
         mock_course_repo.get_by_slug = AsyncMock(return_value=sample_course_record)
         mock_lesson_repo.list_by_course = AsyncMock(return_value=[pending_lesson])
 
-        results = await audio_service.generate_course_audios(
+        batch_result = await audio_service.generate_course_audios(
             session=mock_session, request=request
         )
 
-        assert len(results) == 0
+        assert isinstance(batch_result, BatchAudioGenerationResultDTO)
+        assert len(batch_result.results) == 0
+        assert len(batch_result.errors) == 0
+        assert batch_result.total_requested == 0
 
     @pytest.mark.asyncio
     async def test_generate_course_audios_continues_on_failure(
@@ -510,14 +517,23 @@ class TestAudioGenerationService:
             side_effect=generate_with_failure
         )
 
-        results = await audio_service.generate_course_audios(
+        batch_result = await audio_service.generate_course_audios(
             session=mock_session, request=request
         )
 
-        assert len(results) == 1
-        result = results[0]
+        assert isinstance(batch_result, BatchAudioGenerationResultDTO)
+        assert len(batch_result.results) == 1
+        assert len(batch_result.errors) == 1
+        assert batch_result.total_requested == 2
+
+        # Validate the error was captured
+        error = batch_result.errors[0]
+        assert error.lesson_id == 1
+        assert error.error_type == "AudioProviderException"
+        assert "TTS failed" in error.error_message
 
         # Validate the successful result has the second lesson's data
+        result = batch_result.results[0]
         assert isinstance(result, AudioGenerationResultDTO)
         assert result.lesson_id == 2
         assert result.audio_url == "https://s3.amazonaws.com/audio/test.mp3"

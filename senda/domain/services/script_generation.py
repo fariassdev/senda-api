@@ -3,6 +3,7 @@
 import abc
 
 from senda.domain.dtos.script_generation import (
+    BatchScriptGenerationResultDTO,
     CourseContextDTO,
     CourseScriptRequestDTO,
     LessonContextDTO,
@@ -62,7 +63,7 @@ class IScriptGenerationService(abc.ABC):
     @abc.abstractmethod
     async def generate_course_scripts(
         self, session: object, request: CourseScriptRequestDTO
-    ) -> list[ScriptGenerationResultDTO]:
+    ) -> BatchScriptGenerationResultDTO:
         """
         Generate scripts for all ungenerated lessons in a course.
 
@@ -71,11 +72,11 @@ class IScriptGenerationService(abc.ABC):
             request: Course script generation request
 
         Returns:
-            List of ScriptGenerationResultDTO for all generated lessons
+            BatchScriptGenerationResultDTO with successful results and any errors
 
         Raises:
             CourseNotFoundException: If course not found
-            ScriptGenerationException: If generation fails
+            ScriptGenerationException: If provider not configured
         """
         pass
 

@@ -14,8 +14,10 @@ from senda.core.exceptions import (
 )
 from senda.domain.dtos.lesson import UpdateLessonDTO
 from senda.domain.dtos.script_generation import (
+    BatchScriptGenerationResultDTO,
     CourseContextDTO,
     CourseScriptRequestDTO,
+    GenerationErrorDTO,
     LessonContextDTO,
     LessonScriptRequestDTO,
     ScriptGenerationResultDTO,
@@ -161,7 +163,7 @@ class ScriptGenerationService(IScriptGenerationService):
 
     async def generate_course_scripts(
         self, session: AsyncSession, request: CourseScriptRequestDTO
-    ) -> list[ScriptGenerationResultDTO]:
+    ) -> BatchScriptGenerationResultDTO:
         """
         Generate scripts for lessons in a course.
 
@@ -169,12 +171,15 @@ class ScriptGenerationService(IScriptGenerationService):
             session: Database session
             request: Request with slug and optional lesson_ids
                 - If lesson_ids is None: generate for all eligible lessons
-                - If lesson_ids is []: generate nothing (return empty list)
+                - If lesson_ids is []: generate nothing (return empty result)
                 - If lesson_ids is [1, 2, 3]: generate only for those specific lessons
+
+        Returns:
+            BatchScriptGenerationResultDTO with successful results and any errors
 
         Raises:
             CourseNotFoundException: If course not found
-            ScriptGenerationException: If generation fails
+            ScriptGenerationException: If provider not configured
         """
         if not self._script_provider:
             raise ScriptGenerationException(
@@ -186,7 +191,9 @@ class ScriptGenerationService(IScriptGenerationService):
             logger.info(
                 f"Empty lesson_ids provided for course {request.slug} - skipping generation"
             )
-            return []
+            return BatchScriptGenerationResultDTO(
+                results=[], errors=[], total_requested=0
+            )
 
         logger.info(f"Starting bulk script generation for course {request.slug}")
 
@@ -221,13 +228,16 @@ class ScriptGenerationService(IScriptGenerationService):
 
         if not ungenerated_lessons:
             logger.info(f"No ungenerated lessons found for course {request.slug}")
-            return []
+            return BatchScriptGenerationResultDTO(
+                results=[], errors=[], total_requested=0
+            )
 
         logger.info(
             f"Found {len(ungenerated_lessons)} ungenerated lessons for course {request.slug}"
         )
 
         generated_results: list[ScriptGenerationResultDTO] = []
+        generation_errors: list[GenerationErrorDTO] = []
 
         for lesson_record in ungenerated_lessons:
             lesson_request = LessonScriptRequestDTO(
@@ -242,17 +252,31 @@ class ScriptGenerationService(IScriptGenerationService):
                 logger.info(f"Generated script for lesson {lesson_record.id}")
 
             except Exception as e:
+                error_type = type(e).__name__
+                error_message = str(e)
                 logger.error(
                     f"Failed to generate script for lesson {lesson_record.id}: {e}"
+                )
+                generation_errors.append(
+                    GenerationErrorDTO(
+                        lesson_id=lesson_record.id,
+                        error_type=error_type,
+                        error_message=error_message,
+                    )
                 )
                 # Continue with other lessons even if one fails
 
         logger.info(
             f"Completed bulk generation for course {request.slug}: "
-            f"{len(generated_results)}/{len(ungenerated_lessons)} successful"
+            f"{len(generated_results)}/{len(ungenerated_lessons)} successful, "
+            f"{len(generation_errors)} errors"
         )
 
-        return generated_results
+        return BatchScriptGenerationResultDTO(
+            results=generated_results,
+            errors=generation_errors,
+            total_requested=len(ungenerated_lessons),
+        )
 
     async def get_lesson_generation_status(
         self, session: AsyncSession, lesson_id: int, user_id: int

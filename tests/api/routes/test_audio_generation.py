@@ -8,7 +8,15 @@ from fastapi import status
 from httpx import AsyncClient
 
 from senda.core.enums import LessonStatus
-from senda.domain.dtos.audio_generation import AudioGenerationResultDTO
+from senda.domain.dtos.audio_generation import (
+    AudioGenerationResultDTO,
+    BatchAudioGenerationResultDTO,
+)
+from senda.domain.dtos.script_generation import (
+    BatchScriptGenerationResultDTO,
+    ScriptGenerationResultDTO,
+    ScriptPartDTO,
+)
 
 
 class TestAudioGenerationAPI:
@@ -194,10 +202,14 @@ class TestAudioGenerationAPI:
             ),
         ]
 
+        mock_batch_result = BatchAudioGenerationResultDTO(
+            results=mock_results, errors=[], total_requested=2
+        )
+
         with patch(
             "senda.services.audio_generation.AudioGenerationService.generate_course_audios",
             new_callable=AsyncMock,
-            return_value=mock_results,
+            return_value=mock_batch_result,
         ):
             response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-batch-audios", json={}
@@ -239,10 +251,13 @@ class TestAudioGenerationAPI:
         self, admin_test_client: AsyncClient, test_course
     ):
         """Test bulk generation when no lessons are ready."""
+        mock_batch_result = BatchAudioGenerationResultDTO(
+            results=[], errors=[], total_requested=0
+        )
         with patch(
             "senda.services.audio_generation.AudioGenerationService.generate_course_audios",
             new_callable=AsyncMock,
-            return_value=[],
+            return_value=mock_batch_result,
         ):
             response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-batch-audios", json={}
@@ -375,10 +390,14 @@ class TestBatchAudioGeneration:
             ),
         ]
 
+        mock_batch_result = BatchAudioGenerationResultDTO(
+            results=mock_results, errors=[], total_requested=2
+        )
+
         with patch(
             "senda.services.audio_generation.AudioGenerationService.generate_course_audios",
             new_callable=AsyncMock,
-            return_value=mock_results,
+            return_value=mock_batch_result,
         ):
             response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-batch-audios",
@@ -389,16 +408,20 @@ class TestBatchAudioGeneration:
         data = response.json()
         assert data["total_lessons_processed"] == 2
         assert len(data["generated_audios"]) == 2
+        assert len(data["errors"]) == 0
 
     @pytest.mark.anyio
     async def test_generate_batch_audios_empty_array_generates_nothing(
         self, admin_test_client: AsyncClient, test_course
     ):
         """Test that empty lesson_ids array generates nothing."""
+        mock_batch_result = BatchAudioGenerationResultDTO(
+            results=[], errors=[], total_requested=0
+        )
         with patch(
             "senda.services.audio_generation.AudioGenerationService.generate_course_audios",
             new_callable=AsyncMock,
-            return_value=[],
+            return_value=mock_batch_result,
         ):
             response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-batch-audios",
@@ -409,6 +432,7 @@ class TestBatchAudioGeneration:
         data = response.json()
         assert data["total_lessons_processed"] == 0
         assert len(data["generated_audios"]) == 0
+        assert len(data["errors"]) == 0
 
     @pytest.mark.anyio
     async def test_generate_batch_audios_no_lesson_ids_generates_all(
@@ -430,10 +454,14 @@ class TestBatchAudioGeneration:
             ),
         ]
 
+        mock_batch_result = BatchAudioGenerationResultDTO(
+            results=mock_results, errors=[], total_requested=2
+        )
+
         with patch(
             "senda.services.audio_generation.AudioGenerationService.generate_course_audios",
             new_callable=AsyncMock,
-            return_value=mock_results,
+            return_value=mock_batch_result,
         ):
             response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-batch-audios", json={}
@@ -442,6 +470,7 @@ class TestBatchAudioGeneration:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["total_lessons_processed"] == 2
+        assert len(data["errors"]) == 0
 
 
 class TestBatchScriptGeneration:
@@ -453,10 +482,6 @@ class TestBatchScriptGeneration:
     ):
         """Test generating scripts for specific lesson IDs."""
         from senda.core.enums import ScriptPartType
-        from senda.domain.dtos.script_generation import (
-            ScriptGenerationResultDTO,
-            ScriptPartDTO,
-        )
 
         lesson_ids = [1, 2]
         mock_results = [
@@ -476,10 +501,14 @@ class TestBatchScriptGeneration:
             ),
         ]
 
+        mock_batch_result = BatchScriptGenerationResultDTO(
+            results=mock_results, errors=[], total_requested=2
+        )
+
         with patch(
             "senda.services.script_generation.ScriptGenerationService.generate_course_scripts",
             new_callable=AsyncMock,
-            return_value=mock_results,
+            return_value=mock_batch_result,
         ):
             response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-batch-scripts",
@@ -490,16 +519,20 @@ class TestBatchScriptGeneration:
         data = response.json()
         assert data["total_lessons_processed"] == 2
         assert len(data["generated_scripts"]) == 2
+        assert len(data["errors"]) == 0
 
     @pytest.mark.anyio
     async def test_generate_batch_scripts_empty_array_generates_nothing(
         self, admin_test_client: AsyncClient, test_course
     ):
         """Test that empty lesson_ids array generates nothing."""
+        mock_batch_result = BatchScriptGenerationResultDTO(
+            results=[], errors=[], total_requested=0
+        )
         with patch(
             "senda.services.script_generation.ScriptGenerationService.generate_course_scripts",
             new_callable=AsyncMock,
-            return_value=[],
+            return_value=mock_batch_result,
         ):
             response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-batch-scripts",
@@ -510,6 +543,7 @@ class TestBatchScriptGeneration:
         data = response.json()
         assert data["total_lessons_processed"] == 0
         assert len(data["generated_scripts"]) == 0
+        assert len(data["errors"]) == 0
 
     @pytest.mark.anyio
     async def test_generate_batch_scripts_no_lesson_ids_generates_all(
@@ -517,10 +551,6 @@ class TestBatchScriptGeneration:
     ):
         """Test that omitting lesson_ids generates for all eligible lessons."""
         from senda.core.enums import ScriptPartType
-        from senda.domain.dtos.script_generation import (
-            ScriptGenerationResultDTO,
-            ScriptPartDTO,
-        )
 
         mock_results = [
             ScriptGenerationResultDTO(
@@ -532,10 +562,14 @@ class TestBatchScriptGeneration:
             )
         ]
 
+        mock_batch_result = BatchScriptGenerationResultDTO(
+            results=mock_results, errors=[], total_requested=1
+        )
+
         with patch(
             "senda.services.script_generation.ScriptGenerationService.generate_course_scripts",
             new_callable=AsyncMock,
-            return_value=mock_results,
+            return_value=mock_batch_result,
         ):
             response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-batch-scripts", json={}
@@ -544,3 +578,4 @@ class TestBatchScriptGeneration:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["total_lessons_processed"] == 1
+        assert len(data["errors"]) == 0
