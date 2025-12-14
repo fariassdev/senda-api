@@ -6,6 +6,7 @@ from senda.api.schemas.requests.lesson import (
     BatchScriptGenerationRequest,
     CreateLessonRequest,
     ReorderLessonsRequest,
+    SingleAudioGenerationRequest,
     UpdateLessonRequest,
 )
 from senda.api.schemas.responses.audio_generation import (
@@ -30,6 +31,7 @@ from senda.core.dependencies import (
 )
 from senda.core.exceptions import LessonNotFoundException
 from senda.domain.dtos.audio_generation import (
+    AudioConfigDTO,
     AudioGenerationRequestDTO,
     CourseAudioGenerationRequestDTO,
 )
@@ -246,11 +248,23 @@ async def generate_lesson_audio(
     current_user: AdminUser,
     audio_service: IAudioGenerationService,
     lesson_id: int = Path(..., alias="id"),
+    payload: SingleAudioGenerationRequest | None = None,
 ) -> AudioGenerationResponse:
     """
     Generate audio for a specific lesson.
+
+    Optionally accepts audio configuration (voice, speed).
     """
-    request = AudioGenerationRequestDTO(lesson_id=lesson_id, user_id=current_user.id)
+    # Convert audio config from request to DTO if provided
+    audio_config = None
+    if payload and payload.audio_config:
+        audio_config = AudioConfigDTO(
+            voice=payload.audio_config.voice, speed=payload.audio_config.speed
+        )
+
+    request = AudioGenerationRequestDTO(
+        lesson_id=lesson_id, user_id=current_user.id, audio_config=audio_config
+    )
 
     result = await audio_service.generate_lesson_audio(session=session, request=request)
 
@@ -276,10 +290,22 @@ async def generate_course_audios(
     - If lesson_ids is []: generates nothing
     - If lesson_ids is [1, 2, 3]: generates only for those specific lessons
 
+    Optionally accepts audio configuration (voice, speed) applied to all lessons.
+
     Returns successful generations and any errors that occurred.
     """
+    # Convert audio config from request to DTO if provided
+    audio_config = None
+    if payload.audio_config:
+        audio_config = AudioConfigDTO(
+            voice=payload.audio_config.voice, speed=payload.audio_config.speed
+        )
+
     request = CourseAudioGenerationRequestDTO(
-        user_id=current_user.id, slug=slug, lesson_ids=payload.lesson_ids
+        user_id=current_user.id,
+        slug=slug,
+        lesson_ids=payload.lesson_ids,
+        audio_config=audio_config,
     )
 
     batch_result = await audio_service.generate_course_audios(

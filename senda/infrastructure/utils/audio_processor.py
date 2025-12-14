@@ -108,8 +108,10 @@ class AudioProcessor:
     async def combine_script_parts(
         self,
         script_parts: list[ScriptPartDTO],
-        speech_generator: Callable[[str], Awaitable[bytes]],
+        speech_generator: Callable[[str, str | None, float], Awaitable[bytes]],
         parallel: bool = True,
+        voice: str | None = None,
+        speed: float = 1.0,
     ) -> AudioSegment:
         """Combine script parts into a single audio segment.
 
@@ -119,9 +121,11 @@ class AudioProcessor:
         Args:
             script_parts: List of script parts to process
             speech_generator: Async callable that generates speech bytes from text
-                             Should have signature: async def (text: str) -> bytes
+                             Should have signature: async def (text, voice, speed) -> bytes
             parallel: Whether to generate TTS for all parts in parallel (default: True)
                      If False, parts are processed sequentially
+            voice: Optional voice override for TTS
+            speed: Speech rate multiplier (0.5 to 2.0, default 1.0)
 
         Returns:
             Combined AudioSegment
@@ -139,17 +143,19 @@ class AudioProcessor:
 
         if parallel:
             return await self._combine_script_parts_parallel(
-                script_parts, speech_generator
+                script_parts, speech_generator, voice, speed
             )
         else:
             return await self._combine_script_parts_sequential(
-                script_parts, speech_generator
+                script_parts, speech_generator, voice, speed
             )
 
     async def _combine_script_parts_sequential(
         self,
         script_parts: list[ScriptPartDTO],
-        speech_generator: Callable[[str], Awaitable[bytes]],
+        speech_generator: Callable[[str, str | None, float], Awaitable[bytes]],
+        voice: str | None = None,
+        speed: float = 1.0,
     ) -> AudioSegment:
         """Combine script parts sequentially (original behavior)."""
         final_audio = AudioSegment.empty()
@@ -162,7 +168,7 @@ class AudioProcessor:
                     logger.warning(f"Part {idx + 1} has no content, skipping")
                     continue
 
-                speech_bytes = await speech_generator(part.content)
+                speech_bytes = await speech_generator(part.content, voice, speed)
                 speech_segment = self.pcm_to_audio_segment(speech_bytes)
                 final_audio += speech_segment
 
@@ -187,7 +193,9 @@ class AudioProcessor:
     async def _combine_script_parts_parallel(
         self,
         script_parts: list[ScriptPartDTO],
-        speech_generator: Callable[[str], Awaitable[bytes]],
+        speech_generator: Callable[[str, str | None, float], Awaitable[bytes]],
+        voice: str | None = None,
+        speed: float = 1.0,
     ) -> AudioSegment:
         """Combine script parts with parallel TTS generation.
 
@@ -205,7 +213,7 @@ class AudioProcessor:
             async with semaphore:
                 try:
                     logger.debug(f"Generating TTS for part {idx + 1}")
-                    speech_bytes = await speech_generator(content)
+                    speech_bytes = await speech_generator(content, voice, speed)
                     return (idx, speech_bytes)
                 except Exception as e:
                     logger.error(f"Failed to generate TTS for part {idx + 1}: {e}")

@@ -14,11 +14,15 @@ class IAudioProvider(abc.ABC):
     """Abstract interface for text-to-speech generation."""
 
     @abc.abstractmethod
-    async def generate_speech(self, text: str) -> bytes:
+    async def generate_speech(
+        self, text: str, voice: str | None = None, speed: float = 1.0
+    ) -> bytes:
         """Generate audio from text, return raw audio bytes.
 
         Args:
             text: Text to convert to speech
+            voice: Optional voice override (uses provider default if None)
+            speed: Speech rate multiplier (0.5 to 2.0, default 1.0)
 
         Returns:
             Raw audio bytes (PCM format)

@@ -4,11 +4,20 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
+class AudioConfigDTO:
+    """Configuration for audio generation (voice, speed)."""
+
+    voice: str | None = None  # Voice override (e.g., "af_nicole", "af_bella")
+    speed: float = 1.0  # Speech rate: 0.5 to 2.0
+
+
+@dataclass(frozen=True)
 class AudioGenerationRequestDTO:
     """Request to generate audio for a single lesson."""
 
     lesson_id: int
     user_id: int
+    audio_config: AudioConfigDTO | None = None
 
 
 @dataclass(frozen=True)
@@ -18,6 +27,7 @@ class CourseAudioGenerationRequestDTO:
     slug: str
     user_id: int
     lesson_ids: list[int] | None = None  # None = all, [] = none, [ids] = specific
+    audio_config: AudioConfigDTO | None = None
 
 
 @dataclass(frozen=True)

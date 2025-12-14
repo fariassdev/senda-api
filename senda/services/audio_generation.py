@@ -112,9 +112,18 @@ class AudioGenerationService(IAudioGenerationService):
                 f"Processing {len(script_parts)} script parts for lesson {request.lesson_id}"
             )
 
+            # Extract audio config if provided
+            voice = None
+            speed = 1.0
+            if request.audio_config:
+                voice = request.audio_config.voice
+                speed = request.audio_config.speed
+
             combined_audio = await self._audio_processor.combine_script_parts(
                 script_parts=script_parts,
                 speech_generator=self._audio_provider.generate_speech,
+                voice=voice,
+                speed=speed,
             )
 
             mp3_data = self._audio_processor.export_to_mp3(combined_audio)
@@ -260,7 +269,9 @@ class AudioGenerationService(IAudioGenerationService):
             """Process a single lesson with semaphore control."""
             async with semaphore:
                 lesson_request = AudioGenerationRequestDTO(
-                    lesson_id=lesson_record.id, user_id=request.user_id
+                    lesson_id=lesson_record.id,
+                    user_id=request.user_id,
+                    audio_config=request.audio_config,
                 )
 
                 try:

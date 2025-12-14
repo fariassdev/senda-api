@@ -109,10 +109,37 @@ class BatchScriptGenerationRequest(BaseModel):
     )
 
 
+class AudioConfigRequest(BaseModel):
+    """Audio configuration options for TTS generation."""
+
+    voice: str | None = Field(
+        None,
+        description="Voice to use for TTS (e.g., 'af_nicole', 'af_bella'). "
+        "If not provided, uses the default voice.",
+    )
+    speed: float = Field(
+        1.0,
+        ge=0.5,
+        le=2.0,
+        description="Speech rate multiplier (0.5 to 2.0, default 1.0).",
+    )
+
+
 class BatchAudioGenerationRequest(BaseModel):
     lesson_ids: list[int] | None = Field(
         None,
         description="Optional list of lesson IDs to generate audio for. "
         "If not provided, generates for all eligible lessons. "
         "If empty list, generates nothing.",
+    )
+    audio_config: AudioConfigRequest | None = Field(
+        None, description="Optional audio configuration (voice, speed)."
+    )
+
+
+class SingleAudioGenerationRequest(BaseModel):
+    """Request body for single lesson audio generation."""
+
+    audio_config: AudioConfigRequest | None = Field(
+        None, description="Optional audio configuration (voice, speed)."
     )

@@ -49,11 +49,15 @@ class KokoroAudioProvider(IAudioProvider):
             f"Initialized KokoroAudioProvider with model={model}, voice={voice}"
         )
 
-    async def generate_speech(self, text: str) -> bytes:
+    async def generate_speech(
+        self, text: str, voice: str | None = None, speed: float = 1.0
+    ) -> bytes:
         """Generate speech audio from text using Kokoro TTS API.
 
         Args:
             text: Text to convert to speech
+            voice: Optional voice override (uses instance default if None)
+            speed: Speech rate multiplier (0.5 to 2.0, default 1.0)
 
         Returns:
             Raw PCM audio bytes
@@ -67,12 +71,16 @@ class KokoroAudioProvider(IAudioProvider):
                 message="Cannot generate speech from empty text"
             )
 
+        # Use provided voice or fall back to instance default
+        effective_voice = voice or self._voice
+
         payload: dict[str, Any] = {
             "model": self._model,
             "input": text,
-            "voice": self._voice,
+            "voice": effective_voice,
             "response_format": "pcm",
             "stream": True,
+            "speed": speed,
         }
 
         headers = {"Content-Type": "application/json"}

@@ -65,6 +65,7 @@ class TestKokoroAudioProvider:
                     "voice": "af_nicole",
                     "response_format": "pcm",
                     "stream": True,
+                    "speed": 1.0,
                 },
                 headers={"Content-Type": "application/json"},
             )

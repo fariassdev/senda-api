@@ -101,7 +101,9 @@ class TestAudioProcessor:
             ScriptPartDTO(type=ScriptPartType.SPEAK, content="World", duration=None),
         ]
 
-        async def mock_generator(text: str) -> bytes:
+        async def mock_generator(
+            text: str, voice: str | None = None, speed: float = 1.0
+        ) -> bytes:
             return mock_pcm_data
 
         result = await audio_processor.combine_script_parts(
@@ -119,7 +121,9 @@ class TestAudioProcessor:
             ScriptPartDTO(type=ScriptPartType.PAUSE, content=None, duration=2.0),
         ]
 
-        async def mock_generator(text: str) -> bytes:
+        async def mock_generator(
+            text: str, voice: str | None = None, speed: float = 1.0
+        ) -> bytes:
             raise AssertionError("Should not call speech generator for pauses")
 
         result = await audio_processor.combine_script_parts(
@@ -140,7 +144,9 @@ class TestAudioProcessor:
             ScriptPartDTO(type=ScriptPartType.SPEAK, content="Goodbye", duration=None),
         ]
 
-        async def mock_generator(text: str) -> bytes:
+        async def mock_generator(
+            text: str, voice: str | None = None, speed: float = 1.0
+        ) -> bytes:
             return mock_pcm_data
 
         result = await audio_processor.combine_script_parts(
@@ -154,7 +160,9 @@ class TestAudioProcessor:
     async def test_combine_script_parts_empty_list(self, audio_processor):
         """Test error when script parts list is empty."""
 
-        async def mock_generator(text: str) -> bytes:
+        async def mock_generator(
+            text: str, voice: str | None = None, speed: float = 1.0
+        ) -> bytes:
             return b"mock"
 
         with pytest.raises(ValueError) as exc_info:
@@ -177,7 +185,9 @@ class TestAudioProcessor:
 
         call_count = 0
 
-        async def mock_generator(text: str) -> bytes:
+        async def mock_generator(
+            text: str, voice: str | None = None, speed: float = 1.0
+        ) -> bytes:
             nonlocal call_count
             call_count += 1
             return mock_pcm_data
@@ -202,7 +212,9 @@ class TestAudioProcessor:
             ScriptPartDTO(type=ScriptPartType.PAUSE, content=None, duration=1.0),
         ]
 
-        async def mock_generator(text: str) -> bytes:
+        async def mock_generator(
+            text: str, voice: str | None = None, speed: float = 1.0
+        ) -> bytes:
             return mock_pcm_data
 
         result = await audio_processor.combine_script_parts(
@@ -228,7 +240,9 @@ class TestAudioProcessor:
 
         call_count = 0
 
-        async def mock_generator(text: str) -> bytes:
+        async def mock_generator(
+            text: str, voice: str | None = None, speed: float = 1.0
+        ) -> bytes:
             nonlocal call_count
             call_count += 1
             return mock_pcm_data
@@ -289,7 +303,9 @@ class TestAudioProcessor:
             ),
         ]
 
-        async def mock_generator(text: str) -> bytes:
+        async def mock_generator(
+            text: str, voice: str | None = None, speed: float = 1.0
+        ) -> bytes:
             return mock_pcm_data
 
         combined_audio = await audio_processor.combine_script_parts(
