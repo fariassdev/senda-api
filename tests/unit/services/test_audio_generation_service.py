@@ -14,7 +14,6 @@ from senda.core.exceptions import (
     AudioGenerationException,
     AudioProviderException,
     CourseNotFoundException,
-    InsufficientPermissionsException,
     InvalidLessonStateException,
     LessonNotFoundException,
     StorageProviderException,

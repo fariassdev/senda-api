@@ -74,7 +74,7 @@ class IAudioGenerationService(abc.ABC):
 
         Raises:
             LessonNotFoundException: If lesson not found
-            InvalidLessonStateException: If lesson not in SCRIPT_COMPLETED state
+            InvalidLessonStateException: If lesson not in SCRIPT_COMPLETED or AUDIO_COMPLETED state
             AudioProviderException: If TTS generation fails
             StorageProviderException: If storage upload fails
             AudioGenerationException: For other errors

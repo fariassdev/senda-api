@@ -63,7 +63,7 @@ class AudioGenerationService(IAudioGenerationService):
 
         Raises:
             LessonNotFoundException: If lesson not found
-            InvalidLessonStateException: If lesson not in SCRIPT_COMPLETED state
+            InvalidLessonStateException: If lesson not in SCRIPT_COMPLETED or AUDIO_COMPLETED state
             AudioProviderException: If TTS generation fails
             StorageProviderException: If storage upload fails
             AudioGenerationException: For other errors
@@ -78,7 +78,10 @@ class AudioGenerationService(IAudioGenerationService):
             if not lesson_record:
                 raise LessonNotFoundException()
 
-            if lesson_record.status != LessonStatus.SCRIPT_COMPLETED:
+            if lesson_record.status not in [
+                LessonStatus.SCRIPT_COMPLETED,
+                LessonStatus.AUDIO_COMPLETED,
+            ]:
                 logger.warning(
                     f"Lesson {request.lesson_id} not in SCRIPT_COMPLETED state: "
                     f"{lesson_record.status}"

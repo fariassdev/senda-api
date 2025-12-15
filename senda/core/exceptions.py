@@ -197,7 +197,9 @@ class InvalidLessonStateException(BaseInternalException):
     """Exception raised when lesson is not in valid state for audio generation."""
 
     _status_code = 400
-    _message = "Lesson must have SCRIPT_COMPLETED status to generate audio."
+    _message = (
+        "Lesson must have SCRIPT_COMPLETED or AUDIO_COMPLETED status to generate audio."
+    )
 
 
 class AudioProviderException(BaseInternalException):
