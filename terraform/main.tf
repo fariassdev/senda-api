@@ -60,7 +60,8 @@ resource "google_cloud_run_v2_service" "staging" {
     }
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.app_name}/${var.app_name}:staging"
+      # Use sample image for initial deploy, GitHub Actions will update this
+      image = var.initial_image != "" ? var.initial_image : "us-docker.pkg.dev/cloudrun/container/hello"
 
       ports {
         container_port = 8000
@@ -144,12 +145,13 @@ resource "google_cloud_run_v2_service" "production" {
 
   template {
     scaling {
-      min_instance_count = 1
-      max_instance_count = 100
+      min_instance_count = 0
+      max_instance_count = 10  # Limited by default GCP quota
     }
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.app_name}/${var.app_name}:latest"
+      # Use sample image for initial deploy, GitHub Actions will update this
+      image = var.initial_image != "" ? var.initial_image : "us-docker.pkg.dev/cloudrun/container/hello"
 
       ports {
         container_port = 8000

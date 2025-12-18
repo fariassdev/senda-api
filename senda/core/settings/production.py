@@ -13,4 +13,4 @@ class ProdAppSettings(AppSettings):
     openapi_url: str | None = None
 
     class Config(AppSettings.Config):
-        env_file = ".env"
+        env_file = ".env.production"

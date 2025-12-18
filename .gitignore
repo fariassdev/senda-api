@@ -31,6 +31,7 @@ build/
 .env.dev
 .env.test
 .env.local
+.env.production
 
 # Testing
 .coverage

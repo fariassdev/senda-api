@@ -28,3 +28,9 @@ variable "production_env_vars" {
   default     = {}
   sensitive   = true
 }
+
+variable "initial_image" {
+  description = "Initial Docker image to use for first deploy (leave empty to use Google's hello sample)"
+  type        = string
+  default     = ""
+}
