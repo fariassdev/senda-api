@@ -1,0 +1,45 @@
+# ==============================================================================
+# Senda - Terraform Variables Example
+# ==============================================================================
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to version control (it's in .gitignore)
+# ==============================================================================
+
+# Required: Your Google Cloud Project ID
+project_id = "your-gcp-project-id"
+
+# Optional: GCP region (default: us-central1 for free tier eligibility)
+# Valid free tier regions: us-central1, us-east1, us-west1
+region = "us-central1"
+
+# Optional: Application name (default: senda)
+app_name = "senda"
+
+# ==============================================================================
+# Environment Variables
+# ==============================================================================
+# These are passed to Cloud Run services. For sensitive values, consider using
+# GCP Secret Manager instead of storing them here.
+#
+# Example configuration:
+#
+# staging_env_vars = {
+#   "POSTGRES_HOST"     = "your-staging-db-host"
+#   "POSTGRES_PORT"     = "5432"
+#   "POSTGRES_USER"     = "postgres"
+#   "POSTGRES_PASSWORD" = "your-staging-password"
+#   "POSTGRES_DB"       = "senda_staging"
+#   "JWT_SECRET_KEY"    = "your-staging-jwt-secret"
+#   "SECRET_KEY"        = "your-staging-secret"
+# }
+#
+# production_env_vars = {
+#   "POSTGRES_HOST"     = "your-production-db-host"
+#   "POSTGRES_PORT"     = "5432"
+#   "POSTGRES_USER"     = "postgres"
+#   "POSTGRES_PASSWORD" = "your-production-password"
+#   "POSTGRES_DB"       = "senda_production"
+#   "JWT_SECRET_KEY"    = "your-production-jwt-secret"
+#   "SECRET_KEY"        = "your-production-secret"
+# }
+# ==============================================================================
