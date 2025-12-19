@@ -40,6 +40,9 @@ test-watch:
 
 # Database Migrations
 migration:
+	uv run alembic -c senda/infrastructure/alembic.ini revision -m "$(message)"
+
+migration-auto:
 	uv run alembic -c senda/infrastructure/alembic.ini revision --autogenerate -m "$(message)"
 
 migrate:

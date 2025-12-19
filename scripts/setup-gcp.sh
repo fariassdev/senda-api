@@ -16,7 +16,7 @@ set -euo pipefail
 #   ./scripts/setup-gcp.sh <PROJECT_ID> <GITHUB_ORG> <GITHUB_REPO>
 #
 # Example:
-#   ./scripts/setup-gcp.sh my-gcp-project fariassdev senda
+#   ./scripts/setup-gcp.sh my-gcp-project fariassdev senda-api
 # ============================================================================
 
 # Colors for output

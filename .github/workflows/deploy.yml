@@ -88,12 +88,87 @@ jobs:
           echo "**Tags:** \`${{ github.sha }}\`, \`${{ steps.meta.outputs.primary_tag }}\`" >> $GITHUB_STEP_SUMMARY
 
   # ===========================================================================
+  # Migrate Staging - Run database migrations before deployment
+  # ===========================================================================
+  migrate-staging:
+    name: Run Staging Migrations
+    runs-on: ubuntu-latest
+    needs: build
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/develop') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment: staging
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run database migrations
+        run: |
+          echo "🔄 Running database migrations for staging..."
+
+          SERVICE_NAME="${{ env.APP_NAME }}-staging"
+          JOB_NAME="${{ env.APP_NAME }}-staging-migrations"
+
+          # Get environment variables from the existing Cloud Run service as JSON
+          echo "📋 Fetching environment variables from $SERVICE_NAME..."
+          ENV_JSON=$(gcloud run services describe $SERVICE_NAME \
+            --region ${{ env.REGION }} \
+            --format='json(spec.template.spec.containers[0].env)')
+
+          # Parse JSON to KEY=VALUE format
+          ENV_VARS=$(echo "$ENV_JSON" | jq -r '
+            .spec.template.spec.containers[0].env // [] |
+            map(select(.value != null) | "\(.name)=\(.value)") |
+            join(",")
+          ')
+
+          # Add APP_ENV if not present or empty
+          if [[ -z "$ENV_VARS" ]]; then
+            ENV_VARS="APP_ENV=staging"
+          elif [[ ! "$ENV_VARS" =~ "APP_ENV=" ]]; then
+            ENV_VARS="${ENV_VARS},APP_ENV=staging"
+          fi
+
+          echo "📋 Environment variables configured"
+
+          # Create or update the Cloud Run Job for migrations
+          echo "🔧 Deploying migration job..."
+          gcloud run jobs deploy $JOB_NAME \
+            --image "${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.APP_NAME }}:staging" \
+            --region ${{ env.REGION }} \
+            --command "/bin/bash" \
+            --args "./scripts/run-migrations.sh" \
+            --set-env-vars "$ENV_VARS" \
+            --max-retries 0 \
+            --task-timeout 300s \
+            --quiet
+
+          # Execute the job and wait for completion
+          echo "🚀 Executing migrations..."
+          gcloud run jobs execute $JOB_NAME \
+            --region ${{ env.REGION }} \
+            --wait
+
+      - name: Output migration summary
+        run: |
+          echo "### ✅ Staging Migrations Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Job:** \`${{ env.APP_NAME }}-staging-migrations\`" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
   # Deploy Staging - Automatic deployment on develop branch
   # ===========================================================================
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, migrate-staging]
     if: |
       (github.event_name == 'push' && github.ref == 'refs/heads/develop') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
@@ -123,12 +198,87 @@ jobs:
           echo "**Region:** \`${{ env.REGION }}\`" >> $GITHUB_STEP_SUMMARY
 
   # ===========================================================================
+  # Migrate Production - Run database migrations before deployment
+  # ===========================================================================
+  migrate-production:
+    name: Run Production Migrations
+    runs-on: ubuntu-latest
+    needs: build
+    if: |
+      (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment: production
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run database migrations
+        run: |
+          echo "🔄 Running database migrations for production..."
+
+          SERVICE_NAME="${{ env.APP_NAME }}-production"
+          JOB_NAME="${{ env.APP_NAME }}-production-migrations"
+
+          # Get environment variables from the existing Cloud Run service as JSON
+          echo "📋 Fetching environment variables from $SERVICE_NAME..."
+          ENV_JSON=$(gcloud run services describe $SERVICE_NAME \
+            --region ${{ env.REGION }} \
+            --format='json(spec.template.spec.containers[0].env)')
+
+          # Parse JSON to KEY=VALUE format
+          ENV_VARS=$(echo "$ENV_JSON" | jq -r '
+            .spec.template.spec.containers[0].env // [] |
+            map(select(.value != null) | "\(.name)=\(.value)") |
+            join(",")
+          ')
+
+          # Add APP_ENV if not present or empty
+          if [[ -z "$ENV_VARS" ]]; then
+            ENV_VARS="APP_ENV=prod"
+          elif [[ ! "$ENV_VARS" =~ "APP_ENV=" ]]; then
+            ENV_VARS="${ENV_VARS},APP_ENV=prod"
+          fi
+
+          echo "📋 Environment variables configured"
+
+          # Create or update the Cloud Run Job for migrations
+          echo "🔧 Deploying migration job..."
+          gcloud run jobs deploy $JOB_NAME \
+            --image "${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.APP_NAME }}/${{ env.APP_NAME }}:latest" \
+            --region ${{ env.REGION }} \
+            --command "/bin/bash" \
+            --args "./scripts/run-migrations.sh" \
+            --set-env-vars "$ENV_VARS" \
+            --max-retries 0 \
+            --task-timeout 300s \
+            --quiet
+
+          # Execute the job and wait for completion
+          echo "🚀 Executing migrations..."
+          gcloud run jobs execute $JOB_NAME \
+            --region ${{ env.REGION }} \
+            --wait
+
+      - name: Output migration summary
+        run: |
+          echo "### ✅ Production Migrations Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Job:** \`${{ env.APP_NAME }}-production-migrations\`" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
   # Deploy Production - Requires manual approval on master or main branch
   # ===========================================================================
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, migrate-production]
     if: |
       (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')

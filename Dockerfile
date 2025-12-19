@@ -25,6 +25,10 @@ RUN pip install uv && \
 COPY senda ./senda
 COPY version.py ./
 
+# Copy migration scripts
+COPY scripts/run-migrations.sh ./scripts/
+RUN chmod +x ./scripts/run-migrations.sh
+
 # Cloud Run expects port 8000
 EXPOSE 8000
 

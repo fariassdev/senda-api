@@ -37,7 +37,10 @@ make runserver-dev      # Development mode with auto-reload
 
 ### Database Migrations
 ```bash
-# Create a new migration
+# Create a new migration with --autogenerate
+make migration-auto message="add courses table"
+
+# Create a new manual migration
 make migration message="add courses table"
 
 # Apply migrations
