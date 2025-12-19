@@ -73,14 +73,15 @@ async def create_course(
 **All commands use `uv run` - never use pip/python directly:**
 
 ```bash
-make setup              # First-time setup (venv + deps + migrations)
-make runserver-dev      # Dev server on :8081 with auto-reload
-make test               # Run pytest with .env.test
-make test-cov           # Tests with coverage report
-make migration message="add field"  # Create Alembic migration
-make migrate            # Apply migrations
-make check              # Run all quality checks (lint + format + types)
-make fix                # Auto-fix all issues
+make setup                               # First-time setup (venv + deps + migrations)
+make runserver-dev                       # Dev server on :8081 with auto-reload
+make test                                # Run pytest with .env.test
+make test-cov                            # Tests with coverage report
+make migration-auto message="add field"  # Create Alembic migration with --autogenerate
+make migration message="add field"       # Create Alembic manual migration
+make migrate                             # Apply migrations
+make check                               # Run all quality checks (lint + format + types)
+make fix                                 # Auto-fix all issues
 ```
 
 **Database:** PostgreSQL with async SQLAlchemy. Alembic config at `senda/infrastructure/alembic.ini`.
