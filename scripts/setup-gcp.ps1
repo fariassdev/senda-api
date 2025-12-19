@@ -10,7 +10,7 @@
 #   - Owner or Editor role on the project
 #
 # Usage:
-#   .\scripts\setup-gcp.ps1 -ProjectId "your-project-id" -GitHubOrg "fariassdev" -GitHubRepo "senda"
+#   .\scripts\setup-gcp.ps1 -ProjectId "your-project-id" -GitHubOrg "fariassdev" -GitHubRepo "senda-api"
 # ============================================================================
 
 param(
