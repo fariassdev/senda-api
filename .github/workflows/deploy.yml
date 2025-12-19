@@ -61,9 +61,6 @@ jobs:
       - name: Extract metadata for Docker
         id: meta
         run: |
-      - name: Extract metadata for Docker
-        id: meta
-        run: |
           if [[ "${{ github.ref }}" == "refs/heads/master" || "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "primary_tag=latest" >> $GITHUB_OUTPUT
           else
