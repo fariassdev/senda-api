@@ -116,18 +116,27 @@ jobs:
           SERVICE_NAME="${{ env.APP_NAME }}-staging"
           JOB_NAME="${{ env.APP_NAME }}-staging-migrations"
 
-          # Get environment variables from the existing Cloud Run service
+          # Get environment variables from the existing Cloud Run service as JSON
           echo "📋 Fetching environment variables from $SERVICE_NAME..."
-          ENV_VARS=$(gcloud run services describe $SERVICE_NAME \
+          ENV_JSON=$(gcloud run services describe $SERVICE_NAME \
             --region ${{ env.REGION }} \
-            --format='value(spec.template.spec.containers[0].env.name,spec.template.spec.containers[0].env.value)' \
-            | awk '{printf "%s=%s,", $1, $2}' \
-            | sed 's/,$//')
+            --format='json(spec.template.spec.containers[0].env)')
 
-          # Add APP_ENV if not present
-          if [[ ! "$ENV_VARS" =~ "APP_ENV=" ]]; then
+          # Parse JSON to KEY=VALUE format
+          ENV_VARS=$(echo "$ENV_JSON" | jq -r '
+            .spec.template.spec.containers[0].env // [] |
+            map(select(.value != null) | "\(.name)=\(.value)") |
+            join(",")
+          ')
+
+          # Add APP_ENV if not present or empty
+          if [[ -z "$ENV_VARS" ]]; then
+            ENV_VARS="APP_ENV=staging"
+          elif [[ ! "$ENV_VARS" =~ "APP_ENV=" ]]; then
             ENV_VARS="${ENV_VARS},APP_ENV=staging"
           fi
+
+          echo "📋 Environment variables configured"
 
           # Create or update the Cloud Run Job for migrations
           echo "🔧 Deploying migration job..."
@@ -217,18 +226,27 @@ jobs:
           SERVICE_NAME="${{ env.APP_NAME }}-production"
           JOB_NAME="${{ env.APP_NAME }}-production-migrations"
 
-          # Get environment variables from the existing Cloud Run service
+          # Get environment variables from the existing Cloud Run service as JSON
           echo "📋 Fetching environment variables from $SERVICE_NAME..."
-          ENV_VARS=$(gcloud run services describe $SERVICE_NAME \
+          ENV_JSON=$(gcloud run services describe $SERVICE_NAME \
             --region ${{ env.REGION }} \
-            --format='value(spec.template.spec.containers[0].env.name,spec.template.spec.containers[0].env.value)' \
-            | awk '{printf "%s=%s,", $1, $2}' \
-            | sed 's/,$//')
+            --format='json(spec.template.spec.containers[0].env)')
 
-          # Add APP_ENV if not present
-          if [[ ! "$ENV_VARS" =~ "APP_ENV=" ]]; then
+          # Parse JSON to KEY=VALUE format
+          ENV_VARS=$(echo "$ENV_JSON" | jq -r '
+            .spec.template.spec.containers[0].env // [] |
+            map(select(.value != null) | "\(.name)=\(.value)") |
+            join(",")
+          ')
+
+          # Add APP_ENV if not present or empty
+          if [[ -z "$ENV_VARS" ]]; then
+            ENV_VARS="APP_ENV=prod"
+          elif [[ ! "$ENV_VARS" =~ "APP_ENV=" ]]; then
             ENV_VARS="${ENV_VARS},APP_ENV=prod"
           fi
+
+          echo "📋 Environment variables configured"
 
           # Create or update the Cloud Run Job for migrations
           echo "🔧 Deploying migration job..."
