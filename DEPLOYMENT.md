@@ -10,6 +10,7 @@ This guide covers deploying the Senda API to Google Cloud Run with staging and p
 - [GitHub Configuration](#github-configuration)
 - [Terraform Deployment](#terraform-deployment)
 - [CI/CD Workflow](#cicd-workflow)
+- [Database Migrations](#database-migrations)
 - [Environment Variables](#environment-variables)
 - [Troubleshooting](#troubleshooting)
 
@@ -50,14 +51,14 @@ gcloud auth application-default login
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              GitHub                                       │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐               │
-│  │   develop    │───▶│    Build     │───▶│   Staging    │               │
-│  │   branch     │    │    Image     │    │   Deploy     │               │
-│  └──────────────┘    └──────────────┘    └──────────────┘               │
+│  │   develop    │───▶│    Build     │───▶│  Migrations  │───▶│ Deploy │ │
+│  │   branch     │    │    Image     │    │   (Job)      │    │Staging │ │
+│  └──────────────┘    └──────────────┘    └──────────────┘    └────────┘ │
 │                                                                          │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐               │
-│  │     main     │───▶│    Build     │───▶│  Production  │ (approval)   │
-│  │   branch     │    │    Image     │    │   Deploy     │               │
-│  └──────────────┘    └──────────────┘    └──────────────┘               │
+│  │     main     │───▶│    Build     │───▶│  Migrations  │───▶│ Deploy │ │
+│  │   branch     │    │    Image     │    │   (Job)      │    │  Prod  │ │
+│  └──────────────┘    └──────────────┘    └──────────────┘    └────────┘ │
 └─────────────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -70,6 +71,12 @@ gcloud auth application-default login
 │  └──────────────────────┘                                               │
 │           │                                                              │
 │           ▼                                                              │
+│  ┌──────────────────────┐    ┌──────────────────────┐                   │
+│  │   Cloud Run Jobs     │    │   Cloud Run Jobs     │                   │
+│  │   (migrations)       │    │   (migrations)       │                   │
+│  └──────────────────────┘    └──────────────────────┘                   │
+│           │                            │                                 │
+│           ▼                            ▼                                 │
 │  ┌──────────────────────┐    ┌──────────────────────┐                   │
 │  │   Cloud Run          │    │   Cloud Run          │                   │
 │  │   (staging)          │    │   (production)       │                   │
@@ -85,6 +92,7 @@ gcloud auth application-default login
 | Component | Purpose |
 |-----------|---------|
 | **Artifact Registry** | Stores Docker images |
+| **Cloud Run Jobs (migrations)** | Runs database migrations before each deployment |
 | **Cloud Run (staging)** | Pre-production environment, auto-deploys from develop |
 | **Cloud Run (production)** | Production environment, deploys from main with approval |
 | **Workload Identity Federation** | Secure, keyless authentication from GitHub Actions |
@@ -243,9 +251,136 @@ You can also trigger deployments manually:
    - Builds Docker image
    - Pushes to Artifact Registry with SHA and environment tags
 
-2. **Deploy Job**
+2. **Migration Job**
+   - Creates/updates a Cloud Run Job with the new image
+   - Copies environment variables from the existing Cloud Run service
+   - Executes Alembic migrations (`alembic upgrade head`)
+   - If migrations fail, the deployment is aborted
+
+3. **Deploy Job**
+   - Only runs if migrations succeed
    - Deploys the new image to Cloud Run
    - Updates service URL in workflow summary
+
+---
+
+## Database Migrations
+
+Senda uses **Alembic** for database migrations with **Cloud Run Jobs** for safe, automated execution during deployments.
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Deployment Pipeline                              │
+│                                                                          │
+│  1. Build Image ──▶ 2. Run Migrations ──▶ 3. Deploy Service             │
+│                          (Cloud Run Job)                                 │
+│                               │                                          │
+│                               ▼                                          │
+│                     ┌─────────────────┐                                 │
+│                     │  Migration Job  │                                 │
+│                     │ ─────────────── │                                 │
+│                     │ • Uses new image│                                 │
+│                     │ • Same env vars │                                 │
+│                     │ • alembic head  │                                 │
+│                     │ • If fails →    │──▶ Deployment Aborted ❌        │
+│                     │   abort deploy  │                                 │
+│                     └─────────────────┘                                 │
+│                               │                                          │
+│                               ▼                                          │
+│                     ┌─────────────────┐                                 │
+│                     │ Deploy Service  │──▶ Deployment Success ✅        │
+│                     └─────────────────┘                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Migration Commands
+
+#### Local Development
+
+```bash
+# Create a new migration
+make migration message="add user table"
+
+# Create auto-generated migration (detects model changes)
+make migration-auto message="add email field"
+
+# Apply all pending migrations
+make migrate
+
+# Apply migrations to test database
+make migrate-test-db
+
+# Rollback one migration
+make migrate-down
+
+# View migration history
+make migrate-history
+
+# Reset database (down to base, then up to head)
+make db-reset
+```
+
+#### Production/Staging (via Cloud Run Jobs)
+
+Migrations run automatically during deployment. To run manually:
+
+```bash
+# View the migration job logs
+gcloud run jobs executions list --job senda-staging-migrations --region us-central1
+
+# View specific execution logs
+gcloud run jobs executions logs <EXECUTION_NAME> --region us-central1
+
+# Manually trigger migrations (if needed)
+gcloud run jobs execute senda-staging-migrations --region us-central1 --wait
+```
+
+### Creating Migrations
+
+1. **Make changes to your SQLAlchemy models** in `senda/infrastructure/models/`
+
+2. **Generate a migration**:
+   ```bash
+   make migration-auto message="add new field to course"
+   ```
+
+3. **Review the generated migration** in `senda/infrastructure/alembic/versions/`
+
+4. **Test locally**:
+   ```bash
+   make migrate
+   ```
+
+5. **Commit and push** - migrations will run automatically on deploy
+
+### Migration Best Practices
+
+| Practice | Description |
+|----------|-------------|
+| 🔄 **Always test locally first** | Run `make migrate` before pushing |
+| 📝 **Use descriptive messages** | e.g., "add cascade delete to course lessons" |
+| ⬇️ **Implement downgrade** | Always implement `downgrade()` for rollbacks |
+| 🔒 **Avoid destructive changes** | Prefer additive migrations when possible |
+| 🧪 **Test with production data** | Clone prod DB to staging for testing |
+
+### Rollback Strategy
+
+If a migration fails in production:
+
+1. **Check the logs**:
+   ```bash
+   gcloud run jobs executions logs <EXECUTION_NAME> --region us-central1
+   ```
+
+2. **Fix the migration** and push a new commit
+
+3. **If urgent**, manually rollback:
+   ```bash
+   # SSH into a Cloud Run instance or use Cloud SQL Proxy
+   alembic -c senda/infrastructure/alembic.ini downgrade -1
+   ```
 
 ---
 
