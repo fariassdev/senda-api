@@ -15,19 +15,21 @@ RUN apt-get update && \
 WORKDIR /app
 
 # Copy files required for the installation step
-# This includes the project definition and the source code itself
 COPY pyproject.toml uv.lock* README.md /app/
-COPY src ./src
 
 # Install uv and then the project with its dependencies
-# This layer is cached as long as pyproject.toml or the src directory don't change
 RUN pip install uv && \
     uv pip install --system .
 
-# Copy the rest of the application files
-# This is useful for files not needed during install (e.g., tests, configs)
-COPY . /app
+# Copy application files (only what's needed for runtime)
+COPY senda ./senda
+COPY version.py ./
 
+# Cloud Run expects port 8000
 EXPOSE 8000
 
-CMD ["uvicorn", "senda.app:app", "--host", "0.0.0.0", "--port", "8081"]
+# Production-ready Uvicorn configuration
+# - workers: Set to 1 for Cloud Run (scaling handled at container level)
+# - timeout-keep-alive: Matches Cloud Run's timeout
+# - access-log: Enabled for Cloud Run logging
+CMD ["uvicorn", "senda.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--timeout-keep-alive", "300", "--access-log"]

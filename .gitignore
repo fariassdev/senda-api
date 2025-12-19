@@ -31,6 +31,7 @@ build/
 .env.dev
 .env.test
 .env.local
+.env.production
 
 # Testing
 .coverage
@@ -46,3 +47,17 @@ generated_courses
 
 # DB
 db/dumps/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+terraform.tfvars.json
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

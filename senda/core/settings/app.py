@@ -11,10 +11,10 @@ class AppSettings(BaseAppSettings):
     """
 
     debug: bool = False
-    docs_url: str = "/"
+    docs_url: str | None = "/"
     openapi_prefix: str = ""
-    openapi_url: str = "/openapi.json"
-    redoc_url: str = "/redoc"
+    openapi_url: str | None = "/openapi.json"
+    redoc_url: str | None = "/redoc"
     title: str = response["message"]
     version: str = response["version"]
 
