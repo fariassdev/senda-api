@@ -34,7 +34,13 @@ def anyio_backend() -> str:
 
 @pytest.fixture(autouse=True)
 def check_app_env_mode_enabled() -> None:
-    assert os.getenv("APP_ENV") == "test"
+    """Ensure tests run with correct environment to protect production database."""
+    assert os.getenv("APP_ENV") == "test", (
+        "Tests must run with APP_ENV=test. Use: make test"
+    )
+    assert os.getenv("POSTGRES_DB") != "senda_db", (
+        "Cannot run tests against production database 'senda_db'. Use: make test"
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -59,6 +65,13 @@ def mock_gemini_api_globally():
 @pytest.fixture(scope="session")
 def create_test_db(settings: BaseAppSettings) -> Generator[None, None, None]:
     test_db_sql_uri = settings.sql_db_uri.set(drivername="postgresql")
+    db_name = test_db_sql_uri.database
+
+    # SAFETY CHECK: Prevent dropping non-test database
+    if db_name == "senda_db" or os.getenv("APP_ENV") != "test":
+        pytest.exit(
+            f"ABORT: Cannot run tests against '{db_name}'. Use: make test", returncode=1
+        )
 
     if database_exists(url=test_db_sql_uri):
         drop_database(url=test_db_sql_uri)
