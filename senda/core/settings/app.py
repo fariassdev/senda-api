@@ -1,6 +1,8 @@
 import logging
 from typing import Any
 
+from pydantic import field_validator
+
 from senda.core.settings.base import BaseAppSettings
 from version import response
 
@@ -22,7 +24,18 @@ class AppSettings(BaseAppSettings):
 
     api_prefix: str = "/api/v1"
 
-    allowed_hosts: list[str] = ["*"]
+    # CORS configuration - can be set via CORS_ALLOWED_ORIGINS env var
+    # as comma-separated string: "http://localhost:3000,https://example.com"
+    cors_allowed_origins: list[str] = ["*"]
+
+    @field_validator("cors_allowed_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
+        """Parse comma-separated origins string into list."""
+        if isinstance(v, str):
+            # Handle comma-separated string from environment variable
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     logging_level: int = logging.INFO
 
