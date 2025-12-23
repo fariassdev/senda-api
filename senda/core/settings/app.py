@@ -1,30 +1,8 @@
 import logging
-from typing import Annotated, Any
-
-from pydantic import BeforeValidator
+from typing import Any
 
 from senda.core.settings.base import BaseAppSettings
 from version import response
-
-
-def parse_cors_origins(v: str | list[str] | None) -> list[str]:
-    """Parse comma-separated origins string into list.
-
-    Handles:
-    - None or empty string: returns default ["*"]
-    - Comma-separated string: splits and trims
-    - Already a list: returns as-is
-    """
-    if v is None or v == "":
-        return ["*"]
-    if isinstance(v, str):
-        origins = [origin.strip() for origin in v.split(",") if origin.strip()]
-        return origins if origins else ["*"]
-    return v
-
-
-# Type alias for CORS origins that handles string parsing before validation
-CorsOrigins = Annotated[list[str], BeforeValidator(parse_cors_origins)]
 
 
 class AppSettings(BaseAppSettings):
@@ -44,15 +22,25 @@ class AppSettings(BaseAppSettings):
 
     api_prefix: str = "/api/v1"
 
-    # CORS configuration - can be set via CORS_ALLOWED_ORIGINS env var
-    # as comma-separated string: "http://localhost:3000,https://example.com"
-    # Empty or missing value defaults to ["*"]
-    cors_allowed_origins: CorsOrigins = ["*"]
+    # CORS configuration - comma-separated string: "http://localhost:3000,https://example.com"
+    # Empty or missing value defaults to "*"
+    cors_allowed_origins: str = "*"
 
     logging_level: int = logging.INFO
 
     class Config:
         validate_assignment = True
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse cors_allowed_origins into a list."""
+        if not self.cors_allowed_origins:
+            return ["*"]
+        return [
+            origin.strip()
+            for origin in self.cors_allowed_origins.split(",")
+            if origin.strip()
+        ]
 
     @property
     def fastapi_kwargs(self) -> dict[str, Any]:
