@@ -35,6 +35,9 @@ class BaseAppSettings(BaseSettings):
 
     # Audio Generation
     kokoro_api_url: str = "http://localhost:8880/v1/audio/speech"
+    kokoro_api_timeout: float = (
+        600.0  # Timeout in seconds (increased for Oracle Cloud cold starts)
+    )
     aws_s3_bucket: str = "senda-ai"
     aws_region: str = "eu-west-1"
 
