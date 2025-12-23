@@ -57,22 +57,6 @@ migrate-down:
 migrate-history:
 	uv run alembic -c senda/infrastructure/alembic.ini history
 
-db-seed:
-	$(MAKE) db-init
-	$(MAKE) migrate
-	docker compose up -d postgres
-	@echo "Waiting for Postgres readiness..."
-	docker compose exec -T postgres bash -lc 'until pg_isready -U "$$POSTGRES_USER"; do sleep 1; done'
-	@echo "Running seed SQL file..."
-	docker compose exec -T postgres bash -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -f /docker-entrypoint-initdb.d/seed_db.sql'
-
-db-init:
-	docker compose up -d postgres
-	@echo "Waiting for Postgres readiness..."
-	docker compose exec -T postgres bash -lc 'until pg_isready -U "$$POSTGRES_USER"; do sleep 1; done'
-	@echo "Creating databases if missing..."
-	docker compose exec -T postgres bash -lc '/docker-entrypoint-initdb.d/create_databases.sh'
-
 # Code Quality (using Ruff - replaces flake8, black, isort, pyupgrade)
 lint:
 	uv run ruff check senda tests
@@ -98,23 +82,6 @@ fix:
 	uv run ruff check --fix senda tests
 	uv run ruff format senda tests
 
-# Docker Commands
-docker-build:
-	docker-compose up -d --build
-
-docker-up:
-	docker-compose up -d
-
-docker-down:
-	docker-compose down
-
-docker-restart:
-	docker-compose stop
-	docker-compose up -d
-
-docker-logs:
-	docker-compose logs --tail=100 -f
-
 # Development Helpers
 shell:
 	uv run python -c "from senda.core.container import Container; container = Container(); print('Senda container loaded. Access via: container')"
@@ -132,23 +99,25 @@ clean:
 	rm -r build
 	rm -f .coverage
 
-# Quick Start (run all setup steps)
+# Quick Start (run all setup steps for API development)
 setup:
-	@echo "Setting up Senda development environment..."
+	@echo "Setting up Senda API development environment..."
 	@echo "1. Creating virtual environment with UV..."
 	uv venv
 	@echo "2. Installing dependencies..."
 	uv sync --all-groups
 	@echo "3. Installing pre-commit hooks..."
 	uv run pre-commit install
-	@echo "4. Running migrations..."
-	$(MAKE) migrate
-	$(MAKE) migrate-test-db
-	@echo "✅ Senda setup complete! Run 'make runserver-dev' to start."
+	@echo ""
+	@echo "✅ Senda API setup complete!"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Start full stack:   cd .. && make setup"
+	@echo "  2. Or run locally:     make runserver-dev"
 
 # Help
 help:
-	@echo "Senda Development Commands:"
+	@echo "Senda API Development Commands:"
 	@echo ""
 	@echo "  Virtual Environment:"
 	@echo "    ve            - Create virtual environment and install dependencies"
@@ -166,10 +135,12 @@ help:
 	@echo "    test          - Run tests"
 	@echo "    test-cov      - Run tests with coverage"
 	@echo ""
-	@echo "  Database:"
+	@echo "  Database Migrations:"
 	@echo "    migration     - Create new migration (message='description')"
+	@echo "    migration-auto- Create auto-generated migration"
 	@echo "    migrate       - Apply migrations"
 	@echo "    migrate-down  - Rollback one migration"
+	@echo "    migrate-history- Show migration history"
 	@echo "    db-reset      - Reset database to clean state"
 	@echo ""
 	@echo "  Code Quality (Ruff):"
@@ -181,15 +152,12 @@ help:
 	@echo "    check         - Run all checks (lint + format + types)"
 	@echo "    fix           - Auto-fix all issues (lint + format)"
 	@echo ""
-	@echo "  Docker:"
-	@echo "    docker-build  - Build and start containers"
-	@echo "    docker-up     - Start containers"
-	@echo "    docker-down   - Stop containers"
-	@echo "    docker-logs   - View logs"
-	@echo ""
 	@echo "  Setup:"
-	@echo "    setup         - Complete setup (deps + migrations)"
+	@echo "    setup         - Install deps + pre-commit hooks"
 	@echo "    help          - Show this help"
 	@echo ""
+	@echo "  📦 For Docker/full-stack commands, see root Makefile:"
+	@echo "     cd .. && make help"
+	@echo ""
 	@echo "  📚 For detailed documentation, see: SENDA_DEV_GUIDE.md"
-	@echo "  🚀 Quick start: make verify && make runserver-dev"
+	@echo "  🚀 Quick start: make setup && make runserver-dev"

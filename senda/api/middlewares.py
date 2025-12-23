@@ -14,11 +14,11 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
     """
 
     rate_limit_duration = timedelta(minutes=1)
-    rate_limit_requests = 100
+    rate_limit_requests = 1000
 
     # Status polling endpoints that need much higher limits
     status_endpoints = ["/script-status", "/audio-status"]
-    status_rate_limit_requests = 1000  # 1000 requests per minute for status endpoints
+    status_rate_limit_requests = 3000  # 3000 requests per minute for status endpoints
 
     def __init__(self, *args: Unpack[tuple[Any]], **kwargs: Any):
         super().__init__(*args, **kwargs)

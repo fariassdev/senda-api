@@ -4,12 +4,14 @@ FROM python:3.12.5-slim
 # - build-essential: For compiling C code (needed by many packages)
 # - portaudio19-dev: Required to build pyaudio
 # - libpq-dev: Required to build psycopg2 (provides pg_config)
+# - ffmpeg: Required by pydub for audio export (MP3, etc.)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     portaudio19-dev \
     libpq-dev \
-    postgresql-client && \
+    postgresql-client \
+    ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

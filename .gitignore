@@ -42,12 +42,6 @@ htmlcov/
 google_credentials.json
 ./test.py
 
-# Generated data
-generated_courses
-
-# DB
-db/dumps/
-
 # Terraform
 .terraform/
 .terraform.lock.hcl
