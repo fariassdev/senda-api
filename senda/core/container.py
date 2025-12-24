@@ -219,7 +219,8 @@ class Container:
         api_url = getattr(
             self._settings, "kokoro_api_url", "http://localhost:8880/v1/audio/speech"
         )
-        return KokoroAudioProvider(api_url=api_url)
+        timeout = getattr(self._settings, "kokoro_api_timeout", 600.0)
+        return KokoroAudioProvider(api_url=api_url, timeout=timeout)
 
     def storage_provider(self) -> IStorageProvider:
         """Creates S3 storage provider."""

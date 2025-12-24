@@ -1,6 +1,6 @@
 [project]
 name = "Senda"
-version = "0.1.0"
+version = "0.1.1"
 description = "Senda - AI-Powered Course Platform with Clean Architecture. A modern FastAPI backend featuring AI-generated course content, parallel audio generation, and scalable clean architecture design. Built for educational platforms with Gemini AI integration for script generation, Kokoro TTS for audio synthesis, AWS S3 storage, and PostgreSQL with async SQLAlchemy. Implements domain-driven design with strict separation of concerns across API, services, infrastructure, and domain layers."
 readme = "README.md"
 requires-python = ">=3.12"
