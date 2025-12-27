@@ -5,7 +5,7 @@ from functools import partial
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from senda.core.enums import LessonStatus, UserRole
+from senda.core.enums import JobStatus, JobType, LessonStatus, UserRole
 
 
 class Base(DeclarativeBase):
@@ -119,3 +119,34 @@ class Lesson(Base):
 
     created_at: Mapped[datetime]
     updated_at: Mapped[datetime] = mapped_column(nullable=True)
+
+
+class GenerationJob(Base):
+    """Async generation job for course structure, script, and audio generation."""
+
+    __tablename__ = "generation_job"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    job_type: Mapped[str] = mapped_column(nullable=False)  # JobType enum value
+    course_id: Mapped[int] = mapped_column(
+        ForeignKey("course.id", ondelete="CASCADE"), nullable=False
+    )
+    lesson_id: Mapped[int | None] = mapped_column(
+        ForeignKey("lesson.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(nullable=False, default=JobStatus.PENDING.value)
+
+    # Job data
+    payload: Mapped[str | None] = mapped_column(nullable=True)  # JSON stored as text
+    result: Mapped[str | None] = mapped_column(nullable=True)  # JSON stored as text
+    error_message: Mapped[str | None] = mapped_column(nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime]
+    started_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    # User who created the job
+    created_by: Mapped[int] = mapped_column(
+        ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )

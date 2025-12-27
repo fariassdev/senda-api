@@ -42,3 +42,20 @@ class LessonStatus(str, enum.Enum):
     AUDIO_COMPLETED = "AUDIO_COMPLETED"
     AUDIO_FAILED = "AUDIO_FAILED"
     READY_TO_PUBLISH = "READY_TO_PUBLISH"
+
+
+class JobType(str, enum.Enum):
+    """Generation job type enumeration"""
+
+    COURSE_STRUCTURE = "course_structure"
+    SCRIPT = "script"
+    AUDIO = "audio"
+
+
+class JobStatus(str, enum.Enum):
+    """Generation job status enumeration"""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
