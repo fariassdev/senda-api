@@ -1,21 +1,22 @@
-"""add generation_jobs table
+"""add generation job table
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: ff9e6c0c2869
 Revises: 549c7390883c
-Create Date: 2025-12-27
+Create Date: 2025-12-29 14:34:30.565363
 
 """
 
-from collections.abc import Sequence
+from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
-revision: str = "a1b2c3d4e5f6"
-down_revision: str | None = "549c7390883c"
-branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+# revision identifiers, used by Alembic.
+revision: str = "ff9e6c0c2869"
+down_revision: Union[str, None] = "549c7390883c"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
