@@ -10,6 +10,7 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "a1b2c3d4e5f6"
 down_revision: str | None = "549c7390883c"
@@ -25,8 +26,8 @@ def upgrade() -> None:
         sa.Column("course_id", sa.Integer(), nullable=False),
         sa.Column("lesson_id", sa.Integer(), nullable=True),
         sa.Column("status", sa.String(20), nullable=False, server_default="pending"),
-        sa.Column("payload", sa.Text(), nullable=True),
-        sa.Column("result", sa.Text(), nullable=True),
+        sa.Column("payload", JSONB(), nullable=True),
+        sa.Column("result", JSONB(), nullable=True),
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column(
             "created_at",
@@ -44,15 +45,15 @@ def upgrade() -> None:
     )
 
     # Create indexes as per AC#1 requirements
-    op.create_index("ix_generation_job_status", "generation_job", ["status"])
-    op.create_index("ix_generation_job_course_id", "generation_job", ["course_id"])
+    op.create_index("idx_generation_job_status", "generation_job", ["status"])
+    op.create_index("idx_generation_job_course_id", "generation_job", ["course_id"])
     op.create_index(
-        "ix_generation_job_created_at", "generation_job", [sa.text("created_at DESC")]
+        "idx_generation_job_created_at", "generation_job", [sa.text("created_at DESC")]
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_generation_job_created_at", table_name="generation_job")
-    op.drop_index("ix_generation_job_course_id", table_name="generation_job")
-    op.drop_index("ix_generation_job_status", table_name="generation_job")
+    op.drop_index("idx_generation_job_created_at", table_name="generation_job")
+    op.drop_index("idx_generation_job_course_id", table_name="generation_job")
+    op.drop_index("idx_generation_job_status", table_name="generation_job")
     op.drop_table("generation_job")

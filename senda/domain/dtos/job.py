@@ -1,5 +1,6 @@
 import datetime
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -11,8 +12,8 @@ class JobRecordDTO:
     course_id: int
     lesson_id: int | None
     status: str
-    payload: str | None
-    result: str | None
+    payload: dict[str, Any] | None
+    result: dict[str, Any] | None
     error_message: str | None
     created_at: datetime.datetime
     started_at: datetime.datetime | None
@@ -29,8 +30,8 @@ class JobDTO:
     course_id: int
     lesson_id: int | None
     status: str
-    payload: str | None
-    result: str | None
+    payload: dict[str, Any] | None
+    result: dict[str, Any] | None
     error_message: str | None
     created_at: datetime.datetime
     started_at: datetime.datetime | None
@@ -45,7 +46,7 @@ class CreateJobDTO:
     job_type: str
     course_id: int
     lesson_id: int | None = None
-    payload: str | None = None
+    payload: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,7 @@ class UpdateJobDTO:
     """DTO for updating a generation job status and results."""
 
     status: str | None = None
-    result: str | None = None
+    result: dict[str, Any] | None = None
     error_message: str | None = None
     started_at: datetime.datetime | None = None
     completed_at: datetime.datetime | None = None

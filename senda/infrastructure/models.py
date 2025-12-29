@@ -2,7 +2,8 @@ import enum
 from datetime import datetime
 from functools import partial
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from senda.core.enums import JobStatus, JobType, LessonStatus, UserRole
@@ -35,6 +36,9 @@ class User(Base):
     created_at: Mapped[datetime]
     updated_at: Mapped[datetime] = mapped_column(nullable=True)
 
+    # Relationships
+    created_jobs: Mapped[list["GenerationJob"]] = relationship(back_populates="creator")
+
 
 class Follower(Base):
     __tablename__ = "follower"
@@ -60,6 +64,11 @@ class Course(Base):
 
     created_at: Mapped[datetime]
     updated_at: Mapped[datetime] = mapped_column(nullable=True)
+
+    # Relationships
+    generation_jobs: Mapped[list["GenerationJob"]] = relationship(
+        back_populates="course"
+    )
 
 
 class Tag(Base):
@@ -120,33 +129,126 @@ class Lesson(Base):
     created_at: Mapped[datetime]
     updated_at: Mapped[datetime] = mapped_column(nullable=True)
 
+    # Relationships
+    generation_jobs: Mapped[list["GenerationJob"]] = relationship(
+        back_populates="lesson"
+    )
+
 
 class GenerationJob(Base):
-    """Async generation job for course structure, script, and audio generation."""
+    """
+    Async generation job for course structure, script, and audio generation.
+
+    This model tracks the lifecycle of AI-powered generation tasks, supporting:
+    - Course structure generation (creates lessons from course description)
+    - Script generation (creates lesson scripts using Gemini)
+    - Audio generation (creates audio files using Kokoro TTS)
+
+    Relationships:
+    - course: The course this job belongs to (CASCADE delete)
+    - lesson: The specific lesson being generated, if applicable (SET NULL on delete)
+    - creator: The user who initiated the job (CASCADE delete)
+
+    Indexes:
+    - idx_generation_job_status: For filtering jobs by status
+    - idx_generation_job_course_id: For listing jobs by course
+    - idx_generation_job_created_at: For sorting by creation date (DESC)
+    """
 
     __tablename__ = "generation_job"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    job_type: Mapped[str] = mapped_column(nullable=False)  # JobType enum value
+
+    # Job type with enum validation and VARCHAR(50) constraint
+    job_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        comment="Job type: course_structure, script, or audio",
+    )
+
+    # Foreign keys with documented cascade behavior
     course_id: Mapped[int] = mapped_column(
-        ForeignKey("course.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("course.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="FK to course - CASCADE: job deleted when course deleted",
     )
     lesson_id: Mapped[int | None] = mapped_column(
-        ForeignKey("lesson.id", ondelete="SET NULL"), nullable=True
+        ForeignKey("lesson.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="FK to lesson - SET NULL: job remains if lesson deleted",
     )
-    status: Mapped[str] = mapped_column(nullable=False, default=JobStatus.PENDING.value)
 
-    # Job data
-    payload: Mapped[str | None] = mapped_column(nullable=True)  # JSON stored as text
-    result: Mapped[str | None] = mapped_column(nullable=True)  # JSON stored as text
-    error_message: Mapped[str | None] = mapped_column(nullable=True)
+    # Status with enum validation and VARCHAR(20) constraint
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=JobStatus.PENDING.value,
+        server_default=text("'pending'"),
+        comment="Job status: pending, processing, completed, or failed",
+    )
 
-    # Timestamps
-    created_at: Mapped[datetime]
-    started_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # Job data stored as JSONB for efficient PostgreSQL querying
+    payload: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, comment="Input parameters for the generation task"
+    )
+    result: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Output data or error details from the generation task",
+    )
+    error_message: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="Human-readable error message if job failed"
+    )
+
+    # Timestamps with server defaults
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+        comment="When the job was created",
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the job started processing",
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the job completed (success or failure)",
+    )
 
     # User who created the job
     created_by: Mapped[int] = mapped_column(
-        ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="FK to user - CASCADE: job deleted when user deleted",
     )
+
+    # Relationships (using lazy="raise" via partial at module level)
+    course: Mapped["Course"] = relationship(back_populates="generation_jobs")
+    lesson: Mapped["Lesson | None"] = relationship(back_populates="generation_jobs")
+    creator: Mapped["User"] = relationship(back_populates="created_jobs")
+
+    # Indexes for query performance
+    __table_args__ = (
+        Index("idx_generation_job_status", "status"),
+        Index("idx_generation_job_course_id", "course_id"),
+        Index("idx_generation_job_created_at", created_at.desc()),
+    )
+
+    def validate_job_type(self) -> bool:
+        """Validate that job_type is a valid JobType enum value."""
+        try:
+            JobType(self.job_type)
+            return True
+        except ValueError:
+            return False
+
+    def validate_status(self) -> bool:
+        """Validate that status is a valid JobStatus enum value."""
+        try:
+            JobStatus(self.status)
+            return True
+        except ValueError:
+            return False
