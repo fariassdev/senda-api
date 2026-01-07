@@ -10,6 +10,7 @@ from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.course_tag import ICourseTagRepository
 from senda.domain.repositories.favorite import IFavoriteRepository
 from senda.domain.repositories.follower import IFollowerRepository
+from senda.domain.repositories.job import IJobRepository
 from senda.domain.repositories.lesson import ILessonRepository
 from senda.domain.repositories.tag import ITagRepository
 from senda.domain.repositories.user import IUserRepository
@@ -32,6 +33,7 @@ from senda.domain.services.user import IUserService
 from senda.infrastructure.config.gemini_config import GeminiConfig
 from senda.infrastructure.loaders.prompt_loader import PromptLoader
 from senda.infrastructure.mappers.course import CourseModelMapper
+from senda.infrastructure.mappers.job import JobMapper
 from senda.infrastructure.mappers.lesson import LessonModelMapper
 from senda.infrastructure.mappers.tag import TagModelMapper
 from senda.infrastructure.mappers.user import UserModelMapper
@@ -47,6 +49,7 @@ from senda.infrastructure.repositories.course import CourseRepository
 from senda.infrastructure.repositories.course_tag import CourseTagRepository
 from senda.infrastructure.repositories.favorite import FavoriteRepository
 from senda.infrastructure.repositories.follower import FollowerRepository
+from senda.infrastructure.repositories.job import JobRepository
 from senda.infrastructure.repositories.lesson import LessonRepository
 from senda.infrastructure.repositories.tag import TagRepository
 from senda.infrastructure.repositories.user import UserRepository
@@ -109,6 +112,10 @@ class Container:
     def lesson_model_mapper() -> IModelMapper:
         return LessonModelMapper()
 
+    @staticmethod
+    def job_model_mapper() -> IModelMapper:
+        return JobMapper()
+
     def user_repository(self) -> IUserRepository:
         return UserRepository(user_mapper=self.user_model_mapper())
 
@@ -131,6 +138,9 @@ class Container:
     @staticmethod
     def favorite_repository() -> IFavoriteRepository:
         return FavoriteRepository()
+
+    def job_repository(self) -> IJobRepository:
+        return JobRepository(job_mapper=self.job_model_mapper())
 
     def auth_token_service(self) -> IAuthTokenService:
         return AuthTokenService(

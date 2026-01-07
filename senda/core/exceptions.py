@@ -223,6 +223,13 @@ class InsufficientPermissionsException(BaseInternalException):
     _message = "You don't have permission to perform this action."
 
 
+class JobNotFoundException(BaseInternalException):
+    """Exception raised when a job is not found in database."""
+
+    _status_code = 404
+    _message = "Job with this id does not exist."
+
+
 def add_internal_exception_handler(app: FastAPI) -> None:
     """
     Handle all internal exceptions.
