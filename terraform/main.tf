@@ -32,6 +32,11 @@ resource "google_project_service" "iam" {
   disable_on_destroy = false
 }
 
+resource "google_project_service" "cloudtasks" {
+  service            = "cloudtasks.googleapis.com"
+  disable_on_destroy = false
+}
+
 # =============================================================================
 # Artifact Registry
 # =============================================================================
@@ -243,4 +248,84 @@ resource "google_cloud_run_v2_service_iam_member" "production_public" {
   name     = google_cloud_run_v2_service.production.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+# =============================================================================
+# Cloud Tasks - Job Processing Queues
+# =============================================================================
+
+# Service Account for Cloud Tasks to invoke Cloud Run
+resource "google_service_account" "cloud_tasks_invoker" {
+  account_id   = "${var.app_name}-tasks-invoker"
+  display_name = "Cloud Tasks Invoker for ${var.app_name}"
+  description  = "Service account used by Cloud Tasks to invoke Cloud Run services"
+
+  depends_on = [google_project_service.iam]
+}
+
+# Grant Cloud Run Invoker role to the service account
+resource "google_cloud_run_v2_service_iam_member" "staging_tasks_invoker" {
+  project  = var.project_id
+  location = google_cloud_run_v2_service.staging.location
+  name     = google_cloud_run_v2_service.staging.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.cloud_tasks_invoker.email}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "production_tasks_invoker" {
+  project  = var.project_id
+  location = google_cloud_run_v2_service.production.location
+  name     = google_cloud_run_v2_service.production.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.cloud_tasks_invoker.email}"
+}
+
+# Cloud Tasks Queue - Staging
+resource "google_cloud_tasks_queue" "staging" {
+  name     = "${var.app_name}-jobs-staging"
+  location = var.region
+
+  rate_limits {
+    max_dispatches_per_second = 10
+    max_concurrent_dispatches = 5
+  }
+
+  retry_config {
+    max_attempts       = 3
+    min_backoff        = "10s"
+    max_backoff        = "300s"
+    max_doublings      = 3
+    max_retry_duration = "3600s"  # 1 hour max retry window
+  }
+
+  stackdriver_logging_config {
+    sampling_ratio = 1.0  # Log all tasks for debugging in staging
+  }
+
+  depends_on = [google_project_service.cloudtasks]
+}
+
+# Cloud Tasks Queue - Production
+resource "google_cloud_tasks_queue" "production" {
+  name     = "${var.app_name}-jobs-production"
+  location = var.region
+
+  rate_limits {
+    max_dispatches_per_second = 50
+    max_concurrent_dispatches = 20
+  }
+
+  retry_config {
+    max_attempts       = 5
+    min_backoff        = "30s"
+    max_backoff        = "600s"
+    max_doublings      = 4
+    max_retry_duration = "7200s"  # 2 hour max retry window
+  }
+
+  stackdriver_logging_config {
+    sampling_ratio = 0.1  # Sample 10% of tasks in production
+  }
+
+  depends_on = [google_project_service.cloudtasks]
 }

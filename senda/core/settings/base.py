@@ -45,6 +45,13 @@ class BaseAppSettings(BaseSettings):
     max_concurrent_lessons: int = 5  # Max parallel lesson audio generations
     max_concurrent_tts: int = 3  # Max parallel TTS requests per lesson
 
+    # GCP Cloud Tasks Configuration
+    gcp_project_id: str | None = None  # GCP project ID (None disables Cloud Tasks)
+    gcp_location: str = "us-central1"  # GCP region for Cloud Tasks
+    gcp_queue_id: str = "senda-jobs-staging"  # Cloud Tasks queue name
+    gcp_service_url: str | None = None  # Cloud Run service URL for callbacks
+    gcp_tasks_invoker_email: str | None = None  # Service account for OIDC auth
+
     class Config:
         env_file = ".env"
         extra = "ignore"

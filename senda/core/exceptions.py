@@ -230,6 +230,27 @@ class JobNotFoundException(BaseInternalException):
     _message = "Job with this id does not exist."
 
 
+class CloudTasksException(BaseInternalException):
+    """Exception raised when Cloud Tasks operation fails."""
+
+    _status_code = 503
+    _message = "Failed to communicate with Cloud Tasks service."
+
+
+class JobNotCancellableException(BaseInternalException):
+    """Exception raised when job cannot be cancelled due to its status."""
+
+    _status_code = 400
+    _message = "Job cannot be cancelled in its current status."
+
+
+class JobNotRetryableException(BaseInternalException):
+    """Exception raised when job cannot be retried due to its status."""
+
+    _status_code = 400
+    _message = "Job cannot be retried in its current status."
+
+
 def add_internal_exception_handler(app: FastAPI) -> None:
     """
     Handle all internal exceptions.

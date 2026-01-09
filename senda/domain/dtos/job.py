@@ -66,3 +66,15 @@ class JobListDTO:
 
     jobs: list[JobDTO]
     jobs_count: int
+
+
+@dataclass(frozen=True)
+class JobFiltersDTO:
+    """DTO for filtering and pagination in job queries."""
+
+    status: str | None = None
+    job_type: str | None = None
+    course_id: int | None = None
+    lesson_id: int | None = None
+    limit: int = 20
+    offset: int = 0

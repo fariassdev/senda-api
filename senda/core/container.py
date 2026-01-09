@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from senda.core.config import get_app_settings
 from senda.core.settings.base import BaseAppSettings
+from senda.core.tasks import ICloudTasksClient
 from senda.domain.mapper import IModelMapper
 from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.course_tag import ICourseTagRepository
@@ -22,6 +23,7 @@ from senda.domain.services.audio_generation import (
 from senda.domain.services.auth import IUserAuthService
 from senda.domain.services.auth_token import IAuthTokenService
 from senda.domain.services.course import ICourseGenerationProvider, ICourseService
+from senda.domain.services.job import IJobService
 from senda.domain.services.lesson import ILessonService
 from senda.domain.services.profile import IProfileService
 from senda.domain.services.script_generation import (
@@ -257,6 +259,26 @@ class Container:
             storage_provider=self.storage_provider(),
             audio_processor=self.audio_processor(),
             max_concurrent_lessons=max_concurrent_lessons,
+        )
+
+    def cloud_tasks_client(self) -> ICloudTasksClient | None:
+        """Creates Cloud Tasks client if GCP is configured.
+
+        Returns None if gcp_project_id is not set, enabling local development
+        without GCP dependencies.
+        """
+        if not self._settings.gcp_project_id:
+            return None
+        from senda.core.tasks import CloudTasksClient
+
+        return CloudTasksClient(self._settings)
+
+    def job_service(self) -> IJobService:
+        """Creates job service with optional Cloud Tasks integration."""
+        from senda.services.job import JobService
+
+        return JobService(
+            job_repo=self.job_repository(), tasks_client=self.cloud_tasks_client()
         )
 
 

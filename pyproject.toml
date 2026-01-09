@@ -26,6 +26,7 @@ dependencies = [
     "starlette==0.41.2",
     "structlog==24.4.0",
     "uvicorn==0.32.0",
+    "google-cloud-tasks==2.16.0",
 ]
 
 [dependency-groups]
