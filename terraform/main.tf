@@ -43,6 +43,28 @@ resource "google_artifact_registry_repository" "senda" {
   format        = "DOCKER"
 
   depends_on = [google_project_service.artifactregistry]
+
+  cleanup_policies {
+    id     = "keep-last"
+    action = "KEEP"
+
+    most_recent_versions {
+      keep_count            = 1
+      package_name_prefixes = []
+    }
+  }
+
+  cleanup_policies {
+    id     = "delete-rest"
+    action = "DELETE"
+
+    condition {
+      package_name_prefixes = []
+      tag_prefixes          = []
+      tag_state             = "ANY"
+      version_name_prefixes = []
+    }
+  }
 }
 
 # =============================================================================
