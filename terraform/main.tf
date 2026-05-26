@@ -45,12 +45,22 @@ resource "google_artifact_registry_repository" "senda" {
   depends_on = [google_project_service.artifactregistry]
 
   cleanup_policies {
-    id     = "keep-last"
+    id     = "keep-latest"
     action = "KEEP"
 
-    most_recent_versions {
-      keep_count            = 1
-      package_name_prefixes = []
+    condition {
+      tag_state    = "TAGGED"
+      tag_prefixes = ["latest"]
+    }
+  }
+
+  cleanup_policies {
+    id     = "keep-staging"
+    action = "KEEP"
+
+    condition {
+      tag_state    = "TAGGED"
+      tag_prefixes = ["staging"]
     }
   }
 
@@ -59,10 +69,7 @@ resource "google_artifact_registry_repository" "senda" {
     action = "DELETE"
 
     condition {
-      package_name_prefixes = []
-      tag_prefixes          = []
-      tag_state             = "ANY"
-      version_name_prefixes = []
+      tag_state = "ANY"
     }
   }
 }
