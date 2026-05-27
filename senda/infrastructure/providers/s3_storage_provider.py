@@ -138,3 +138,43 @@ class S3StorageProvider(IStorageProvider):
             raise StorageProviderException(
                 message=f"Audio upload failed: {str(e)}"
             ) from e
+
+    async def upload_file(self, file_data: bytes, key: str, content_type: str) -> str:
+        """Upload a generic file to S3 and return its public URL."""
+        if not file_data:
+            logger.warning("Empty file data provided for upload")
+            raise StorageProviderException(message="Cannot upload empty file")
+
+        logger.info(f"Uploading file to S3: {key} (type: {content_type})")
+
+        try:
+            async with self._session.client(
+                "s3", region_name=self._region
+            ) as s3_client:
+                await s3_client.put_object(
+                    Bucket=self._bucket_name,
+                    Key=key,
+                    Body=file_data,
+                    ContentType=content_type,
+                )
+
+            public_url = f"https://{self._bucket_name}.s3.amazonaws.com/{key}"
+            logger.info(f"Successfully uploaded file to S3: {public_url}")
+            return public_url
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            logger.error(f"S3 client error during upload: {error_code} - {e}")
+            raise StorageProviderException(
+                message=f"S3 upload failed: {error_code}"
+            ) from e
+        except BotoCoreError as e:
+            logger.error(f"Boto core error during upload: {e}")
+            raise StorageProviderException(
+                message="S3 service error - check configuration"
+            ) from e
+        except Exception as e:
+            logger.exception(f"Unexpected error during S3 upload: {e}")
+            raise StorageProviderException(
+                message=f"File upload failed: {str(e)}"
+            ) from e

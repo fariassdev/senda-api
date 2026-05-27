@@ -55,6 +55,23 @@ class IStorageProvider(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def upload_file(self, file_data: bytes, key: str, content_type: str) -> str:
+        """Upload a file to storage at a specific key location.
+
+        Args:
+            file_data: Raw bytes of the file to upload
+            key: Target path/key in storage
+            content_type: Content-Type MIME type string
+
+        Returns:
+            Public URL of the uploaded file
+
+        Raises:
+            StorageProviderException: If upload fails
+        """
+        pass
+
 
 class IAudioGenerationService(abc.ABC):
     """Business logic for audio generation."""

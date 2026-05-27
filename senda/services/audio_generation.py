@@ -26,12 +26,16 @@ from senda.domain.dtos.audio_generation import (
 from senda.domain.dtos.lesson import LessonRecordDTO, UpdateLessonDTO
 from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.lesson import ILessonRepository
+from senda.domain.repositories.voice import IVoiceRepository
 from senda.domain.services.audio_generation import (
     IAudioGenerationService,
     IAudioProvider,
     IStorageProvider,
 )
 from senda.domain.utils.script_serialization import LessonScript
+from senda.infrastructure.providers.chatterbox_audio_provider import (
+    ChatterboxAudioProvider,
+)
 from senda.infrastructure.utils.audio_processor import AudioProcessor
 
 logger = logging.getLogger(__name__)
@@ -44,14 +48,18 @@ class AudioGenerationService(IAudioGenerationService):
         self,
         course_repo: ICourseRepository,
         lesson_repo: ILessonRepository,
+        voice_repo: IVoiceRepository,
         audio_provider: IAudioProvider,
+        chatterbox_provider: ChatterboxAudioProvider,
         storage_provider: IStorageProvider,
         audio_processor: AudioProcessor | None = None,
         max_concurrent_lessons: int = 5,
     ) -> None:
         self._course_repo = course_repo
         self._lesson_repo = lesson_repo
+        self._voice_repo = voice_repo
         self._audio_provider = audio_provider
+        self._chatterbox_provider = chatterbox_provider
         self._storage_provider = storage_provider
         self._audio_processor = audio_processor or AudioProcessor()
         self._max_concurrent_lessons = max_concurrent_lessons
@@ -115,17 +123,70 @@ class AudioGenerationService(IAudioGenerationService):
                 f"Processing {len(script_parts)} script parts for lesson {request.lesson_id}"
             )
 
-            # Extract audio config if provided
-            voice = None
+            # Determine which voice and provider to use
+            voice_slug = None
             speed = 1.0
             if request.audio_config:
-                voice = request.audio_config.voice
+                voice_slug = request.audio_config.voice
                 speed = request.audio_config.speed
+
+            if not voice_slug:
+                voice_slug = lesson_record.voice_slug
+
+            # Fetch the voice from repository if it exists
+            db_voice = None
+            if voice_slug:
+                db_voice = await self._voice_repo.get_by_slug_or_none(
+                    session=session, slug=voice_slug
+                )
+
+            if db_voice:
+                # Use Chatterbox provider with custom database parameters
+                provider_type = "chatterbox"
+
+                async def speech_generator(
+                    text: str, voice: str | None, spd: float
+                ) -> bytes:
+                    return await self._chatterbox_provider.generate_speech(
+                        text=text,
+                        voice=voice_slug,
+                        speed=spd,
+                        exaggeration=db_voice.exaggeration,
+                        cfg_weight=db_voice.cfg_weight,
+                        temperature=db_voice.temperature,
+                    )
+
+            elif voice_slug in ["Lucy", "Michael", "Emily"]:
+                # Default Chatterbox voices not in DB
+                provider_type = "chatterbox"
+
+                async def speech_generator(
+                    text: str, voice: str | None, spd: float
+                ) -> bytes:
+                    return await self._chatterbox_provider.generate_speech(
+                        text=text,
+                        voice=voice_slug,
+                        speed=spd,
+                        exaggeration=0.3,
+                        cfg_weight=0.5,
+                        temperature=0.4,
+                    )
+
+            else:
+                # Fallback to Kokoro
+                provider_type = "kokoro"
+
+                async def speech_generator(
+                    text: str, voice: str | None, spd: float
+                ) -> bytes:
+                    return await self._audio_provider.generate_speech(
+                        text=text, voice=voice_slug or "af_nicole", speed=spd
+                    )
 
             combined_audio = await self._audio_processor.combine_script_parts(
                 script_parts=script_parts,
-                speech_generator=self._audio_provider.generate_speech,
-                voice=voice,
+                speech_generator=speech_generator,
+                voice=voice_slug,
                 speed=speed,
             )
 
@@ -143,8 +204,11 @@ class AudioGenerationService(IAudioGenerationService):
                 lesson_id=request.lesson_id,
                 update_item=UpdateLessonDTO(
                     audio_url=audio_url,
-                    audio_generated_at=datetime.now(timezone.utc),
+                    audio_generated_at=datetime.now(),
                     status=LessonStatus.AUDIO_COMPLETED,
+                    voice_id=db_voice.id if db_voice else None,
+                    voice_slug=voice_slug,
+                    audio_provider=provider_type,
                 ),
             )
 

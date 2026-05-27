@@ -8,6 +8,7 @@ from senda.api.routes import (
     profile,
     tag,
     users,
+    voices,
 )
 
 router = APIRouter()
@@ -23,3 +24,4 @@ router.include_router(router=profile.router, tags=["Profiles"], prefix="/profile
 router.include_router(router=tag.router, tags=["Tags"], prefix="/tags")
 router.include_router(router=course.router, tags=["Courses"], prefix="/courses")
 router.include_router(router=lesson.router, tags=["Lessons"], prefix="/courses")
+router.include_router(router=voices.router, tags=["Voices"], prefix="")

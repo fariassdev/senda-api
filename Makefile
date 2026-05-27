@@ -90,6 +90,10 @@ db-reset:
 	uv run alembic -c senda/infrastructure/alembic.ini downgrade base
 	uv run alembic -c senda/infrastructure/alembic.ini upgrade head
 
+# Voice Management
+sync-voices:
+	uv run -m senda.management.sync_voices_from_modal $(if $(FILTER),--filter $(FILTER),)
+
 clean:
 	rm -r .mypy_cache
 	rm -r .pytest_cache

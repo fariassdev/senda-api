@@ -110,6 +110,14 @@ class LessonRepository(ILessonRepository):
             query = query.values(audio_url=update_item.audio_url)
         if update_item.script_generated_at is not None:
             query = query.values(script_generated_at=update_item.script_generated_at)
+        if update_item.audio_generated_at is not None:
+            query = query.values(audio_generated_at=update_item.audio_generated_at)
+        if update_item.voice_id is not None:
+            query = query.values(voice_id=update_item.voice_id)
+        if update_item.voice_slug is not None:
+            query = query.values(voice_slug=update_item.voice_slug)
+        if update_item.audio_provider is not None:
+            query = query.values(audio_provider=update_item.audio_provider)
 
         lesson = await session.scalar(query)
         return self._lesson_mapper.to_dto(lesson)

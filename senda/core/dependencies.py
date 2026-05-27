@@ -18,6 +18,7 @@ from senda.services.profile import ProfileService
 from senda.services.script_generation import ScriptGenerationService
 from senda.services.tag import TagService
 from senda.services.user import UserService
+from senda.services.voice import VoiceService
 
 token_security = HTTPTokenHeader(
     name="Authorization",
@@ -50,6 +51,7 @@ IScriptGenerationService = Annotated[
 IAudioGenerationService = Annotated[
     AudioGenerationService, Depends(container.audio_generation_service)
 ]
+IVoiceService = Annotated[VoiceService, Depends(container.voice_service)]
 
 DEFAULT_COURSES_LIMIT = 20
 DEFAULT_COURSES_OFFSET = 0

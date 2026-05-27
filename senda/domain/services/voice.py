@@ -1,0 +1,38 @@
+import abc
+from typing import Any
+from uuid import UUID
+
+from senda.domain.dtos.user import UserDTO
+from senda.domain.dtos.voice import CreateVoiceDTO, UpdateVoiceDTO, VoiceDTO
+
+
+class IVoiceService(abc.ABC):
+    """Voice service interface."""
+
+    @abc.abstractmethod
+    async def create_voice(
+        self,
+        session: Any,
+        create_item: CreateVoiceDTO,
+        reference_wav: bytes,
+        current_user: UserDTO,
+    ) -> VoiceDTO: ...
+
+    @abc.abstractmethod
+    async def get_voice_by_slug(
+        self, session: Any, slug: str, current_user: UserDTO
+    ) -> VoiceDTO: ...
+
+    @abc.abstractmethod
+    async def list_voices(
+        self, session: Any, active_only: bool, current_user: UserDTO
+    ) -> list[VoiceDTO]: ...
+
+    @abc.abstractmethod
+    async def update_voice(
+        self,
+        session: Any,
+        voice_id: UUID,
+        update_item: UpdateVoiceDTO,
+        current_user: UserDTO,
+    ) -> VoiceDTO: ...

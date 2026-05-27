@@ -11,7 +11,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?logo=postgresql)](.)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](https://github.com/fariassdev/senda/blob/main/LICENSE)
 
-Backend API built with **FastAPI** and **Python 3.12** for creating and managing meditation courses. Integrates **Google Gemini** for AI-powered script generation and **Kokoro TTS** for high-quality audio synthesis.
+Backend API built with **FastAPI** and **Python 3.12** for creating and managing meditation courses. Integrates **Google Gemini** for AI-powered script generation and dual TTS engines: **ChatterboxTTS** (GPU-accelerated on Modal.com) with **Kokoro TTS** (CPU-based fallback).
 
 **Part of the [Senda Project](https://github.com/fariassdev/senda) — A multirepo coordinated with [Senda CMS](https://github.com/fariassdev/senda-cms)**
 
@@ -27,8 +27,10 @@ Senda API is the core backend service providing RESTful endpoints for meditation
 
 - **Course & Lesson Management** — CRUD operations for organizing meditation content
 - **AI Script Generation** — Leverages Google Gemini to create unique, contextual meditation scripts
-- **Text-to-Speech** — Converts scripts to professional audio using Kokoro TTS
+- **Dual TTS Engines** — GPU-accelerated ChatterboxTTS (primary, on Modal.com) with optional Kokoro TTS fallback
+- **Voice Catalog** — Manage multiple voices with custom parameters and samples
 - **Batch Operations** — Generate content for entire courses simultaneously
+- **AWS S3 Storage** — Final audio files stored in S3 for reliable distribution
 - **JWT Authentication** — Secure admin-only access control
 - **RESTful API** — Comprehensive endpoints with Swagger/OpenAPI documentation
 - **Cloud Ready** — Deployable to Google Cloud Run or any containerized environment
@@ -118,11 +120,48 @@ JWT_SECRET=your-secret-key-here
 GEMINI_API_KEY=your-gemini-api-key
 KOKORO_API_URL=http://localhost:8880
 
+# ChatterboxTTS on Modal (see docs/modal_setup.md for setup)
+MODAL_TTS_ENDPOINT=https://username--senda-tts-chatterbox-synthesize.modal.run
+MODAL_SYNC_VOICE_ENDPOINT=https://username--senda-tts-chatterbox-sync-voice.modal.run
+MODAL_DELETE_VOICE_ENDPOINT=https://username--senda-tts-chatterbox-delete-voice.modal.run
+MODAL_TOKEN_ID=ak-xxxxxxxxxxxx
+MODAL_TOKEN_SECRET=as-xxxxxxxxxxxx
+MODAL_PROXY_AUTH_TOKEN_ID=wk-xxxxxxxxxxxx
+MODAL_PROXY_AUTH_TOKEN_SECRET=ws-xxxxxxxxxxxx
+
 # AWS S3 (for audio storage)
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
-S3_BUCKET_NAME=senda-audio
+AWS_S3_BUCKET=senda-ai
+AWS_DEFAULT_REGION=eu-west-1
 ```
+
+## Audio Generation: Dual TTS Engines
+
+Senda supports **two TTS engines** for maximum flexibility:
+
+### ChatterboxTTS (Primary) — GPU-Accelerated
+
+**Running on Modal.com** for professional-grade synthesis:
+
+- **High-quality synthesis** powered by A10G GPUs (10-20× faster than CPU)
+- **Voice customization** with tunable parameters (exaggeration, temperature, etc.)
+- **Serverless deployment** with automatic scaling and no infrastructure overhead
+- **Managed voice catalog** with voice samples and reference files
+
+### Kokoro TTS (Fallback) — CPU-Based
+
+**Optional local/CPU-based fallback** for development or when GPU unavailable:
+
+- Runs locally or on CPU infrastructure
+- Same API contract as ChatterboxTTS (seamless provider switching)
+- Useful for development environments
+
+### Setup & Documentation
+
+For detailed setup instructions including Modal authentication, voice management, and troubleshooting, see **[ChatterboxTTS Modal Deployment Guide](./docs/modal_setup.md)**.
+
+For a detailed explanation of the audio generation architecture, voice management flows, dual-provider support, and system design, see **[ChatterboxTTS Architecture & Design](./docs/chatterbox-tts-architecture.md)**.
 
 ## Development
 
@@ -168,9 +207,21 @@ senda/
 │   ├── models.py              # SQLAlchemy ORM models
 │   ├── repositories/          # Repository implementations
 │   ├── providers/             # External service clients
-│   │   ├── gemini.py         # Google Gemini AI
-│   │   ├── kokoro.py         # Kokoro TTS
-│   │   └── s3.py             # AWS S3
+│   │   ├── gemini_*.py        # Google Gemini AI (scripts, courses)
+│   │   ├── chatterbox_audio_provider.py # ChatterboxTTS HTTP client
+│   │   ├── kokoro_audio_provider.py     # Kokoro TTS HTTP client
+│   │   ├── s3_storage_provider.py       # AWS S3 storage client
+│   │   └── __init__.py
+│   ├── modal/                 # Modal.com serverless deployments
+│   │   └── tts/              # Text-to-Speech services
+│   │       ├── main.py        # Modal app entry point
+│   │       ├── chatterbox.py  # ChatterboxTTS endpoint
+│   │       ├── voice_storage.py # Voice management (sync/delete)
+│   │       ├── common.py       # Shared utilities
+│   │       └── __init__.py
+│   ├── utils/                 # Infrastructure utilities
+│   │   ├── audio_processor.py # Audio composition & PCM handling
+│   │   └── __init__.py
 │   ├── loaders/               # Data loaders & fixtures
 │   ├── mappers/               # DTO mappers
 │   ├── prompts/               # AI prompt templates

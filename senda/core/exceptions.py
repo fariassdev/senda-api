@@ -89,6 +89,13 @@ class LessonNotFoundException(BaseInternalException):
     _message = "Lesson with this id does not exist."
 
 
+class VoiceNotFoundException(BaseInternalException):
+    """Exception raised when voice not found in database."""
+
+    _status_code = 404
+    _message = "Voice with this identifier does not exist."
+
+
 class EmailAlreadyTakenException(BaseInternalException):
     """Exception raised when email was found in database while registration."""
 

@@ -13,6 +13,7 @@ from senda.domain.repositories.follower import IFollowerRepository
 from senda.domain.repositories.lesson import ILessonRepository
 from senda.domain.repositories.tag import ITagRepository
 from senda.domain.repositories.user import IUserRepository
+from senda.domain.repositories.voice import IVoiceRepository
 from senda.domain.services.audio_generation import (
     IAudioGenerationService,
     IAudioProvider,
@@ -29,12 +30,17 @@ from senda.domain.services.script_generation import (
 )
 from senda.domain.services.tag import ITagService
 from senda.domain.services.user import IUserService
+from senda.domain.services.voice import IVoiceService
 from senda.infrastructure.config.gemini_config import GeminiConfig
 from senda.infrastructure.loaders.prompt_loader import PromptLoader
 from senda.infrastructure.mappers.course import CourseModelMapper
 from senda.infrastructure.mappers.lesson import LessonModelMapper
 from senda.infrastructure.mappers.tag import TagModelMapper
 from senda.infrastructure.mappers.user import UserModelMapper
+from senda.infrastructure.mappers.voice import VoiceModelMapper
+from senda.infrastructure.providers.chatterbox_audio_provider import (
+    ChatterboxAudioProvider,
+)
 from senda.infrastructure.providers.gemini_course_generation_provider import (
     GeminiCourseGenerationProvider,
 )
@@ -50,6 +56,7 @@ from senda.infrastructure.repositories.follower import FollowerRepository
 from senda.infrastructure.repositories.lesson import LessonRepository
 from senda.infrastructure.repositories.tag import TagRepository
 from senda.infrastructure.repositories.user import UserRepository
+from senda.infrastructure.repositories.voice import VoiceRepository
 from senda.infrastructure.utils.audio_processor import AudioProcessor
 from senda.services.audio_generation import AudioGenerationService
 from senda.services.auth import UserAuthService
@@ -60,6 +67,7 @@ from senda.services.profile import ProfileService
 from senda.services.script_generation import ScriptGenerationService
 from senda.services.tag import TagService
 from senda.services.user import UserService
+from senda.services.voice import VoiceService
 
 
 class Container:
@@ -109,6 +117,10 @@ class Container:
     def lesson_model_mapper() -> IModelMapper:
         return LessonModelMapper()
 
+    @staticmethod
+    def voice_model_mapper() -> IModelMapper:
+        return VoiceModelMapper()
+
     def user_repository(self) -> IUserRepository:
         return UserRepository(user_mapper=self.user_model_mapper())
 
@@ -127,6 +139,9 @@ class Container:
 
     def lesson_repository(self) -> ILessonRepository:
         return LessonRepository(lesson_mapper=self.lesson_model_mapper())
+
+    def voice_repository(self) -> IVoiceRepository:
+        return VoiceRepository(voice_mapper=self.voice_model_mapper())
 
     @staticmethod
     def favorite_repository() -> IFavoriteRepository:
@@ -222,6 +237,33 @@ class Container:
         timeout = getattr(self._settings, "kokoro_api_timeout", 600.0)
         return KokoroAudioProvider(api_url=api_url, timeout=timeout)
 
+    def chatterbox_provider(self) -> ChatterboxAudioProvider:
+        """Creates Chatterbox TTS audio provider running on Modal."""
+        endpoint_url = getattr(
+            self._settings, "modal_tts_endpoint", "http://localhost:8000"
+        )
+        sync_voice_endpoint = getattr(self._settings, "modal_sync_voice_endpoint", None)
+        delete_voice_endpoint = getattr(
+            self._settings, "modal_delete_voice_endpoint", None
+        )
+        token_id = getattr(self._settings, "modal_token_id", "default_token_id")
+        token_secret = getattr(
+            self._settings, "modal_token_secret", "default_token_secret"
+        )
+        proxy_auth_token_id = getattr(self._settings, "modal_proxy_auth_token_id", None)
+        proxy_auth_token_secret = getattr(
+            self._settings, "modal_proxy_auth_token_secret", None
+        )
+        return ChatterboxAudioProvider(
+            endpoint_url=endpoint_url,
+            token_id=token_id,
+            token_secret=token_secret,
+            sync_voice_endpoint=sync_voice_endpoint,
+            delete_voice_endpoint=delete_voice_endpoint,
+            proxy_auth_token_id=proxy_auth_token_id,
+            proxy_auth_token_secret=proxy_auth_token_secret,
+        )
+
     def storage_provider(self) -> IStorageProvider:
         """Creates S3 storage provider."""
         bucket_name = getattr(self._settings, "aws_s3_bucket", "senda-ai")
@@ -243,10 +285,21 @@ class Container:
         return AudioGenerationService(
             course_repo=self.course_repository(),
             lesson_repo=self.lesson_repository(),
+            voice_repo=self.voice_repository(),
             audio_provider=self.audio_provider(),
+            chatterbox_provider=self.chatterbox_provider(),
             storage_provider=self.storage_provider(),
             audio_processor=self.audio_processor(),
             max_concurrent_lessons=max_concurrent_lessons,
+        )
+
+    def voice_service(self) -> IVoiceService:
+        """Creates Voice service."""
+        return VoiceService(
+            voice_repo=self.voice_repository(),
+            storage_provider=self.storage_provider(),
+            chatterbox_provider=self.chatterbox_provider(),
+            audio_processor=self.audio_processor(),
         )
 
 

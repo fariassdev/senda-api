@@ -29,6 +29,7 @@ from senda.domain.dtos.lesson import LessonRecordDTO
 from senda.domain.dtos.script_generation import ScriptPartDTO
 from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.lesson import ILessonRepository
+from senda.domain.repositories.voice import IVoiceRepository
 from senda.domain.services.audio_generation import (
     IAudioGenerationService,
     IAudioProvider,
@@ -81,11 +82,25 @@ class TestAudioGenerationService:
         return processor
 
     @pytest.fixture
+    def mock_voice_repo(self) -> Mock:
+        """Mock voice repository"""
+        return Mock(spec=IVoiceRepository)
+
+    @pytest.fixture
+    def mock_chatterbox_provider(self) -> AsyncMock:
+        """Mock chatterbox provider"""
+        provider = AsyncMock(spec=IAudioProvider)
+        provider.generate_speech = AsyncMock(return_value=b"fake_pcm_data")
+        return provider
+
+    @pytest.fixture
     def audio_service(
         self,
         mock_course_repo,
         mock_lesson_repo,
+        mock_voice_repo,
         mock_audio_provider,
+        mock_chatterbox_provider,
         mock_storage_provider,
         mock_audio_processor,
     ) -> IAudioGenerationService:
@@ -93,7 +108,9 @@ class TestAudioGenerationService:
         return AudioGenerationService(
             course_repo=mock_course_repo,
             lesson_repo=mock_lesson_repo,
+            voice_repo=mock_voice_repo,
             audio_provider=mock_audio_provider,
+            chatterbox_provider=mock_chatterbox_provider,
             storage_provider=mock_storage_provider,
             audio_processor=mock_audio_processor,
         )

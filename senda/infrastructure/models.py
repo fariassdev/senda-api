@@ -1,8 +1,9 @@
 import enum
 from datetime import datetime
 from functools import partial
+from uuid import UUID, uuid4
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import Float, ForeignKey, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from senda.core.enums import LessonStatus, UserRole
@@ -117,5 +118,41 @@ class Lesson(Base):
     script_generated_at: Mapped[datetime] = mapped_column(nullable=True)
     audio_generated_at: Mapped[datetime] = mapped_column(nullable=True)
 
+    # Voice & Provider configuration
+    voice_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("voices.id"), nullable=True
+    )
+    voice_slug: Mapped[str | None] = mapped_column(nullable=True)
+    audio_provider: Mapped[str | None] = mapped_column(nullable=True)
+
     created_at: Mapped[datetime]
     updated_at: Mapped[datetime] = mapped_column(nullable=True)
+
+
+class Voice(Base):
+    __tablename__ = "voices"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(nullable=False)
+    slug: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    language: Mapped[str] = mapped_column(nullable=False, default="es")
+    gender: Mapped[str] = mapped_column(nullable=False)  # 'female' | 'male' | 'neutral'
+    reference_s3_key: Mapped[str] = mapped_column(nullable=False)
+    sample_s3_key: Mapped[str | None] = mapped_column(nullable=True)
+
+    # ChatterboxTTS parameters
+    exaggeration: Mapped[float] = mapped_column(Float, nullable=False, default=0.3)
+    cfg_weight: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    temperature: Mapped[float] = mapped_column(Float, nullable=False, default=0.4)
+
+    # Status flags
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    is_synced_to_modal: Mapped[bool] = mapped_column(nullable=False, default=False)
+    modal_sync_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(
+        default=datetime.now, onupdate=datetime.now
+    )
