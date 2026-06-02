@@ -16,9 +16,7 @@ class VoiceData(BaseModel):
     gender: str
     reference_s3_key: str = Field(alias="referenceS3Key")
     sample_s3_key: str | None = Field(None, alias="sampleS3Key")
-    exaggeration: float
-    cfg_weight: float = Field(alias="cfgWeight")
-    temperature: float
+    tts_provider: str = Field(alias="ttsProvider")
     is_active: bool = Field(alias="isActive")
     is_synced_to_modal: bool = Field(alias="isSyncedToModal")
     modal_sync_error: str | None = Field(None, alias="modalSyncError")
@@ -44,9 +42,7 @@ class VoiceResponse(BaseModel):
             gender=dto.gender.value,
             referenceS3Key=dto.reference_s3_key,
             sampleS3Key=dto.sample_s3_key,
-            exaggeration=dto.exaggeration,
-            cfgWeight=dto.cfg_weight,
-            temperature=dto.temperature,
+            ttsProvider=dto.tts_provider,
             isActive=dto.is_active,
             isSyncedToModal=dto.is_synced_to_modal,
             modalSyncError=dto.modal_sync_error,

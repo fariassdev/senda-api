@@ -83,13 +83,7 @@ class ChatterboxAudioProvider(IAudioProvider):
         return headers
 
     async def generate_speech(
-        self,
-        text: str,
-        voice: str | None = None,
-        speed: float = 1.0,
-        exaggeration: float = 0.3,
-        cfg_weight: float = 0.5,
-        temperature: float = 0.4,
+        self, text: str, voice: str | None = None, speed: float = 1.0
     ) -> bytes:
         """Generate speech audio from text using Chatterbox on Modal.
 
@@ -97,9 +91,6 @@ class ChatterboxAudioProvider(IAudioProvider):
             text: Text to convert to speech.
             voice: Name/slug of the voice to use (defaults to 'Lucy').
             speed: Speech rate multiplier (defaults to 1.0).
-            exaggeration: Pitch/speed exaggeration parameter (defaults to 0.3).
-            cfg_weight: Classifier-free guidance weight parameter (defaults to 0.5).
-            temperature: Sampling temperature parameter (defaults to 0.4).
 
         Returns:
             Raw PCM audio bytes resampled to 24kHz mono 16-bit.
@@ -112,13 +103,7 @@ class ChatterboxAudioProvider(IAudioProvider):
 
         effective_voice = voice or "Lucy"
 
-        payload = {
-            "text": text,
-            "voice_slug": effective_voice,
-            "exaggeration": exaggeration,
-            "cfg_weight": cfg_weight,
-            "temperature": temperature,
-        }
+        payload = {"text": text, "voice_slug": effective_voice}
 
         logger.debug(f"Generating Chatterbox speech for voice '{effective_voice}'")
 
@@ -130,10 +115,7 @@ class ChatterboxAudioProvider(IAudioProvider):
                     headers=self._get_modal_headers(),
                 )
                 response.raise_for_status()
-                result = response.json()
-
-            # Decode base64 WAV bytes
-            wav_bytes = base64.b64decode(result["audio_b64"])
+                wav_bytes = response.content
 
             # Load WAV bytes in pydub and resample to standard 24kHz mono 16-bit PCM
             wav_segment = AudioSegment.from_file(io.BytesIO(wav_bytes), format="wav")

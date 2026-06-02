@@ -140,11 +140,7 @@ class Voice(Base):
     gender: Mapped[str] = mapped_column(nullable=False)  # 'female' | 'male' | 'neutral'
     reference_s3_key: Mapped[str] = mapped_column(nullable=False)
     sample_s3_key: Mapped[str | None] = mapped_column(nullable=True)
-
-    # ChatterboxTTS parameters
-    exaggeration: Mapped[float] = mapped_column(Float, nullable=False, default=0.3)
-    cfg_weight: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
-    temperature: Mapped[float] = mapped_column(Float, nullable=False, default=0.4)
+    tts_provider: Mapped[str] = mapped_column(nullable=False, default="chatterbox")
 
     # Status flags
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)

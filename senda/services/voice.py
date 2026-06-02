@@ -67,16 +67,11 @@ class VoiceService(IVoiceService):
 
             # 4. Generate sample text fixed preview
             preview_text = (
-                f"Hola, soy {create_item.name}. Esta es una muestra de mi voz "
-                f"sintetizada con Chatterbox en Senda."
+                f"Hello, I am {create_item.name}. Take a deep breath, relax, "
+                f"and let me guide you on your journey to mindfulness with Senda."
             )
             sample_pcm = await self._chatterbox_provider.generate_speech(
-                text=preview_text,
-                voice=create_item.slug,
-                speed=1.0,
-                exaggeration=create_item.exaggeration,
-                cfg_weight=create_item.cfg_weight,
-                temperature=create_item.temperature,
+                text=preview_text, voice=create_item.slug, speed=1.0
             )
 
             # 5. Convert sample PCM to MP3 and upload to S3

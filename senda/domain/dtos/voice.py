@@ -22,9 +22,8 @@ class VoiceDTO:
     gender: GenderEnum
     reference_s3_key: str
     sample_s3_key: str | None
-    exaggeration: float
-    cfg_weight: float
-    temperature: float
+    tts_provider: str
+
     is_active: bool
     is_synced_to_modal: bool
     modal_sync_error: str | None
@@ -41,18 +40,14 @@ class CreateVoiceDTO:
     description: str | None
     language: str
     gender: GenderEnum
-    exaggeration: float
-    cfg_weight: float
-    temperature: float
+    tts_provider: str
 
 
 @dataclass(frozen=True)
 class UpdateVoiceDTO:
     """DTO for updating a voice."""
 
-    exaggeration: float | None = None
-    cfg_weight: float | None = None
-    temperature: float | None = None
+    tts_provider: str | None = None
     is_active: bool | None = None
     description: str | None = None
     sample_s3_key: str | None = None

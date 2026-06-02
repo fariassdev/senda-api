@@ -31,9 +31,7 @@ class VoiceRepository(IVoiceRepository):
                 gender=create_item.gender.value,
                 reference_s3_key=reference_s3_key,
                 sample_s3_key=None,
-                exaggeration=create_item.exaggeration,
-                cfg_weight=create_item.cfg_weight,
-                temperature=create_item.temperature,
+                tts_provider=create_item.tts_provider,
                 is_active=True,
                 is_synced_to_modal=False,
                 modal_sync_error=None,
@@ -91,12 +89,8 @@ class VoiceRepository(IVoiceRepository):
             .returning(Voice)
         )
 
-        if update_item.exaggeration is not None:
-            query = query.values(exaggeration=update_item.exaggeration)
-        if update_item.cfg_weight is not None:
-            query = query.values(cfg_weight=update_item.cfg_weight)
-        if update_item.temperature is not None:
-            query = query.values(temperature=update_item.temperature)
+        if update_item.tts_provider is not None:
+            query = query.values(tts_provider=update_item.tts_provider)
         if update_item.is_active is not None:
             query = query.values(is_active=update_item.is_active)
         if update_item.description is not None:

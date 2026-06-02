@@ -9,9 +9,7 @@ class CreateVoiceData(BaseModel):
     slug: str = Field(..., min_length=1)
     gender: str = Field(...)  # 'female' | 'male' | 'neutral'
     language: str = Field(default="es")
-    exaggeration: float = Field(default=0.3, ge=0.0, le=2.0)
-    cfg_weight: float = Field(default=0.5, ge=0.0, le=1.0)
-    temperature: float = Field(default=0.4, ge=0.1, le=1.0)
+    tts_provider: str = Field(default="chatterbox")
     description: str | None = Field(default=None)
 
 
@@ -24,9 +22,7 @@ class CreateVoiceRequest(BaseModel):
             slug=self.voice.slug,
             gender=GenderEnum(self.voice.gender),
             language=self.voice.language,
-            exaggeration=self.voice.exaggeration,
-            cfg_weight=self.voice.cfg_weight,
-            temperature=self.voice.temperature,
+            tts_provider=self.voice.tts_provider,
             description=self.voice.description,
         )
 
@@ -37,9 +33,7 @@ class CreateVoiceRequest(BaseModel):
         slug: str = Form(...),
         gender: str = Form(...),
         language: str = Form("es"),
-        exaggeration: float = Form(0.3),
-        cfg_weight: float = Form(0.5),
-        temperature: float = Form(0.4),
+        tts_provider: str = Form("chatterbox"),
         description: str | None = Form(None),
     ) -> "CreateVoiceRequest":
         return cls(
@@ -48,18 +42,14 @@ class CreateVoiceRequest(BaseModel):
                 slug=slug,
                 gender=gender,
                 language=language,
-                exaggeration=exaggeration,
-                cfg_weight=cfg_weight,
-                temperature=temperature,
+                tts_provider=tts_provider,
                 description=description,
             )
         )
 
 
 class UpdateVoiceData(BaseModel):
-    exaggeration: float | None = Field(None, ge=0.0, le=2.0)
-    cfg_weight: float | None = Field(None, ge=0.0, le=1.0)
-    temperature: float | None = Field(None, ge=0.1, le=1.0)
+    tts_provider: str | None = Field(None)
     is_active: bool | None = Field(None)
     description: str | None = Field(None)
 
@@ -69,9 +59,7 @@ class UpdateVoiceRequest(BaseModel):
 
     def to_dto(self) -> UpdateVoiceDTO:
         return UpdateVoiceDTO(
-            exaggeration=self.voice.exaggeration,
-            cfg_weight=self.voice.cfg_weight,
-            temperature=self.voice.temperature,
+            tts_provider=self.voice.tts_provider,
             is_active=self.voice.is_active,
             description=self.voice.description,
         )

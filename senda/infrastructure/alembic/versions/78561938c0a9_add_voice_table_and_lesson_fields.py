@@ -33,9 +33,7 @@ def upgrade() -> None:
         sa.Column("gender", sa.String(length=20), nullable=False),
         sa.Column("reference_s3_key", sa.String(length=500), nullable=False),
         sa.Column("sample_s3_key", sa.String(length=500), nullable=True),
-        sa.Column("exaggeration", sa.Float(), nullable=False, server_default="0.3"),
-        sa.Column("cfg_weight", sa.Float(), nullable=False, server_default="0.5"),
-        sa.Column("temperature", sa.Float(), nullable=False, server_default="0.4"),
+        sa.Column("tts_provider", sa.Text(), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column(
             "is_synced_to_modal", sa.Boolean(), nullable=False, server_default="false"

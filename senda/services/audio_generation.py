@@ -141,20 +141,24 @@ class AudioGenerationService(IAudioGenerationService):
                 )
 
             if db_voice:
-                # Use Chatterbox provider with custom database parameters
-                provider_type = "chatterbox"
+                provider_type = db_voice.tts_provider
 
-                async def speech_generator(
-                    text: str, voice: str | None, spd: float
-                ) -> bytes:
-                    return await self._chatterbox_provider.generate_speech(
-                        text=text,
-                        voice=voice_slug,
-                        speed=spd,
-                        exaggeration=db_voice.exaggeration,
-                        cfg_weight=db_voice.cfg_weight,
-                        temperature=db_voice.temperature,
-                    )
+                if provider_type == "chatterbox":
+
+                    async def speech_generator(
+                        text: str, voice: str | None, spd: float
+                    ) -> bytes:
+                        return await self._chatterbox_provider.generate_speech(
+                            text=text, voice=voice_slug, speed=spd
+                        )
+                else:
+
+                    async def speech_generator(
+                        text: str, voice: str | None, spd: float
+                    ) -> bytes:
+                        return await self._audio_provider.generate_speech(
+                            text=text, voice=voice_slug or "af_nicole", speed=spd
+                        )
 
             elif voice_slug in ["Lucy", "Michael", "Emily"]:
                 # Default Chatterbox voices not in DB
@@ -164,12 +168,7 @@ class AudioGenerationService(IAudioGenerationService):
                     text: str, voice: str | None, spd: float
                 ) -> bytes:
                     return await self._chatterbox_provider.generate_speech(
-                        text=text,
-                        voice=voice_slug,
-                        speed=spd,
-                        exaggeration=0.3,
-                        cfg_weight=0.5,
-                        temperature=0.4,
+                        text=text, voice=voice_slug, speed=spd
                     )
 
             else:

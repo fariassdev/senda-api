@@ -247,11 +247,9 @@ async def sync_voice(
             name=voice_slug.title(),  # "custom_voice" -> "Custom_voice"
             slug=voice_slug,
             description=f"Voice synced from Modal: {voice_slug}",
-            language="es",
+            language="en",
             gender=GenderEnum.NEUTRAL,  # Will be refined manually
-            exaggeration=0.3,
-            cfg_weight=0.5,
-            temperature=0.4,
+            tts_provider="chatterbox",
         )
 
         # Step 1: Upload reference WAV to S3
@@ -274,18 +272,13 @@ async def sync_voice(
         try:
             chatterbox_provider = container.chatterbox_provider()
             preview_text = (
-                f"Hola, soy {create_dto.name}. Esta es una muestra de mi voz "
-                f"sintetizada con Chatterbox en Senda."
+                f"Hello, I am {create_dto.name}. Take a deep breath, relax, "
+                f"and let me guide you on your journey to mindfulness with Senda."
             )
 
             logger.info(f"Generating sample for {voice_slug}...")
             sample_pcm = await chatterbox_provider.generate_speech(
-                text=preview_text,
-                voice=voice_slug,
-                speed=1.0,
-                exaggeration=create_dto.exaggeration,
-                cfg_weight=create_dto.cfg_weight,
-                temperature=create_dto.temperature,
+                text=preview_text, voice=voice_slug, speed=1.0
             )
 
             # Step 4: Convert PCM to MP3 and upload
