@@ -20,6 +20,7 @@ app = modal.App("senda-tts-chatterbox")
 chatterbox_tts_voices_vol = modal.Volume.from_name("chatterbox-tts-voices")
 VOICE_VOLUME_MOUNT_DIR = "/chatterbox-tts/prompts"
 VOICE_PROMPTS_DIR = "/chatterbox-tts/prompts/chatterbox-tts-voices/prompts"
+VOICE_CONDS_DIR = "/chatterbox-tts/prompts/chatterbox-tts-voices/voice_conds"
 
 
 # --- Request schemas ---
@@ -28,9 +29,6 @@ VOICE_PROMPTS_DIR = "/chatterbox-tts/prompts/chatterbox-tts-voices/prompts"
 class TTSRequest(BaseModel):
     text: str
     voice_slug: str
-    exaggeration: float = 0.3
-    cfg_weight: float = 0.5
-    temperature: float = 0.4
 
 
 class SyncVoiceRequest(BaseModel):
@@ -57,11 +55,6 @@ class DeleteVoiceRequest(BaseModel):
 
 
 # --- Response schemas ---
-
-
-class TTSResponse(BaseModel):
-    audio_b64: str
-    sample_rate: int
 
 
 class SyncVoiceResponse(BaseModel):

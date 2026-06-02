@@ -1,26 +1,30 @@
-import io
-
 import modal
+from fastapi.responses import StreamingResponse
 
 from .common import (
+    VOICE_CONDS_DIR,
     VOICE_PROMPTS_DIR,
     VOICE_VOLUME_MOUNT_DIR,
     TTSRequest,
-    TTSResponse,
     app,
     chatterbox_tts_voices_vol,
     tts_image,
 )
 
 with tts_image.imports():
+    import io
+    import os
+
+    import torch
     import torchaudio as ta
     from chatterbox.tts_turbo import ChatterboxTurboTTS
+    from fastapi.responses import StreamingResponse
 
 
 @app.cls(
     image=tts_image,
-    gpu="a10g",
-    scaledown_window=60 * 5,  # Keep container alive for 5 minutes of inactivity
+    gpu="T4",
+    scaledown_window=60 * 5,
     secrets=[modal.Secret.from_name("hf-token")],
     volumes={VOICE_VOLUME_MOUNT_DIR: chatterbox_tts_voices_vol},
     retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=1.0),
@@ -35,45 +39,41 @@ class Chatterbox:
         print(f"Model loaded. SR: {self.model.sr} Hz")
 
     @modal.fastapi_endpoint(docs=True, method="POST", requires_proxy_auth=True)
-    def synthesize(self, request: TTSRequest) -> TTSResponse:
-        import base64
+    def synthesize(self, request: TTSRequest) -> StreamingResponse:
+        print(f"Synthesizing text (voice={request.voice_slug}): {request.text}")
+        audio_bytes = self._generate.local(request.text, request.voice_slug)
+        return StreamingResponse(io.BytesIO(audio_bytes), media_type="audio/wav")
 
-        audio_bytes = self._generate(
-            request.text,
-            request.voice_slug,
-            request.exaggeration,
-            request.cfg_weight,
-            request.temperature,
-        )
-        return TTSResponse(
-            audio_b64=base64.b64encode(audio_bytes).decode("utf-8"),
-            sample_rate=self.model.sr,
-        )
-
-    def _generate(
-        self,
-        prompt: str,
-        voice: str,
-        exaggeration: float,
-        cfg_weight: float,
-        temperature: float,
-    ) -> bytes:
+    @modal.method()
+    def _generate(self, prompt: str, voice: str) -> bytes:
         """Core generation logic using the Chatterbox model."""
-        import os
+        pt_path = f"{VOICE_CONDS_DIR}/{voice}.pt"
+        wav_path = f"{VOICE_PROMPTS_DIR}/{voice}.wav"
 
-        voice_path = f"{VOICE_PROMPTS_DIR}/{voice}.wav"
-        if not os.path.exists(voice_path):
-            raise FileNotFoundError(f"Voice prompt not found: {voice_path}")
+        if os.path.exists(pt_path):
+            print(f"Loading precomputed conditionals: {pt_path}")
+            conditionals = torch.load(pt_path, map_location="cuda")
+        elif os.path.exists(wav_path):
+            print(f"No .pt found, computing conditionals from: {wav_path}")
+            conditionals = self.model.prepare_conditionals(wav_path, exaggeration=0.3)
+            torch.save(conditionals, pt_path)
+            chatterbox_tts_voices_vol.commit()
+            print(f"Saved precomputed conditionals to: {pt_path}")
+        else:
+            raise FileNotFoundError(
+                f"No voice prompt found for '{voice}': expected {pt_path} or {wav_path}"
+            )
 
-        wav = self.model.generate(
-            prompt,
-            audio_prompt_path=voice_path,
-            exaggeration=exaggeration,
-            cfg_weight=cfg_weight,
-            temperature=temperature,
+        wav = self.model.generate(prompt)
+
+        print(
+            f"Generated wav tensor: shape={wav.shape}, device={wav.device}, dtype={wav.dtype}"
+        )
+        print(
+            f"Wav stats: min={wav.min().item():.4f}, max={wav.max().item():.4f}, mean={wav.mean().item():.4f}"
         )
 
         buffer = io.BytesIO()
-        ta.save(buffer, wav, self.model.sr, format="wav")
+        ta.save(buffer, wav.cpu(), self.model.sr, format="wav")
         buffer.seek(0)
         return buffer.read()
