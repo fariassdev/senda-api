@@ -91,50 +91,36 @@ class TestAudioProcessor:
 
         assert len(silence) == 10000
 
-    @pytest.mark.asyncio
-    async def test_combine_script_parts_speak_only(
-        self, audio_processor, mock_pcm_data
-    ):
+    def test_combine_script_parts_speak_only(self, audio_processor, mock_pcm_data):
         """Test combining script parts with only speak parts."""
         script_parts = [
             ScriptPartDTO(type=ScriptPartType.SPEAK, content="Hello", duration=None),
             ScriptPartDTO(type=ScriptPartType.SPEAK, content="World", duration=None),
         ]
+        speech_data = {0: mock_pcm_data, 1: mock_pcm_data}
 
-        async def mock_generator(
-            text: str, voice: str | None = None, speed: float = 1.0
-        ) -> bytes:
-            return mock_pcm_data
-
-        result = await audio_processor.combine_script_parts(
-            script_parts=script_parts, speech_generator=mock_generator
+        result = audio_processor.combine_script_parts(
+            script_parts=script_parts, speech_data=speech_data
         )
 
         assert isinstance(result, AudioSegment)
         assert len(result) > 0
 
-    @pytest.mark.asyncio
-    async def test_combine_script_parts_pause_only(self, audio_processor):
+    def test_combine_script_parts_pause_only(self, audio_processor):
         """Test combining script parts with only pause parts."""
         script_parts = [
             ScriptPartDTO(type=ScriptPartType.PAUSE, content=None, duration=1.0),
             ScriptPartDTO(type=ScriptPartType.PAUSE, content=None, duration=2.0),
         ]
 
-        async def mock_generator(
-            text: str, voice: str | None = None, speed: float = 1.0
-        ) -> bytes:
-            raise AssertionError("Should not call speech generator for pauses")
-
-        result = await audio_processor.combine_script_parts(
-            script_parts=script_parts, speech_generator=mock_generator
+        result = audio_processor.combine_script_parts(
+            script_parts=script_parts, speech_data={}
         )
 
         assert isinstance(result, AudioSegment)
         assert len(result) == 3000
 
-    @pytest.mark.asyncio
-    async def test_combine_script_parts_mixed(self, audio_processor, mock_pcm_data):
+    def test_combine_script_parts_mixed(self, audio_processor, mock_pcm_data):
         """Test combining script parts with mixed speak and pause."""
         script_parts = [
             ScriptPartDTO(
@@ -143,37 +129,23 @@ class TestAudioProcessor:
             ScriptPartDTO(type=ScriptPartType.PAUSE, content=None, duration=1.5),
             ScriptPartDTO(type=ScriptPartType.SPEAK, content="Goodbye", duration=None),
         ]
+        speech_data = {0: mock_pcm_data, 2: mock_pcm_data}
 
-        async def mock_generator(
-            text: str, voice: str | None = None, speed: float = 1.0
-        ) -> bytes:
-            return mock_pcm_data
-
-        result = await audio_processor.combine_script_parts(
-            script_parts=script_parts, speech_generator=mock_generator
+        result = audio_processor.combine_script_parts(
+            script_parts=script_parts, speech_data=speech_data
         )
 
         assert isinstance(result, AudioSegment)
         assert len(result) > 1500
 
-    @pytest.mark.asyncio
-    async def test_combine_script_parts_empty_list(self, audio_processor):
+    def test_combine_script_parts_empty_list(self, audio_processor):
         """Test error when script parts list is empty."""
-
-        async def mock_generator(
-            text: str, voice: str | None = None, speed: float = 1.0
-        ) -> bytes:
-            return b"mock"
-
         with pytest.raises(ValueError) as exc_info:
-            await audio_processor.combine_script_parts(
-                script_parts=[], speech_generator=mock_generator
-            )
+            audio_processor.combine_script_parts(script_parts=[], speech_data={})
 
         assert "no script parts" in str(exc_info.value).lower()
 
-    @pytest.mark.asyncio
-    async def test_combine_script_parts_skip_empty_content(
+    def test_combine_script_parts_skip_empty_content(
         self, audio_processor, mock_pcm_data
     ):
         """Test that parts with empty content are skipped."""
@@ -182,25 +154,15 @@ class TestAudioProcessor:
             ScriptPartDTO(type=ScriptPartType.SPEAK, content="", duration=None),
             ScriptPartDTO(type=ScriptPartType.SPEAK, content=None, duration=None),
         ]
+        speech_data = {0: mock_pcm_data}
 
-        call_count = 0
-
-        async def mock_generator(
-            text: str, voice: str | None = None, speed: float = 1.0
-        ) -> bytes:
-            nonlocal call_count
-            call_count += 1
-            return mock_pcm_data
-
-        result = await audio_processor.combine_script_parts(
-            script_parts=script_parts, speech_generator=mock_generator
+        result = audio_processor.combine_script_parts(
+            script_parts=script_parts, speech_data=speech_data
         )
 
-        assert call_count == 1
         assert isinstance(result, AudioSegment)
 
-    @pytest.mark.asyncio
-    async def test_combine_script_parts_skip_invalid_pause(
+    def test_combine_script_parts_skip_invalid_pause(
         self, audio_processor, mock_pcm_data
     ):
         """Test that pause parts with invalid duration are skipped."""
@@ -211,23 +173,16 @@ class TestAudioProcessor:
             ScriptPartDTO(type=ScriptPartType.PAUSE, content=None, duration=-1),
             ScriptPartDTO(type=ScriptPartType.PAUSE, content=None, duration=1.0),
         ]
+        speech_data = {0: mock_pcm_data}
 
-        async def mock_generator(
-            text: str, voice: str | None = None, speed: float = 1.0
-        ) -> bytes:
-            return mock_pcm_data
-
-        result = await audio_processor.combine_script_parts(
-            script_parts=script_parts, speech_generator=mock_generator
+        result = audio_processor.combine_script_parts(
+            script_parts=script_parts, speech_data=speech_data
         )
 
         assert isinstance(result, AudioSegment)
         assert len(result) > 1000
 
-    @pytest.mark.asyncio
-    async def test_combine_script_parts_unknown_type(
-        self, audio_processor, mock_pcm_data
-    ):
+    def test_combine_script_parts_unknown_type(self, audio_processor, mock_pcm_data):
         """Test handling of unknown script part types (should skip)."""
 
         class UnknownType:
@@ -237,21 +192,12 @@ class TestAudioProcessor:
             ScriptPartDTO(type=ScriptPartType.SPEAK, content="Hello", duration=None),
             ScriptPartDTO(type=UnknownType(), content="Test", duration=None),
         ]
+        speech_data = {0: mock_pcm_data}
 
-        call_count = 0
-
-        async def mock_generator(
-            text: str, voice: str | None = None, speed: float = 1.0
-        ) -> bytes:
-            nonlocal call_count
-            call_count += 1
-            return mock_pcm_data
-
-        result = await audio_processor.combine_script_parts(
-            script_parts=script_parts, speech_generator=mock_generator
+        result = audio_processor.combine_script_parts(
+            script_parts=script_parts, speech_data=speech_data
         )
 
-        assert call_count == 1
         assert isinstance(result, AudioSegment)
 
     def test_export_to_mp3_success(self, audio_processor):
@@ -292,8 +238,7 @@ class TestAudioProcessor:
 
             assert "export failed" in str(exc_info.value).lower()
 
-    @pytest.mark.asyncio
-    async def test_full_workflow(self, audio_processor, mock_pcm_data):
+    def test_full_workflow(self, audio_processor, mock_pcm_data):
         """Test full workflow: combine parts and export to MP3."""
         script_parts = [
             ScriptPartDTO(type=ScriptPartType.SPEAK, content="Welcome", duration=None),
@@ -302,14 +247,10 @@ class TestAudioProcessor:
                 type=ScriptPartType.SPEAK, content="to meditation", duration=None
             ),
         ]
+        speech_data = {0: mock_pcm_data, 2: mock_pcm_data}
 
-        async def mock_generator(
-            text: str, voice: str | None = None, speed: float = 1.0
-        ) -> bytes:
-            return mock_pcm_data
-
-        combined_audio = await audio_processor.combine_script_parts(
-            script_parts=script_parts, speech_generator=mock_generator
+        combined_audio = audio_processor.combine_script_parts(
+            script_parts=script_parts, speech_data=speech_data
         )
 
         mp3_data = audio_processor.export_to_mp3(combined_audio)

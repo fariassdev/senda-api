@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from senda.core.enums import LessonStatus
+from senda.core.enums import LessonStatus, ScriptPartType
 from senda.core.exceptions import (
     AudioGenerationException,
     AudioProviderException,
@@ -54,6 +54,7 @@ class AudioGenerationService(IAudioGenerationService):
         storage_provider: IStorageProvider,
         audio_processor: AudioProcessor | None = None,
         max_concurrent_lessons: int = 5,
+        max_concurrent_tts: int = 3,
     ) -> None:
         self._course_repo = course_repo
         self._lesson_repo = lesson_repo
@@ -63,6 +64,7 @@ class AudioGenerationService(IAudioGenerationService):
         self._storage_provider = storage_provider
         self._audio_processor = audio_processor or AudioProcessor()
         self._max_concurrent_lessons = max_concurrent_lessons
+        self._max_concurrent_tts = max_concurrent_tts
 
     async def generate_lesson_audio(
         self, session: AsyncSession, request: AudioGenerationRequestDTO
@@ -140,53 +142,68 @@ class AudioGenerationService(IAudioGenerationService):
                     session=session, slug=voice_slug
                 )
 
+            # Determine provider and voice argument
             if db_voice:
                 provider_type = db_voice.tts_provider
-
-                if provider_type == "chatterbox":
-
-                    async def speech_generator(
-                        text: str, voice: str | None, spd: float
-                    ) -> bytes:
-                        return await self._chatterbox_provider.generate_speech(
-                            text=text, voice=voice_slug, speed=spd
-                        )
-                else:
-
-                    async def speech_generator(
-                        text: str, voice: str | None, spd: float
-                    ) -> bytes:
-                        return await self._audio_provider.generate_speech(
-                            text=text, voice=voice_slug or "af_nicole", speed=spd
-                        )
-
+                provider = (
+                    self._chatterbox_provider
+                    if provider_type == "chatterbox"
+                    else self._audio_provider
+                )
+                voice_name = (
+                    voice_slug
+                    if provider_type == "chatterbox"
+                    else (voice_slug or "af_nicole")
+                )
             elif voice_slug in ["Lucy", "Michael", "Emily"]:
-                # Default Chatterbox voices not in DB
                 provider_type = "chatterbox"
-
-                async def speech_generator(
-                    text: str, voice: str | None, spd: float
-                ) -> bytes:
-                    return await self._chatterbox_provider.generate_speech(
-                        text=text, voice=voice_slug, speed=spd
-                    )
-
+                provider = self._chatterbox_provider
+                voice_name = voice_slug
             else:
-                # Fallback to Kokoro
                 provider_type = "kokoro"
+                provider = self._audio_provider
+                voice_name = voice_slug or "af_nicole"
 
-                async def speech_generator(
-                    text: str, voice: str | None, spd: float
-                ) -> bytes:
-                    return await self._audio_provider.generate_speech(
-                        text=text, voice=voice_slug or "af_nicole", speed=spd
+            # Create a semaphore to limit concurrent TTS requests per lesson
+            semaphore = asyncio.Semaphore(self._max_concurrent_tts)
+
+            async def generate_speech_with_semaphore(
+                idx: int, text: str
+            ) -> tuple[int, bytes]:
+                async with semaphore:
+                    logger.debug(f"Generating TTS for part {idx + 1}")
+                    pcm_bytes = await provider.generate_speech(
+                        text=text, voice=voice_name, speed=speed
+                    )
+                    return idx, pcm_bytes
+
+            # Find all parts that need speech generation
+            speak_tasks = []
+            for idx, part in enumerate(script_parts):
+                if (
+                    part.type == ScriptPartType.SPEAK
+                    and part.content
+                    and part.content.strip()
+                ):
+                    speak_tasks.append(
+                        generate_speech_with_semaphore(idx, part.content)
                     )
 
-            combined_audio = await self._audio_processor.combine_script_parts(
-                script_parts=script_parts,
-                speech_generator=speech_generator,
-                voice=voice_slug,
-                speed=speed,
+            # Generate all speech parts in parallel
+            logger.info(
+                f"Generating TTS for {len(speak_tasks)} speak parts in parallel"
+            )
+            tts_results = await asyncio.gather(*speak_tasks)
+
+            # Build a map of index -> speech_bytes
+            speech_data: dict[int, bytes] = {
+                idx: pcm_bytes
+                for idx, pcm_bytes in tts_results
+                if pcm_bytes is not None
+            }
+
+            combined_audio = self._audio_processor.combine_script_parts(
+                script_parts=script_parts, speech_data=speech_data
             )
 
             mp3_data = self._audio_processor.export_to_mp3(combined_audio)

@@ -284,6 +284,7 @@ class Container:
     def audio_generation_service(self) -> IAudioGenerationService:
         """Creates audio generation service."""
         max_concurrent_lessons = getattr(self._settings, "max_concurrent_lessons", 5)
+        max_concurrent_tts = getattr(self._settings, "max_concurrent_tts", 3)
         return AudioGenerationService(
             course_repo=self.course_repository(),
             lesson_repo=self.lesson_repository(),
@@ -293,6 +294,7 @@ class Container:
             storage_provider=self.storage_provider(),
             audio_processor=self.audio_processor(),
             max_concurrent_lessons=max_concurrent_lessons,
+            max_concurrent_tts=max_concurrent_tts,
         )
 
     def voice_service(self) -> IVoiceService:

@@ -77,7 +77,7 @@ class TestAudioGenerationService:
         mock_audio_segment.raw_data = b"fake_audio_data"
         mock_audio_segment.__len__ = Mock(return_value=5000)
 
-        processor.combine_script_parts = AsyncMock(return_value=mock_audio_segment)
+        processor.combine_script_parts = Mock(return_value=mock_audio_segment)
         processor.export_to_mp3 = Mock(return_value=b"fake_mp3_data")
         return processor
 
