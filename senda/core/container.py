@@ -285,13 +285,16 @@ class Container:
         """Creates audio generation service."""
         max_concurrent_lessons = getattr(self._settings, "max_concurrent_lessons", 5)
         max_concurrent_tts = getattr(self._settings, "max_concurrent_tts", 3)
+        providers = {
+            "kokoro": self.audio_provider(),
+            "chatterbox": self.chatterbox_provider(),
+        }
         return AudioGenerationService(
             course_repo=self.course_repository(),
             lesson_repo=self.lesson_repository(),
             voice_repo=self.voice_repository(),
-            audio_provider=self.audio_provider(),
-            chatterbox_provider=self.chatterbox_provider(),
             storage_provider=self.storage_provider(),
+            providers=providers,
             audio_processor=self.audio_processor(),
             max_concurrent_lessons=max_concurrent_lessons,
             max_concurrent_tts=max_concurrent_tts,

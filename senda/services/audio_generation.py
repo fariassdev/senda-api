@@ -33,9 +33,6 @@ from senda.domain.services.audio_generation import (
     IStorageProvider,
 )
 from senda.domain.utils.script_serialization import LessonScript
-from senda.infrastructure.providers.chatterbox_audio_provider import (
-    ChatterboxAudioProvider,
-)
 from senda.infrastructure.utils.audio_processor import AudioProcessor
 
 logger = logging.getLogger(__name__)
@@ -49,9 +46,8 @@ class AudioGenerationService(IAudioGenerationService):
         course_repo: ICourseRepository,
         lesson_repo: ILessonRepository,
         voice_repo: IVoiceRepository,
-        audio_provider: IAudioProvider,
-        chatterbox_provider: ChatterboxAudioProvider,
         storage_provider: IStorageProvider,
+        providers: dict[str, IAudioProvider],
         audio_processor: AudioProcessor | None = None,
         max_concurrent_lessons: int = 5,
         max_concurrent_tts: int = 3,
@@ -59,9 +55,8 @@ class AudioGenerationService(IAudioGenerationService):
         self._course_repo = course_repo
         self._lesson_repo = lesson_repo
         self._voice_repo = voice_repo
-        self._audio_provider = audio_provider
-        self._chatterbox_provider = chatterbox_provider
         self._storage_provider = storage_provider
+        self._providers = providers
         self._audio_processor = audio_processor or AudioProcessor()
         self._max_concurrent_lessons = max_concurrent_lessons
         self._max_concurrent_tts = max_concurrent_tts
@@ -145,10 +140,8 @@ class AudioGenerationService(IAudioGenerationService):
             # Determine provider and voice argument
             if db_voice:
                 provider_type = db_voice.tts_provider
-                provider = (
-                    self._chatterbox_provider
-                    if provider_type == "chatterbox"
-                    else self._audio_provider
+                provider = self._providers.get(provider_type) or self._providers.get(
+                    "kokoro"
                 )
                 voice_name = (
                     voice_slug
@@ -157,12 +150,19 @@ class AudioGenerationService(IAudioGenerationService):
                 )
             elif voice_slug in ["Lucy", "Michael", "Emily"]:
                 provider_type = "chatterbox"
-                provider = self._chatterbox_provider
+                provider = self._providers.get("chatterbox") or self._providers.get(
+                    "kokoro"
+                )
                 voice_name = voice_slug
             else:
                 provider_type = "kokoro"
-                provider = self._audio_provider
+                provider = self._providers.get("kokoro")
                 voice_name = voice_slug or "af_nicole"
+
+            if not provider:
+                raise AudioGenerationException(
+                    message=f"No audio provider configured for provider type: {provider_type}"
+                )
 
             # Create a semaphore to limit concurrent TTS requests per lesson
             semaphore = asyncio.Semaphore(self._max_concurrent_tts)

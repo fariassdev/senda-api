@@ -105,13 +105,16 @@ class TestAudioGenerationService:
         mock_audio_processor,
     ) -> IAudioGenerationService:
         """Create AudioGenerationService with mocked dependencies"""
+        providers = {
+            "kokoro": mock_audio_provider,
+            "chatterbox": mock_chatterbox_provider,
+        }
         return AudioGenerationService(
             course_repo=mock_course_repo,
             lesson_repo=mock_lesson_repo,
             voice_repo=mock_voice_repo,
-            audio_provider=mock_audio_provider,
-            chatterbox_provider=mock_chatterbox_provider,
             storage_provider=mock_storage_provider,
+            providers=providers,
             audio_processor=mock_audio_processor,
         )
 
