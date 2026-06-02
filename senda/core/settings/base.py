@@ -49,6 +49,7 @@ class BaseAppSettings(BaseSettings):
     modal_token_secret: str = "default_token_secret"
     modal_proxy_auth_token_id: str | None = None
     modal_proxy_auth_token_secret: str | None = None
+    modal_tts_timeout: float = 600.0  # Timeout in seconds (increased for cold starts)
 
     # Audio Generation Concurrency
     max_concurrent_lessons: int = 5  # Max parallel lesson audio generations

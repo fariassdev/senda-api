@@ -254,6 +254,7 @@ class Container:
         proxy_auth_token_secret = getattr(
             self._settings, "modal_proxy_auth_token_secret", None
         )
+        timeout = getattr(self._settings, "modal_tts_timeout", 600.0)
         return ChatterboxAudioProvider(
             endpoint_url=endpoint_url,
             token_id=token_id,
@@ -262,6 +263,7 @@ class Container:
             delete_voice_endpoint=delete_voice_endpoint,
             proxy_auth_token_id=proxy_auth_token_id,
             proxy_auth_token_secret=proxy_auth_token_secret,
+            timeout=timeout,
         )
 
     def storage_provider(self) -> IStorageProvider:
