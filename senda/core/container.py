@@ -229,7 +229,7 @@ class Container:
             script_provider=self.script_generation_provider(),
         )
 
-    def audio_provider(self) -> IAudioProvider:
+    def kokoro_provider(self) -> IAudioProvider:
         """Creates Kokoro TTS audio provider."""
         api_url = getattr(
             self._settings, "kokoro_api_url", "http://localhost:8880/v1/audio/speech"
@@ -285,8 +285,8 @@ class Container:
         """Creates audio generation service."""
         max_concurrent_lessons = getattr(self._settings, "max_concurrent_lessons", 5)
         max_concurrent_tts = getattr(self._settings, "max_concurrent_tts", 3)
-        providers = {
-            "kokoro": self.audio_provider(),
+        audio_providers = {
+            "kokoro": self.kokoro_provider(),
             "chatterbox": self.chatterbox_provider(),
         }
         return AudioGenerationService(
@@ -294,7 +294,7 @@ class Container:
             lesson_repo=self.lesson_repository(),
             voice_repo=self.voice_repository(),
             storage_provider=self.storage_provider(),
-            providers=providers,
+            audio_providers=audio_providers,
             audio_processor=self.audio_processor(),
             max_concurrent_lessons=max_concurrent_lessons,
             max_concurrent_tts=max_concurrent_tts,

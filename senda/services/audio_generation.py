@@ -47,7 +47,7 @@ class AudioGenerationService(IAudioGenerationService):
         lesson_repo: ILessonRepository,
         voice_repo: IVoiceRepository,
         storage_provider: IStorageProvider,
-        providers: dict[str, IAudioProvider],
+        audio_providers: dict[str, IAudioProvider],
         audio_processor: AudioProcessor | None = None,
         max_concurrent_lessons: int = 5,
         max_concurrent_tts: int = 3,
@@ -56,7 +56,7 @@ class AudioGenerationService(IAudioGenerationService):
         self._lesson_repo = lesson_repo
         self._voice_repo = voice_repo
         self._storage_provider = storage_provider
-        self._providers = providers
+        self._audio_providers = audio_providers
         self._audio_processor = audio_processor or AudioProcessor()
         self._max_concurrent_lessons = max_concurrent_lessons
         self._max_concurrent_tts = max_concurrent_tts
@@ -140,9 +140,9 @@ class AudioGenerationService(IAudioGenerationService):
             # Determine provider and voice argument
             if db_voice:
                 provider_type = db_voice.tts_provider
-                provider = self._providers.get(provider_type) or self._providers.get(
-                    "kokoro"
-                )
+                provider = self._audio_providers.get(
+                    provider_type
+                ) or self._audio_providers.get("kokoro")
                 voice_name = (
                     voice_slug
                     if provider_type == "chatterbox"
@@ -150,13 +150,13 @@ class AudioGenerationService(IAudioGenerationService):
                 )
             elif voice_slug in ["Lucy", "Michael", "Emily"]:
                 provider_type = "chatterbox"
-                provider = self._providers.get("chatterbox") or self._providers.get(
-                    "kokoro"
-                )
+                provider = self._audio_providers.get(
+                    "chatterbox"
+                ) or self._audio_providers.get("kokoro")
                 voice_name = voice_slug
             else:
                 provider_type = "kokoro"
-                provider = self._providers.get("kokoro")
+                provider = self._audio_providers.get("kokoro")
                 voice_name = voice_slug or "af_nicole"
 
             if not provider:
