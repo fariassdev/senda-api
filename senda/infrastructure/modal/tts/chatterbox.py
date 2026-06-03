@@ -1,16 +1,22 @@
 import modal
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from .common import (
     MODEL_DIR,
     VOICE_CONDS_DIR,
     VOICE_PROMPTS_DIR,
     VOICE_VOLUME_MOUNT_DIR,
-    TTSRequest,
     app,
     chatterbox_tts_voices_vol,
     chatterbox_tts_weights_vol,
 )
+
+
+class TTSRequest(BaseModel):
+    text: str
+    voice_slug: str
+
 
 tts_image = (
     modal.Image.debian_slim(python_version="3.10")

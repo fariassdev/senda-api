@@ -1,16 +1,49 @@
+from typing import Literal
+
 import modal
+from pydantic import BaseModel, field_validator
 
 from .common import (
     VOICE_CONDS_DIR,
     VOICE_PROMPTS_DIR,
     VOICE_VOLUME_MOUNT_DIR,
-    DeleteVoiceRequest,
-    DeleteVoiceResponse,
-    SyncVoiceRequest,
-    SyncVoiceResponse,
     app,
     chatterbox_tts_voices_vol,
 )
+
+
+class SyncVoiceRequest(BaseModel):
+    voice_slug: str
+    reference_wav_b64: str
+
+    @field_validator("voice_slug")
+    @classmethod
+    def slug_is_safe(cls, v: str) -> str:
+        if "/" in v or "\\" in v or ".." in v:
+            raise ValueError("voice_slug contains invalid characters")
+        return v
+
+
+class DeleteVoiceRequest(BaseModel):
+    voice_slug: str
+
+    @field_validator("voice_slug")
+    @classmethod
+    def slug_is_safe(cls, v: str) -> str:
+        if "/" in v or "\\" in v or ".." in v:
+            raise ValueError("voice_slug contains invalid characters")
+        return v
+
+
+class SyncVoiceResponse(BaseModel):
+    status: Literal["ok"]
+    path: str
+
+
+class DeleteVoiceResponse(BaseModel):
+    status: Literal["ok"]
+    deleted: str
+
 
 fastapi_image = modal.Image.debian_slim(python_version="3.10").pip_install(
     "fastapi[standard]==0.136.3", "pydantic==2.9.2"
