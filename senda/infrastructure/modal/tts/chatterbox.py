@@ -10,7 +10,17 @@ from .common import (
     app,
     chatterbox_tts_voices_vol,
     chatterbox_tts_weights_vol,
-    tts_image,
+)
+
+tts_image = (
+    modal.Image.debian_slim(python_version="3.10")
+    .pip_install(
+        "chatterbox-tts==0.1.7",
+        "fastapi[standard]==0.136.3",
+        "peft==0.19.1",
+        "pydantic==2.9.2",
+    )
+    .env({"HF_HOME": "/models"})
 )
 
 with tts_image.imports():
@@ -95,21 +105,3 @@ class Chatterbox:
         ta.save(buffer, wav.cpu(), self.model.sr, format="wav")
         buffer.seek(0)
         return buffer.read()
-
-
-@app.function(
-    image=tts_image,
-    volumes={MODEL_DIR: chatterbox_tts_weights_vol},
-    secrets=[modal.Secret.from_name("hf-token")],
-    timeout=1800,
-)
-def download_model() -> None:
-    """Download the model weights from HF Hub to the mounted cache Volume and commit."""
-    from huggingface_hub import snapshot_download
-
-    print("Downloading ResembleAI/chatterbox-turbo weights to volume cache...")
-    snapshot_download(repo_id="ResembleAI/chatterbox-turbo")
-
-    print("Committing weights volume...")
-    chatterbox_tts_weights_vol.commit()
-    print("Model weights cached successfully!")

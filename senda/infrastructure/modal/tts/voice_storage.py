@@ -9,13 +9,16 @@ from .common import (
     SyncVoiceRequest,
     SyncVoiceResponse,
     app,
-    base_image,
     chatterbox_tts_voices_vol,
+)
+
+fastapi_image = modal.Image.debian_slim(python_version="3.10").pip_install(
+    "fastapi[standard]==0.136.3", "pydantic==2.9.2"
 )
 
 
 @app.function(
-    image=base_image, volumes={VOICE_VOLUME_MOUNT_DIR: chatterbox_tts_voices_vol}
+    image=fastapi_image, volumes={VOICE_VOLUME_MOUNT_DIR: chatterbox_tts_voices_vol}
 )
 @modal.fastapi_endpoint(method="POST", docs=True, requires_proxy_auth=True)
 def sync_voice(request: SyncVoiceRequest) -> SyncVoiceResponse:
@@ -43,7 +46,7 @@ def sync_voice(request: SyncVoiceRequest) -> SyncVoiceResponse:
 
 
 @app.function(
-    image=base_image, volumes={VOICE_VOLUME_MOUNT_DIR: chatterbox_tts_voices_vol}
+    image=fastapi_image, volumes={VOICE_VOLUME_MOUNT_DIR: chatterbox_tts_voices_vol}
 )
 @modal.fastapi_endpoint(method="DELETE", docs=True, requires_proxy_auth=True)
 def delete_voice(request: DeleteVoiceRequest) -> DeleteVoiceResponse:

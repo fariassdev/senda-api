@@ -52,11 +52,14 @@ To avoid downloading the ~2GB Chatterbox Turbo model weights from Hugging Face o
 Although it is automatically created on deployment if missing, you should pre-populate it to avoid a very slow first generation:
 
 ```bash
-# Download and cache model weights into the volume
+# Download and cache default model weights (ResembleAI/chatterbox-turbo) into the volume
 modal run senda.infrastructure.modal.tts.main::download_model
+
+# Optionally, specify a custom Hugging Face repository and revision
+modal run senda.infrastructure.modal.tts.main::download_model --repo-id "ResembleAI/chatterbox" --revision "main"
 ```
 
-This runs a one-time utility function on Modal that fetches the weights from Hugging Face and commits them to the volume cache.
+This runs a one-time utility function on Modal using a lightweight container image that fetches the weights from Hugging Face and commits them to the volume cache.
 
 ### Step 2b: Sync Voices to Database and S3 (After uploading)
 

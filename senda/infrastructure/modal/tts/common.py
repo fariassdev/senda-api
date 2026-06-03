@@ -3,22 +3,6 @@ from typing import Literal
 import modal
 from pydantic import BaseModel, field_validator
 
-# Images
-tts_image = (
-    modal.Image.debian_slim(python_version="3.10")
-    .pip_install(
-        "chatterbox-tts==0.1.7",
-        "fastapi[standard]==0.136.3",
-        "peft==0.19.1",
-        "pydantic==2.9.2",
-    )
-    .env({"HF_HOME": "/models"})
-)
-
-base_image = modal.Image.debian_slim(python_version="3.10").pip_install(
-    "fastapi[standard]==0.136.3", "pydantic==2.9.2"
-)
-
 # App & Volume
 app = modal.App("senda-tts-chatterbox")
 chatterbox_tts_voices_vol = modal.Volume.from_name("chatterbox-tts-voices")
@@ -32,8 +16,6 @@ MODEL_DIR = "/models"
 
 
 # --- Request schemas ---
-
-
 class TTSRequest(BaseModel):
     text: str
     voice_slug: str
@@ -63,8 +45,6 @@ class DeleteVoiceRequest(BaseModel):
 
 
 # --- Response schemas ---
-
-
 class SyncVoiceResponse(BaseModel):
     status: Literal["ok"]
     path: str
