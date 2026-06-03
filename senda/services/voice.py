@@ -16,13 +16,9 @@ from senda.infrastructure.providers.chatterbox_audio_provider import (
     ChatterboxAudioProvider,
 )
 from senda.infrastructure.utils.audio_processor import AudioProcessor
+from senda.services.voice_provisioning import provision_voice_assets
 
 logger = logging.getLogger(__name__)
-
-_PREVIEW_TEMPLATE = (
-    "Hello, I am {name}. Take a deep breath, relax, "
-    "and let me guide you on your journey to mindfulness with Senda."
-)
 
 
 class VoiceService(IVoiceService):
@@ -47,7 +43,11 @@ class VoiceService(IVoiceService):
         reference_wav: bytes,
         current_user: UserDTO,
     ) -> VoiceDTO:
-        """Create a voice only after Modal sync, sample generation, and S3 uploads succeed."""
+        """Create a catalog voice after external provisioning succeeds.
+
+        See :mod:`senda.services.voice_provisioning` for pipeline order and
+        idempotent retry semantics when Modal or S3 steps fail.
+        """
         if current_user.role != UserRole.ADMIN:
             raise InsufficientPermissionsException()
 
@@ -60,33 +60,20 @@ class VoiceService(IVoiceService):
             f"Creating new voice '{create_item.name}' (slug: {create_item.slug})"
         )
 
-        reference_s3_key = f"voices/reference/{create_item.slug}.wav"
-        sample_s3_key = f"voices/samples/{create_item.slug}_sample.mp3"
-
-        await self._chatterbox_provider.sync_voice_to_volume(
-            voice_slug=create_item.slug, reference_wav=reference_wav
-        )
-
-        preview_text = _PREVIEW_TEMPLATE.format(name=create_item.name)
-        sample_pcm = await self._chatterbox_provider.generate_speech(
-            text=preview_text, voice=create_item.slug, speed=1.0
-        )
-
-        sample_segment = self._audio_processor.pcm_to_audio_segment(sample_pcm)
-        sample_mp3 = self._audio_processor.export_to_mp3(sample_segment)
-
-        await self._storage_provider.upload_file(
-            file_data=reference_wav, key=reference_s3_key, content_type="audio/wav"
-        )
-        await self._storage_provider.upload_file(
-            file_data=sample_mp3, key=sample_s3_key, content_type="audio/mpeg"
+        assets = await provision_voice_assets(
+            slug=create_item.slug,
+            name=create_item.name,
+            reference_wav=reference_wav,
+            chatterbox_provider=self._chatterbox_provider,
+            storage_provider=self._storage_provider,
+            audio_processor=self._audio_processor,
         )
 
         voice_dto = await self._voice_repo.add(
             session=session,
             create_item=create_item,
-            reference_s3_key=reference_s3_key,
-            sample_s3_key=sample_s3_key,
+            reference_s3_key=assets.reference_s3_key,
+            sample_s3_key=assets.sample_s3_key,
         )
 
         logger.info(f"Voice '{create_item.slug}' created successfully")

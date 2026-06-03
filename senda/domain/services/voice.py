@@ -16,7 +16,15 @@ class IVoiceService(abc.ABC):
         create_item: CreateVoiceDTO,
         reference_wav: bytes,
         current_user: UserDTO,
-    ) -> VoiceDTO: ...
+    ) -> VoiceDTO:
+        """Provision Modal/S3 assets, then insert the catalog row.
+
+        Raises:
+            VoiceSlugAlreadyExistsException: Slug already in the database (409).
+            AudioProviderException: Modal sync or TTS failed (502).
+            StorageProviderException: S3 upload failed (502).
+        """
+        ...
 
     @abc.abstractmethod
     async def get_voice_by_slug(

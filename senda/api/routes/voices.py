@@ -18,9 +18,16 @@ async def create_voice(
     reference_wav: UploadFile = File(...),
     payload: CreateVoiceRequest = Depends(CreateVoiceRequest.as_form),
 ) -> VoiceResponse:
-    """Create a new voice in the catalog with a reference WAV upload.
+    """Create a voice in the catalog with a reference WAV file.
 
-    Only accessible by administrators. Sinks the reference to Modal Volume.
+    **Pipeline order:** Modal volume sync → TTS sample → S3 reference → S3 sample → DB insert.
+
+    **On success:** ``201`` with the new voice; the row exists only after all steps succeed.
+
+    **On failure:** No catalog row is created. Modal/S3 may hold data keyed by ``slug``;
+    retries with the same slug overwrite those objects (see ``voice_provisioning`` module).
+
+    **Errors:** ``409`` if the slug already exists; ``502`` if Modal or S3 fails.
     """
     wav_bytes = await reference_wav.read()
 
