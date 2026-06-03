@@ -17,7 +17,7 @@ with tts_image.imports():
 
     import torch
     import torchaudio as ta
-    from chatterbox.tts_turbo import ChatterboxTurboTTS
+    from chatterbox.tts_turbo import ChatterboxTurboTTS, Conditionals
     from fastapi.responses import StreamingResponse
 
 
@@ -50,19 +50,33 @@ class Chatterbox:
         pt_path = f"{VOICE_CONDS_DIR}/{voice}.pt"
         wav_path = f"{VOICE_PROMPTS_DIR}/{voice}.wav"
 
+        conditionals = None
         if os.path.exists(pt_path):
             print(f"Loading precomputed conditionals: {pt_path}")
-            conditionals = torch.load(pt_path, map_location="cuda")
-        elif os.path.exists(wav_path):
-            print(f"No .pt found, computing conditionals from: {wav_path}")
-            conditionals = self.model.prepare_conditionals(wav_path, exaggeration=0.3)
-            torch.save(conditionals, pt_path)
-            chatterbox_tts_voices_vol.commit()
-            print(f"Saved precomputed conditionals to: {pt_path}")
-        else:
-            raise FileNotFoundError(
-                f"No voice prompt found for '{voice}': expected {pt_path} or {wav_path}"
-            )
+            try:
+                conditionals = Conditionals.load(pt_path, map_location="cuda")
+                if conditionals is None or not isinstance(conditionals, Conditionals):
+                    raise ValueError("Loaded conditionals are None or of invalid type")
+                self.model.conds = conditionals
+            except Exception as e:
+                print(
+                    f"Error loading conditionals from {pt_path}: {e}. Recomputing from WAV..."
+                )
+                conditionals = None
+
+        if conditionals is None:
+            if os.path.exists(wav_path):
+                print(f"Computing conditionals from: {wav_path}")
+                self.model.prepare_conditionals(wav_path)
+                conditionals = self.model.conds
+                if conditionals is not None:
+                    conditionals.save(pt_path)
+                    chatterbox_tts_voices_vol.commit()
+                    print(f"Saved precomputed conditionals to: {pt_path}")
+            else:
+                raise FileNotFoundError(
+                    f"No voice prompt found for '{voice}': expected {pt_path} or {wav_path}"
+                )
 
         wav = self.model.generate(prompt)
 
