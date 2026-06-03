@@ -103,6 +103,13 @@ class VoiceSlugAlreadyExistsException(BaseInternalException):
     _message = "A voice with this slug already exists."
 
 
+class VoiceInUseException(BaseInternalException):
+    """Exception raised when a voice is referenced by one or more lessons."""
+
+    _status_code = 409
+    _message = "This voice is in use by one or more lessons and cannot be deleted."
+
+
 class EmailAlreadyTakenException(BaseInternalException):
     """Exception raised when email was found in database while registration."""
 

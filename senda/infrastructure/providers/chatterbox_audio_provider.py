@@ -196,6 +196,18 @@ class ChatterboxAudioProvider(IAudioProvider):
 
             logger.info(f"Voice '{voice_slug}' removed from Modal volume")
 
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.warning(
+                    f"Voice '{voice_slug}' not found on Modal volume (already deleted)"
+                )
+                return
+            logger.error(
+                f"Chatterbox delete HTTP error: {e.response.status_code} - {e.response.text}"
+            )
+            raise AudioProviderException(
+                message=f"Modal volume deletion failed: {e.response.status_code}"
+            ) from e
         except Exception as e:
             logger.exception(f"Failed to delete voice '{voice_slug}' from Modal: {e}")
             raise AudioProviderException(

@@ -5,10 +5,12 @@ from uuid import UUID
 from senda.core.enums import UserRole
 from senda.core.exceptions import (
     InsufficientPermissionsException,
+    VoiceInUseException,
     VoiceSlugAlreadyExistsException,
 )
 from senda.domain.dtos.user import UserDTO
 from senda.domain.dtos.voice import CreateVoiceDTO, UpdateVoiceDTO, VoiceDTO
+from senda.domain.repositories.lesson import ILessonRepository
 from senda.domain.repositories.voice import IVoiceRepository
 from senda.domain.services.audio_generation import IStorageProvider
 from senda.domain.services.voice import IVoiceService
@@ -27,11 +29,13 @@ class VoiceService(IVoiceService):
     def __init__(
         self,
         voice_repo: IVoiceRepository,
+        lesson_repo: ILessonRepository,
         storage_provider: IStorageProvider,
         chatterbox_provider: ChatterboxAudioProvider,
         audio_processor: AudioProcessor | None = None,
     ) -> None:
         self._voice_repo = voice_repo
+        self._lesson_repo = lesson_repo
         self._storage_provider = storage_provider
         self._chatterbox_provider = chatterbox_provider
         self._audio_processor = audio_processor or AudioProcessor()
@@ -115,3 +119,31 @@ class VoiceService(IVoiceService):
         return await self._voice_repo.update(
             session=session, voice_id=voice_id, update_item=update_item
         )
+
+    async def delete_voice(
+        self, session: Any, voice_id: UUID, current_user: UserDTO
+    ) -> None:
+        """Delete catalog voice and its Modal/S3 artifacts."""
+        if current_user.role != UserRole.ADMIN:
+            raise InsufficientPermissionsException()
+
+        voice = await self._voice_repo.get(session=session, voice_id=voice_id)
+
+        lesson_count = await self._lesson_repo.count_using_voice(
+            session=session, voice_id=voice_id, voice_slug=voice.slug
+        )
+        if lesson_count > 0:
+            raise VoiceInUseException()
+
+        logger.info(f"Deleting voice '{voice.slug}' ({voice_id})")
+
+        if voice.tts_provider == "chatterbox":
+            await self._chatterbox_provider.delete_voice_from_volume(voice.slug)
+
+        await self._storage_provider.delete_file(voice.reference_s3_key)
+        if voice.sample_s3_key:
+            await self._storage_provider.delete_file(voice.sample_s3_key)
+
+        await self._voice_repo.delete(session=session, voice_id=voice_id)
+
+        logger.info(f"Voice '{voice.slug}' deleted successfully")

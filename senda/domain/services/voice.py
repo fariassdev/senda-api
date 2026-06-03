@@ -44,3 +44,17 @@ class IVoiceService(abc.ABC):
         update_item: UpdateVoiceDTO,
         current_user: UserDTO,
     ) -> VoiceDTO: ...
+
+    @abc.abstractmethod
+    async def delete_voice(
+        self, session: Any, voice_id: UUID, current_user: UserDTO
+    ) -> None:
+        """Remove a voice from Modal, S3, and the catalog.
+
+        Raises:
+            VoiceNotFoundException: Voice id not found (404).
+            VoiceInUseException: One or more lessons reference this voice (409).
+            AudioProviderException: Modal deletion failed (502).
+            StorageProviderException: S3 deletion failed (502).
+        """
+        ...

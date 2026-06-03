@@ -1,7 +1,6 @@
-from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, UploadFile, status
 
 from senda.api.schemas.requests.voice import CreateVoiceRequest, UpdateVoiceRequest
 from senda.api.schemas.responses.voice import VoiceResponse
@@ -99,3 +98,20 @@ async def update_voice(
     )
 
     return VoiceResponse.from_dto(voice_dto)
+
+
+@router.delete("/{voice_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_voice(
+    voice_id: UUID,
+    session: DBSession,
+    current_user: AdminUser,
+    voice_service: IVoiceService,
+) -> None:
+    """Delete a voice from the catalog, Modal volume, and S3.
+
+    Returns ``204`` on success. Returns ``409`` if any lesson still references this
+    voice, ``404`` if the voice does not exist.
+    """
+    await voice_service.delete_voice(
+        session=session, voice_id=voice_id, current_user=current_user
+    )

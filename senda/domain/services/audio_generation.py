@@ -72,6 +72,15 @@ class IStorageProvider(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def delete_file(self, key: str) -> None:
+        """Delete a file from storage by object key.
+
+        Raises:
+            StorageProviderException: If deletion fails
+        """
+        pass
+
 
 class IAudioGenerationService(abc.ABC):
     """Business logic for audio generation."""

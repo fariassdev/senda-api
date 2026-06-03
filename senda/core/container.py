@@ -304,6 +304,7 @@ class Container:
         """Creates Voice service."""
         return VoiceService(
             voice_repo=self.voice_repository(),
+            lesson_repo=self.lesson_repository(),
             storage_provider=self.storage_provider(),
             chatterbox_provider=self.chatterbox_provider(),
             audio_processor=self.audio_processor(),
