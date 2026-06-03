@@ -1,10 +1,12 @@
-import base64
 import logging
 from typing import Any
 from uuid import UUID
 
 from senda.core.enums import UserRole
-from senda.core.exceptions import InsufficientPermissionsException
+from senda.core.exceptions import (
+    InsufficientPermissionsException,
+    VoiceSlugAlreadyExistsException,
+)
 from senda.domain.dtos.user import UserDTO
 from senda.domain.dtos.voice import CreateVoiceDTO, UpdateVoiceDTO, VoiceDTO
 from senda.domain.repositories.voice import IVoiceRepository
@@ -16,6 +18,11 @@ from senda.infrastructure.providers.chatterbox_audio_provider import (
 from senda.infrastructure.utils.audio_processor import AudioProcessor
 
 logger = logging.getLogger(__name__)
+
+_PREVIEW_TEMPLATE = (
+    "Hello, I am {name}. Take a deep breath, relax, "
+    "and let me guide you on your journey to mindfulness with Senda."
+)
 
 
 class VoiceService(IVoiceService):
@@ -40,76 +47,49 @@ class VoiceService(IVoiceService):
         reference_wav: bytes,
         current_user: UserDTO,
     ) -> VoiceDTO:
-        """Create a new Voice in the catalog, syncs it to Modal, and generates a sample."""
+        """Create a voice only after Modal sync, sample generation, and S3 uploads succeed."""
         if current_user.role != UserRole.ADMIN:
             raise InsufficientPermissionsException()
+
+        if await self._voice_repo.get_by_slug_or_none(
+            session=session, slug=create_item.slug
+        ):
+            raise VoiceSlugAlreadyExistsException()
 
         logger.info(
             f"Creating new voice '{create_item.name}' (slug: {create_item.slug})"
         )
 
-        # 1. Upload reference WAV to private S3 folder
         reference_s3_key = f"voices/reference/{create_item.slug}.wav"
+        sample_s3_key = f"voices/samples/{create_item.slug}_sample.mp3"
+
+        await self._chatterbox_provider.sync_voice_to_volume(
+            voice_slug=create_item.slug, reference_wav=reference_wav
+        )
+
+        preview_text = _PREVIEW_TEMPLATE.format(name=create_item.name)
+        sample_pcm = await self._chatterbox_provider.generate_speech(
+            text=preview_text, voice=create_item.slug, speed=1.0
+        )
+
+        sample_segment = self._audio_processor.pcm_to_audio_segment(sample_pcm)
+        sample_mp3 = self._audio_processor.export_to_mp3(sample_segment)
+
         await self._storage_provider.upload_file(
             file_data=reference_wav, key=reference_s3_key, content_type="audio/wav"
         )
-
-        # 2. Save preliminary Voice in DB
-        voice_dto = await self._voice_repo.add(
-            session=session, create_item=create_item, reference_s3_key=reference_s3_key
+        await self._storage_provider.upload_file(
+            file_data=sample_mp3, key=sample_s3_key, content_type="audio/mpeg"
         )
 
-        try:
-            # 3. Synchronize reference WAV with Modal Volume via API
-            await self._chatterbox_provider.sync_voice_to_volume(
-                voice_slug=create_item.slug, reference_wav=reference_wav
-            )
+        voice_dto = await self._voice_repo.add(
+            session=session,
+            create_item=create_item,
+            reference_s3_key=reference_s3_key,
+            sample_s3_key=sample_s3_key,
+        )
 
-            # 4. Generate sample text fixed preview
-            preview_text = (
-                f"Hello, I am {create_item.name}. Take a deep breath, relax, "
-                f"and let me guide you on your journey to mindfulness with Senda."
-            )
-            sample_pcm = await self._chatterbox_provider.generate_speech(
-                text=preview_text, voice=create_item.slug, speed=1.0
-            )
-
-            # 5. Convert sample PCM to MP3 and upload to S3
-            sample_segment = self._audio_processor.pcm_to_audio_segment(sample_pcm)
-            sample_mp3 = self._audio_processor.export_to_mp3(sample_segment)
-            sample_s3_key = f"voices/samples/{create_item.slug}_sample.mp3"
-
-            await self._storage_provider.upload_file(
-                file_data=sample_mp3, key=sample_s3_key, content_type="audio/mpeg"
-            )
-
-            # 6. Update database record with success state and sample S3 URL
-            voice_dto = await self._voice_repo.update(
-                session=session,
-                voice_id=voice_dto.id,
-                update_item=UpdateVoiceDTO(
-                    sample_s3_key=sample_s3_key,
-                    is_synced_to_modal=True,
-                    modal_sync_error=None,
-                ),
-            )
-
-            logger.info(f"Voice '{create_item.slug}' fully integrated successfully")
-
-        except Exception as e:
-            logger.exception(
-                f"Error during synchronization for voice '{create_item.slug}'"
-            )
-            # Log synchronization failure state into DB
-            voice_dto = await self._voice_repo.update(
-                session=session,
-                voice_id=voice_dto.id,
-                update_item=UpdateVoiceDTO(
-                    is_synced_to_modal=False, modal_sync_error=str(e)
-                ),
-            )
-            raise
-
+        logger.info(f"Voice '{create_item.slug}' created successfully")
         return voice_dto
 
     async def get_voice_by_slug(
@@ -143,7 +123,6 @@ class VoiceService(IVoiceService):
         if current_user.role != UserRole.ADMIN:
             raise InsufficientPermissionsException()
 
-        # Check existence
         await self._voice_repo.get(session=session, voice_id=voice_id)
 
         return await self._voice_repo.update(

@@ -249,76 +249,51 @@ async def sync_voice(
             file_data=reference_wav, key=reference_s3_key, content_type="audio/wav"
         )
 
-        # Step 2: Create or retrieve Voice record
         voice_repo = container.voice_repository()
-        voice_dto: Any
+        voice_name = existing_voice.name if existing_voice else voice_slug.title()
+
+        chatterbox_provider = container.chatterbox_provider()
+        preview_text = (
+            f"Hello, I am {voice_name}. Take a deep breath, relax, "
+            f"and let me guide you on your journey to mindfulness with Senda."
+        )
+
+        logger.info(f"Generating sample for {voice_slug}...")
+        sample_pcm = await chatterbox_provider.generate_speech(
+            text=preview_text, voice=voice_slug, speed=1.0
+        )
+
+        audio_processor = container.audio_processor()
+        sample_segment = audio_processor.pcm_to_audio_segment(sample_pcm)
+        sample_mp3 = audio_processor.export_to_mp3(sample_segment)
+        sample_s3_key = f"voices/samples/{voice_slug}_sample.mp3"
+
+        logger.info(f"Uploading sample to S3: {sample_s3_key}")
+        await storage_provider.upload_file(
+            file_data=sample_mp3, key=sample_s3_key, content_type="audio/mpeg"
+        )
+
         if existing_voice:
-            logger.info(f"Voice {voice_slug} already exists, forcing resync...")
-
-            # We mock a simple container for the existing voice id & name
-            class VoiceInfo:
-                def __init__(self, voice_id: Any, name: str):
-                    self.id = voice_id
-                    self.name = name
-
-            voice_dto = VoiceInfo(existing_voice.id, existing_voice.name)
+            await voice_repo.update(
+                session=session,
+                voice_id=existing_voice.id,
+                update_item=UpdateVoiceDTO(sample_s3_key=sample_s3_key),
+            )
         else:
             create_dto = CreateVoiceDTO(
-                name=voice_slug.title(),  # "custom_voice" -> "Custom_voice"
+                name=voice_slug.title(),
                 slug=voice_slug,
                 description=f"Voice synced from Modal: {voice_slug}",
                 language="en",
-                gender=GenderEnum.NEUTRAL,  # Will be refined manually
+                gender=GenderEnum.NEUTRAL,
                 tts_provider="chatterbox",
             )
-            voice_dto = await voice_repo.add(
+            await voice_repo.add(
                 session=session,
                 create_item=create_dto,
                 reference_s3_key=reference_s3_key,
-            )
-            logger.info(f"Created Voice record in database: {voice_dto.id}")
-
-        # Step 3: Generate sample
-        try:
-            chatterbox_provider = container.chatterbox_provider()
-            preview_text = (
-                f"Hello, I am {voice_dto.name}. Take a deep breath, relax, "
-                f"and let me guide you on your journey to mindfulness with Senda."
-            )
-
-            logger.info(f"Generating sample for {voice_slug}...")
-            sample_pcm = await chatterbox_provider.generate_speech(
-                text=preview_text, voice=voice_slug, speed=1.0
-            )
-
-            # Step 4: Convert PCM to MP3 and upload
-            audio_processor = container.audio_processor()
-            sample_segment = audio_processor.pcm_to_audio_segment(sample_pcm)
-            sample_mp3 = audio_processor.export_to_mp3(sample_segment)
-            sample_s3_key = f"voices/samples/{voice_slug}_sample.mp3"
-
-            logger.info(f"Uploading sample to S3: {sample_s3_key}")
-            await storage_provider.upload_file(
-                file_data=sample_mp3, key=sample_s3_key, content_type="audio/mpeg"
-            )
-
-            # Step 5: Update voice record with sample and sync status
-            update_dto = UpdateVoiceDTO(
                 sample_s3_key=sample_s3_key,
-                is_synced_to_modal=True,
-                modal_sync_error=None,
             )
-
-        except Exception as e:
-            logger.error(f"Error generating sample for {voice_slug}: {e}")
-            # Still mark as synced even if sample generation failed
-            update_dto = UpdateVoiceDTO(
-                is_synced_to_modal=True, modal_sync_error=str(e)
-            )
-
-        await voice_repo.update(
-            session=session, voice_id=voice_dto.id, update_item=update_dto
-        )
 
         logger.info(f"✓ Successfully synced voice: {voice_slug}")
         return True

@@ -142,10 +142,7 @@ class Voice(Base):
     sample_s3_key: Mapped[str | None] = mapped_column(nullable=True)
     tts_provider: Mapped[str] = mapped_column(nullable=False, default="chatterbox")
 
-    # Status flags
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
-    is_synced_to_modal: Mapped[bool] = mapped_column(nullable=False, default=False)
-    modal_sync_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)

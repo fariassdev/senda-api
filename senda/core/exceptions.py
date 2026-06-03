@@ -96,6 +96,13 @@ class VoiceNotFoundException(BaseInternalException):
     _message = "Voice with this identifier does not exist."
 
 
+class VoiceSlugAlreadyExistsException(BaseInternalException):
+    """Exception raised when a voice slug is already in the catalog."""
+
+    _status_code = 409
+    _message = "A voice with this slug already exists."
+
+
 class EmailAlreadyTakenException(BaseInternalException):
     """Exception raised when email was found in database while registration."""
 

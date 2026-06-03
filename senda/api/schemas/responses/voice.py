@@ -18,8 +18,6 @@ class VoiceData(BaseModel):
     sample_audio_url: str | None = Field(None, alias="sampleAudioUrl")
     tts_provider: str = Field(alias="ttsProvider")
     is_active: bool = Field(alias="isActive")
-    is_synced_to_modal: bool = Field(alias="isSyncedToModal")
-    modal_sync_error: str | None = Field(None, alias="modalSyncError")
     created_at: datetime.datetime = Field(alias="createdAt")
     updated_at: datetime.datetime = Field(alias="updatedAt")
 
@@ -44,8 +42,6 @@ class VoiceResponse(BaseModel):
             sampleAudioUrl=dto.sample_audio_url,
             ttsProvider=dto.tts_provider,
             isActive=dto.is_active,
-            isSyncedToModal=dto.is_synced_to_modal,
-            modalSyncError=dto.modal_sync_error,
             createdAt=dto.created_at,
             updatedAt=dto.updated_at,
         )

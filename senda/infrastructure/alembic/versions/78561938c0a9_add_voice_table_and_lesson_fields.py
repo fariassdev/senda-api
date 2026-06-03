@@ -36,10 +36,6 @@ def upgrade() -> None:
         sa.Column("tts_provider", sa.Text(), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column(
-            "is_synced_to_modal", sa.Boolean(), nullable=False, server_default="false"
-        ),
-        sa.Column("modal_sync_error", sa.Text(), nullable=True),
-        sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
             nullable=False,

@@ -177,3 +177,27 @@ class ChatterboxAudioProvider(IAudioProvider):
             raise AudioProviderException(
                 message=f"Modal volume synchronization failed: {str(e)}"
             ) from e
+
+    async def delete_voice_from_volume(self, voice_slug: str) -> None:
+        """Remove a voice prompt from the Modal persistent volume."""
+        payload = {"voice_slug": voice_slug}
+
+        logger.info(f"Deleting voice '{voice_slug}' from Modal volume")
+
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.request(
+                    "DELETE",
+                    self._delete_voice_url,
+                    json=payload,
+                    headers=self._get_modal_headers(),
+                )
+                response.raise_for_status()
+
+            logger.info(f"Voice '{voice_slug}' removed from Modal volume")
+
+        except Exception as e:
+            logger.exception(f"Failed to delete voice '{voice_slug}' from Modal: {e}")
+            raise AudioProviderException(
+                message=f"Modal volume deletion failed: {str(e)}"
+            ) from e

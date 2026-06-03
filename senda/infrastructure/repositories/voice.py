@@ -19,7 +19,11 @@ class VoiceRepository(IVoiceRepository):
         self._voice_mapper = voice_mapper
 
     async def add(
-        self, session: AsyncSession, create_item: CreateVoiceDTO, reference_s3_key: str
+        self,
+        session: AsyncSession,
+        create_item: CreateVoiceDTO,
+        reference_s3_key: str,
+        sample_s3_key: str,
     ) -> VoiceDTO:
         query = (
             insert(Voice)
@@ -30,11 +34,9 @@ class VoiceRepository(IVoiceRepository):
                 language=create_item.language,
                 gender=create_item.gender.value,
                 reference_s3_key=reference_s3_key,
-                sample_s3_key=None,
+                sample_s3_key=sample_s3_key,
                 tts_provider=create_item.tts_provider,
                 is_active=True,
-                is_synced_to_modal=False,
-                modal_sync_error=None,
                 created_at=datetime.now(),
                 updated_at=datetime.now(),
             )
@@ -97,10 +99,6 @@ class VoiceRepository(IVoiceRepository):
             query = query.values(description=update_item.description)
         if update_item.sample_s3_key is not None:
             query = query.values(sample_s3_key=update_item.sample_s3_key)
-        if update_item.is_synced_to_modal is not None:
-            query = query.values(is_synced_to_modal=update_item.is_synced_to_modal)
-        if update_item.modal_sync_error is not None:
-            query = query.values(modal_sync_error=update_item.modal_sync_error)
 
         result = await session.execute(query)
         return self._voice_mapper.to_dto(result.scalar())

@@ -10,7 +10,11 @@ class IVoiceRepository(abc.ABC):
 
     @abc.abstractmethod
     async def add(
-        self, session: Any, create_item: CreateVoiceDTO, reference_s3_key: str
+        self,
+        session: Any,
+        create_item: CreateVoiceDTO,
+        reference_s3_key: str,
+        sample_s3_key: str,
     ) -> VoiceDTO: ...
 
     @abc.abstractmethod

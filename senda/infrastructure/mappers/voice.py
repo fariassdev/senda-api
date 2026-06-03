@@ -25,8 +25,6 @@ class VoiceModelMapper(IModelMapper[Voice, VoiceDTO]):
             else None,
             tts_provider=model.tts_provider,
             is_active=model.is_active,
-            is_synced_to_modal=model.is_synced_to_modal,
-            modal_sync_error=model.modal_sync_error,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
@@ -43,8 +41,6 @@ class VoiceModelMapper(IModelMapper[Voice, VoiceDTO]):
             sample_s3_key=dto.sample_s3_key,
             tts_provider=dto.tts_provider,
             is_active=dto.is_active,
-            is_synced_to_modal=dto.is_synced_to_modal,
-            modal_sync_error=dto.modal_sync_error,
             created_at=dto.created_at,
             updated_at=dto.updated_at,
         )
