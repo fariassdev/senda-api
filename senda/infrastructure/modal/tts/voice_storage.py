@@ -1,6 +1,7 @@
 import modal
 
 from .common import (
+    VOICE_CONDS_DIR,
     VOICE_PROMPTS_DIR,
     VOICE_VOLUME_MOUNT_DIR,
     DeleteVoiceRequest,
@@ -32,6 +33,11 @@ def sync_voice(request: SyncVoiceRequest) -> SyncVoiceResponse:
     with open(target_path, "wb") as f:
         f.write(wav_bytes)
 
+    # Delete existing precomputed conditionals to force recompute
+    pt_path = f"{VOICE_CONDS_DIR}/{request.voice_slug}.pt"
+    if os.path.exists(pt_path):
+        os.remove(pt_path)
+
     chatterbox_tts_voices_vol.commit()
     return SyncVoiceResponse(status="ok", path=target_path)
 
@@ -49,5 +55,11 @@ def delete_voice(request: DeleteVoiceRequest) -> DeleteVoiceResponse:
         raise FileNotFoundError(f"Voice not found: {target_path}")
 
     os.remove(target_path)
+
+    # Also delete precomputed conditionals if they exist
+    pt_path = f"{VOICE_CONDS_DIR}/{request.voice_slug}.pt"
+    if os.path.exists(pt_path):
+        os.remove(pt_path)
+
     chatterbox_tts_voices_vol.commit()
     return DeleteVoiceResponse(status="ok", deleted=target_path)
