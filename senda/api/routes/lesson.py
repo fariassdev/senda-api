@@ -247,20 +247,18 @@ async def generate_lesson_audio(
     session: DBSession,
     current_user: AdminUser,
     audio_service: IAudioGenerationService,
+    payload: SingleAudioGenerationRequest,
     lesson_id: int = Path(..., alias="id"),
-    payload: SingleAudioGenerationRequest | None = None,
 ) -> AudioGenerationResponse:
     """
     Generate audio for a specific lesson.
 
-    Optionally accepts audio configuration (voice, speed).
+    Requires ``audio_config.voice_id`` referencing an active catalog voice.
     """
-    # Convert audio config from request to DTO if provided
-    audio_config = None
-    if payload and payload.audio_config:
-        audio_config = AudioConfigDTO(
-            voice=payload.audio_config.voice, speed=payload.audio_config.speed
-        )
+    audio_config = AudioConfigDTO(
+        voice_id=payload.audio_config.voice_id,
+        speed=payload.audio_config.resolved_speed(),
+    )
 
     request = AudioGenerationRequestDTO(
         lesson_id=lesson_id, user_id=current_user.id, audio_config=audio_config
@@ -290,16 +288,14 @@ async def generate_course_audios(
     - If lesson_ids is []: generates nothing
     - If lesson_ids is [1, 2, 3]: generates only for those specific lessons
 
-    Optionally accepts audio configuration (voice, speed) applied to all lessons.
+    Requires ``audio_config.voice_id`` applied to all lessons in the batch.
 
     Returns successful generations and any errors that occurred.
     """
-    # Convert audio config from request to DTO if provided
-    audio_config = None
-    if payload.audio_config:
-        audio_config = AudioConfigDTO(
-            voice=payload.audio_config.voice, speed=payload.audio_config.speed
-        )
+    audio_config = AudioConfigDTO(
+        voice_id=payload.audio_config.voice_id,
+        speed=payload.audio_config.resolved_speed(),
+    )
 
     request = CourseAudioGenerationRequestDTO(
         user_id=current_user.id,

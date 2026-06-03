@@ -117,6 +117,20 @@ class UnsupportedVoiceTtsProviderException(BaseInternalException):
     _message = "Only the chatterbox provider is supported when creating catalog voices."
 
 
+class AudioVoiceRequiredException(BaseInternalException):
+    """Exception raised when audio generation is requested without a catalog voice."""
+
+    _status_code = 400
+    _message = "audio_config.voice_id is required to generate lesson audio."
+
+
+class VoiceNotActiveException(BaseInternalException):
+    """Exception raised when the selected catalog voice is inactive."""
+
+    _status_code = 400
+    _message = "The selected voice is not active."
+
+
 class EmailAlreadyTakenException(BaseInternalException):
     """Exception raised when email was found in database while registration."""
 

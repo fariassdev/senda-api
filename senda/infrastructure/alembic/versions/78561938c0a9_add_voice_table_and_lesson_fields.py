@@ -56,12 +56,6 @@ def upgrade() -> None:
     op.add_column(
         "lesson", sa.Column("voice_id", postgresql.UUID(as_uuid=True), nullable=True)
     )
-    op.add_column(
-        "lesson", sa.Column("voice_slug", sa.String(length=255), nullable=True)
-    )
-    op.add_column(
-        "lesson", sa.Column("audio_provider", sa.String(length=50), nullable=True)
-    )
     op.create_foreign_key(
         "fk_lesson_voice_id_voices", "lesson", "voices", ["voice_id"], ["id"]
     )
@@ -69,8 +63,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_constraint("fk_lesson_voice_id_voices", "lesson", type_="foreignkey")
-    op.drop_column("lesson", "audio_provider")
-    op.drop_column("lesson", "voice_slug")
     op.drop_column("lesson", "voice_id")
     op.drop_index("idx_voices_is_active", table_name="voices")
     op.drop_index("idx_voices_slug", table_name="voices")

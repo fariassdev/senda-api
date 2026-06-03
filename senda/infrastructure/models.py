@@ -118,12 +118,9 @@ class Lesson(Base):
     script_generated_at: Mapped[datetime] = mapped_column(nullable=True)
     audio_generated_at: Mapped[datetime] = mapped_column(nullable=True)
 
-    # Voice & Provider configuration
     voice_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("voices.id"), nullable=True
     )
-    voice_slug: Mapped[str | None] = mapped_column(nullable=True)
-    audio_provider: Mapped[str | None] = mapped_column(nullable=True)
 
     created_at: Mapped[datetime]
     updated_at: Mapped[datetime] = mapped_column(nullable=True)

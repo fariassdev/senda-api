@@ -23,8 +23,6 @@ class LessonModelMapper(IModelMapper[Lesson, LessonRecordDTO]):
             script_generated_at=model.script_generated_at,
             audio_generated_at=model.audio_generated_at,
             voice_id=model.voice_id,
-            voice_slug=model.voice_slug,
-            audio_provider=model.audio_provider,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
@@ -45,8 +43,6 @@ class LessonModelMapper(IModelMapper[Lesson, LessonRecordDTO]):
             script_generated_at=dto.script_generated_at,
             audio_generated_at=dto.audio_generated_at,
             voice_id=dto.voice_id,
-            voice_slug=dto.voice_slug,
-            audio_provider=dto.audio_provider,
             created_at=dto.created_at,
             updated_at=dto.updated_at,
         )

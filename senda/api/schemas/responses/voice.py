@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from senda.core.enums import TtsProvider
 from senda.core.utils.date import convert_datetime_to_realworld
 from senda.domain.dtos.voice import VoiceDTO
 
@@ -16,7 +17,7 @@ class VoiceData(BaseModel):
     gender: str
     reference_audio_url: str = Field(alias="referenceAudioUrl")
     sample_audio_url: str | None = Field(None, alias="sampleAudioUrl")
-    tts_provider: str = Field(alias="ttsProvider")
+    tts_provider: TtsProvider = Field(alias="ttsProvider")
     is_active: bool = Field(alias="isActive")
     created_at: datetime.datetime = Field(alias="createdAt")
     updated_at: datetime.datetime = Field(alias="updatedAt")

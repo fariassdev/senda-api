@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, insert, or_, select, update
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.functions import count
 
@@ -115,10 +115,6 @@ class LessonRepository(ILessonRepository):
             query = query.values(audio_generated_at=update_item.audio_generated_at)
         if update_item.voice_id is not None:
             query = query.values(voice_id=update_item.voice_id)
-        if update_item.voice_slug is not None:
-            query = query.values(voice_slug=update_item.voice_slug)
-        if update_item.audio_provider is not None:
-            query = query.values(audio_provider=update_item.audio_provider)
 
         lesson = await session.scalar(query)
         return self._lesson_mapper.to_dto(lesson)
@@ -138,13 +134,7 @@ class LessonRepository(ILessonRepository):
         # Return the updated lessons ordered by lesson_number
         return await self.list_by_course(session=session, course_id=course_id)
 
-    async def count_using_voice(
-        self, session: AsyncSession, voice_id: UUID, voice_slug: str
-    ) -> int:
-        query = (
-            select(count())
-            .select_from(Lesson)
-            .where(or_(Lesson.voice_id == voice_id, Lesson.voice_slug == voice_slug))
-        )
+    async def count_using_voice(self, session: AsyncSession, voice_id: UUID) -> int:
+        query = select(count()).select_from(Lesson).where(Lesson.voice_id == voice_id)
         result = await session.scalar(query)
         return int(result or 0)

@@ -5,20 +5,25 @@ Tests business logic without external API calls.
 
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from senda.core.enums import LessonStatus
+from senda.core.enums import LessonStatus, TtsProvider
 from senda.core.exceptions import (
     AudioGenerationException,
     AudioProviderException,
+    AudioVoiceRequiredException,
     CourseNotFoundException,
     InvalidLessonStateException,
     LessonNotFoundException,
     StorageProviderException,
+    VoiceNotActiveException,
+    VoiceNotFoundException,
 )
 from senda.domain.dtos.audio_generation import (
+    AudioConfigDTO,
     AudioGenerationRequestDTO,
     AudioGenerationResultDTO,
     BatchAudioGenerationResultDTO,
@@ -27,6 +32,7 @@ from senda.domain.dtos.audio_generation import (
 from senda.domain.dtos.course import CourseRecordDTO
 from senda.domain.dtos.lesson import LessonRecordDTO
 from senda.domain.dtos.script_generation import ScriptPartDTO
+from senda.domain.dtos.voice import GenderEnum, VoiceDTO
 from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.lesson import ILessonRepository
 from senda.domain.repositories.voice import IVoiceRepository
@@ -161,6 +167,33 @@ class TestAudioGenerationService:
         )
 
     @pytest.fixture
+    def kokoro_voice_id(self):
+        return uuid4()
+
+    @pytest.fixture
+    def kokoro_catalog_voice(self, kokoro_voice_id) -> VoiceDTO:
+        return VoiceDTO(
+            id=kokoro_voice_id,
+            name="Nicole",
+            slug="af_nicole",
+            description=None,
+            language="en",
+            gender=GenderEnum.FEMALE,
+            reference_s3_key="voices/reference/af_nicole.wav",
+            sample_s3_key="voices/samples/af_nicole.mp3",
+            reference_audio_url="https://example.com/ref.wav",
+            sample_audio_url="https://example.com/sample.mp3",
+            tts_provider=TtsProvider.KOKORO.value,
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+
+    @pytest.fixture
+    def audio_config(self, kokoro_voice_id) -> AudioConfigDTO:
+        return AudioConfigDTO(voice_id=kokoro_voice_id)
+
+    @pytest.fixture
     def sample_script_parts(self) -> list[ScriptPartDTO]:
         """Sample script parts"""
         from senda.core.enums import ScriptPartType
@@ -181,16 +214,23 @@ class TestAudioGenerationService:
         sample_course_record,
         mock_lesson_repo,
         mock_course_repo,
+        mock_voice_repo,
+        kokoro_catalog_voice,
+        audio_config,
         mock_audio_provider,
+        mock_chatterbox_provider,
         mock_storage_provider,
         mock_audio_processor,
     ):
         """Test successful audio generation for a lesson"""
-        request = AudioGenerationRequestDTO(lesson_id=1, user_id=1)
+        request = AudioGenerationRequestDTO(
+            lesson_id=1, user_id=1, audio_config=audio_config
+        )
 
         mock_lesson_repo.get_or_none = AsyncMock(return_value=sample_lesson_record)
         mock_course_repo.get_by_id = AsyncMock(return_value=sample_course_record)
         mock_lesson_repo.update = AsyncMock(return_value=sample_lesson_record)
+        mock_voice_repo.get_or_none = AsyncMock(return_value=kokoro_catalog_voice)
 
         result = await audio_service.generate_lesson_audio(
             session=mock_session, request=request
@@ -204,15 +244,126 @@ class TestAudioGenerationService:
 
         mock_audio_processor.combine_script_parts.assert_called_once()
         mock_storage_provider.upload_audio.assert_called_once()
+        mock_audio_provider.generate_speech.assert_called()
+        mock_chatterbox_provider.generate_speech.assert_not_called()
         # Two updates: 1) Set AUDIO_GENERATING, 2) Set AUDIO_COMPLETED with audio_url
         assert mock_lesson_repo.update.call_count == 2
 
     @pytest.mark.asyncio
+    async def test_generate_lesson_audio_uses_catalog_voice_provider(
+        self,
+        audio_service,
+        mock_session,
+        sample_lesson_record,
+        sample_course_record,
+        mock_lesson_repo,
+        mock_course_repo,
+        mock_voice_repo,
+        mock_chatterbox_provider,
+        mock_audio_provider,
+    ):
+        """audio_config.voice_id selects provider and slug from the voices catalog."""
+        voice_id = uuid4()
+        catalog_voice = VoiceDTO(
+            id=voice_id,
+            name="Lucy",
+            slug="Lucy",
+            description=None,
+            language="en",
+            gender=GenderEnum.FEMALE,
+            reference_s3_key="voices/reference/Lucy.wav",
+            sample_s3_key="voices/samples/Lucy.mp3",
+            reference_audio_url="https://example.com/ref.wav",
+            sample_audio_url="https://example.com/sample.mp3",
+            tts_provider=TtsProvider.CHATTERBOX.value,
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+
+        mock_lesson_repo.get_or_none = AsyncMock(return_value=sample_lesson_record)
+        mock_course_repo.get_by_id = AsyncMock(return_value=sample_course_record)
+        mock_lesson_repo.update = AsyncMock(return_value=sample_lesson_record)
+        mock_voice_repo.get_or_none = AsyncMock(return_value=catalog_voice)
+
+        await audio_service.generate_lesson_audio(
+            session=mock_session,
+            request=AudioGenerationRequestDTO(
+                lesson_id=1, user_id=1, audio_config=AudioConfigDTO(voice_id=voice_id)
+            ),
+        )
+
+        mock_chatterbox_provider.generate_speech.assert_called()
+        mock_audio_provider.generate_speech.assert_not_called()
+        mock_chatterbox_provider.generate_speech.assert_called_with(
+            text="Hello", voice="Lucy", speed=1.0
+        )
+
+    @pytest.mark.asyncio
+    async def test_generate_lesson_audio_requires_catalog_voice(
+        self,
+        audio_service,
+        mock_session,
+        sample_lesson_record,
+        sample_course_record,
+        mock_lesson_repo,
+        mock_course_repo,
+        mock_voice_repo,
+        audio_config,
+    ):
+        """Missing or unknown catalog voice fails before TTS."""
+        mock_lesson_repo.get_or_none = AsyncMock(return_value=sample_lesson_record)
+        mock_course_repo.get_by_id = AsyncMock(return_value=sample_course_record)
+        mock_voice_repo.get_or_none = AsyncMock(return_value=None)
+
+        with pytest.raises(VoiceNotFoundException):
+            await audio_service.generate_lesson_audio(
+                session=mock_session,
+                request=AudioGenerationRequestDTO(
+                    lesson_id=1, user_id=1, audio_config=audio_config
+                ),
+            )
+
+        mock_lesson_repo.update.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_generate_lesson_audio_rejects_inactive_voice(
+        self,
+        audio_service,
+        mock_session,
+        sample_lesson_record,
+        sample_course_record,
+        mock_lesson_repo,
+        mock_course_repo,
+        mock_voice_repo,
+        kokoro_catalog_voice,
+        audio_config,
+    ):
+        inactive_voice = VoiceDTO(
+            **{**kokoro_catalog_voice.__dict__, "is_active": False}
+        )
+        mock_lesson_repo.get_or_none = AsyncMock(return_value=sample_lesson_record)
+        mock_course_repo.get_by_id = AsyncMock(return_value=sample_course_record)
+        mock_voice_repo.get_or_none = AsyncMock(return_value=inactive_voice)
+
+        with pytest.raises(VoiceNotActiveException):
+            await audio_service.generate_lesson_audio(
+                session=mock_session,
+                request=AudioGenerationRequestDTO(
+                    lesson_id=1, user_id=1, audio_config=audio_config
+                ),
+            )
+
+        mock_lesson_repo.update.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_generate_lesson_audio_lesson_not_found(
-        self, audio_service, mock_session, mock_lesson_repo
+        self, audio_service, mock_session, mock_lesson_repo, audio_config
     ):
         """Test error when lesson does not exist"""
-        request = AudioGenerationRequestDTO(lesson_id=999, user_id=1)
+        request = AudioGenerationRequestDTO(
+            lesson_id=999, user_id=1, audio_config=audio_config
+        )
         mock_lesson_repo.get_or_none = AsyncMock(return_value=None)
 
         with pytest.raises(LessonNotFoundException):
@@ -222,10 +373,17 @@ class TestAudioGenerationService:
 
     @pytest.mark.asyncio
     async def test_generate_lesson_audio_invalid_state(
-        self, audio_service, mock_session, sample_lesson_record, mock_lesson_repo
+        self,
+        audio_service,
+        mock_session,
+        sample_lesson_record,
+        mock_lesson_repo,
+        audio_config,
     ):
         """Test error when lesson is not in SCRIPT_COMPLETED state"""
-        request = AudioGenerationRequestDTO(lesson_id=1, user_id=1)
+        request = AudioGenerationRequestDTO(
+            lesson_id=1, user_id=1, audio_config=audio_config
+        )
 
         pending_lesson = sample_lesson_record
         pending_lesson = LessonRecordDTO(
@@ -247,9 +405,12 @@ class TestAudioGenerationService:
         sample_lesson_record,
         mock_lesson_repo,
         mock_course_repo,
+        audio_config,
     ):
         """Test error when course does not exist"""
-        request = AudioGenerationRequestDTO(lesson_id=1, user_id=1)
+        request = AudioGenerationRequestDTO(
+            lesson_id=1, user_id=1, audio_config=audio_config
+        )
 
         mock_lesson_repo.get_or_none = AsyncMock(return_value=sample_lesson_record)
         mock_course_repo.get_by_id = AsyncMock(return_value=None)
@@ -268,9 +429,14 @@ class TestAudioGenerationService:
         sample_course_record,
         mock_lesson_repo,
         mock_course_repo,
+        mock_voice_repo,
+        kokoro_catalog_voice,
+        audio_config,
     ):
         """Test error when lesson has no script content"""
-        request = AudioGenerationRequestDTO(lesson_id=1, user_id=1)
+        request = AudioGenerationRequestDTO(
+            lesson_id=1, user_id=1, audio_config=audio_config
+        )
 
         empty_script_lesson = LessonRecordDTO(
             **{**sample_lesson_record.__dict__, "script": "[]"}
@@ -279,6 +445,7 @@ class TestAudioGenerationService:
         mock_lesson_repo.get_or_none = AsyncMock(return_value=empty_script_lesson)
         mock_course_repo.get_by_id = AsyncMock(return_value=sample_course_record)
         mock_lesson_repo.update = AsyncMock(return_value=empty_script_lesson)
+        mock_voice_repo.get_or_none = AsyncMock(return_value=kokoro_catalog_voice)
 
         with pytest.raises(AudioGenerationException) as exc_info:
             await audio_service.generate_lesson_audio(
@@ -287,7 +454,7 @@ class TestAudioGenerationService:
 
         assert "no script content" in str(exc_info.value).lower()
 
-        assert mock_lesson_repo.update.call_count == 3
+        mock_lesson_repo.update.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_generate_lesson_audio_provider_fails(
@@ -298,14 +465,20 @@ class TestAudioGenerationService:
         sample_course_record,
         mock_lesson_repo,
         mock_course_repo,
+        mock_voice_repo,
+        kokoro_catalog_voice,
+        audio_config,
         mock_audio_processor,
     ):
         """Test error handling when TTS provider fails"""
-        request = AudioGenerationRequestDTO(lesson_id=1, user_id=1)
+        request = AudioGenerationRequestDTO(
+            lesson_id=1, user_id=1, audio_config=audio_config
+        )
 
         mock_lesson_repo.get_or_none = AsyncMock(return_value=sample_lesson_record)
         mock_course_repo.get_by_id = AsyncMock(return_value=sample_course_record)
         mock_lesson_repo.update = AsyncMock(return_value=sample_lesson_record)
+        mock_voice_repo.get_or_none = AsyncMock(return_value=kokoro_catalog_voice)
 
         mock_audio_processor.combine_script_parts.side_effect = AudioProviderException(
             message="TTS service unavailable"
@@ -327,14 +500,20 @@ class TestAudioGenerationService:
         sample_course_record,
         mock_lesson_repo,
         mock_course_repo,
+        mock_voice_repo,
+        kokoro_catalog_voice,
+        audio_config,
         mock_storage_provider,
     ):
         """Test error handling when storage upload fails"""
-        request = AudioGenerationRequestDTO(lesson_id=1, user_id=1)
+        request = AudioGenerationRequestDTO(
+            lesson_id=1, user_id=1, audio_config=audio_config
+        )
 
         mock_lesson_repo.get_or_none = AsyncMock(return_value=sample_lesson_record)
         mock_course_repo.get_by_id = AsyncMock(return_value=sample_course_record)
         mock_lesson_repo.update = AsyncMock(return_value=sample_lesson_record)
+        mock_voice_repo.get_or_none = AsyncMock(return_value=kokoro_catalog_voice)
 
         mock_storage_provider.upload_audio.side_effect = StorageProviderException(
             message="S3 upload failed"
@@ -355,9 +534,12 @@ class TestAudioGenerationService:
         sample_course_record,
         mock_course_repo,
         mock_lesson_repo,
+        audio_config,
     ):
         """Test successful bulk audio generation for course"""
-        request = CourseAudioGenerationRequestDTO(user_id=1, slug="test-course")
+        request = CourseAudioGenerationRequestDTO(
+            user_id=1, slug="test-course", audio_config=audio_config
+        )
 
         lesson1 = LessonRecordDTO(
             id=1,
@@ -449,9 +631,12 @@ class TestAudioGenerationService:
         sample_course_record,
         mock_course_repo,
         mock_lesson_repo,
+        audio_config,
     ):
         """Test bulk generation when no lessons are ready"""
-        request = CourseAudioGenerationRequestDTO(user_id=1, slug="test-course")
+        request = CourseAudioGenerationRequestDTO(
+            user_id=1, slug="test-course", audio_config=audio_config
+        )
 
         pending_lesson = LessonRecordDTO(
             id=1,
@@ -491,9 +676,12 @@ class TestAudioGenerationService:
         sample_course_record,
         mock_course_repo,
         mock_lesson_repo,
+        audio_config,
     ):
         """Test that bulk generation continues even if individual lessons fail"""
-        request = CourseAudioGenerationRequestDTO(user_id=1, slug="test-course")
+        request = CourseAudioGenerationRequestDTO(
+            user_id=1, slug="test-course", audio_config=audio_config
+        )
 
         lesson1 = LessonRecordDTO(
             id=1,

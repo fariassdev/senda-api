@@ -134,7 +134,7 @@ class VoiceService(IVoiceService):
         voice = await self._voice_repo.get(session=session, voice_id=voice_id)
 
         lesson_count = await self._lesson_repo.count_using_voice(
-            session=session, voice_id=voice_id, voice_slug=voice.slug
+            session=session, voice_id=voice_id
         )
         if lesson_count > 0:
             raise VoiceInUseException()

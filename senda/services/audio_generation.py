@@ -15,6 +15,8 @@ from senda.core.exceptions import (
     InvalidLessonStateException,
     LessonNotFoundException,
     StorageProviderException,
+    VoiceNotActiveException,
+    VoiceNotFoundException,
 )
 from senda.domain.dtos.audio_generation import (
     AudioGenerationRequestDTO,
@@ -69,6 +71,8 @@ class AudioGenerationService(IAudioGenerationService):
         Raises:
             LessonNotFoundException: If lesson not found
             InvalidLessonStateException: If lesson not in SCRIPT_COMPLETED or AUDIO_COMPLETED state
+            VoiceNotFoundException: If catalog voice does not exist
+            VoiceNotActiveException: If catalog voice is inactive
             AudioProviderException: If TTS generation fails
             StorageProviderException: If storage upload fails
             AudioGenerationException: For other errors
@@ -76,95 +80,65 @@ class AudioGenerationService(IAudioGenerationService):
         logger.info(f"Starting audio generation for lesson {request.lesson_id}")
         start_time = time.time()
 
-        try:
-            lesson_record = await self._lesson_repo.get_or_none(
-                session=session, lesson_id=request.lesson_id
-            )
-            if not lesson_record:
-                raise LessonNotFoundException()
+        lesson_record = await self._lesson_repo.get_or_none(
+            session=session, lesson_id=request.lesson_id
+        )
+        if not lesson_record:
+            raise LessonNotFoundException()
 
-            if lesson_record.status not in [
-                LessonStatus.SCRIPT_COMPLETED,
-                LessonStatus.AUDIO_COMPLETED,
-            ]:
-                logger.warning(
-                    f"Lesson {request.lesson_id} not in SCRIPT_COMPLETED state: "
-                    f"{lesson_record.status}"
+        if lesson_record.status not in [
+            LessonStatus.SCRIPT_COMPLETED,
+            LessonStatus.AUDIO_COMPLETED,
+        ]:
+            logger.warning(
+                f"Lesson {request.lesson_id} not in SCRIPT_COMPLETED state: "
+                f"{lesson_record.status}"
+            )
+            raise InvalidLessonStateException()
+
+        course_record = await self._course_repo.get_by_id(
+            session=session, course_id=lesson_record.course_id
+        )
+        if not course_record:
+            raise CourseNotFoundException()
+
+        voice_id = request.audio_config.voice_id
+        speed = request.audio_config.speed
+
+        catalog_voice = await self._voice_repo.get_or_none(
+            session=session, voice_id=voice_id
+        )
+        if catalog_voice is None:
+            raise VoiceNotFoundException()
+        if not catalog_voice.is_active:
+            raise VoiceNotActiveException()
+
+        provider = self._audio_providers.get(catalog_voice.tts_provider)
+        if not provider:
+            raise AudioGenerationException(
+                message=(
+                    "No audio provider configured for provider type: "
+                    f"{catalog_voice.tts_provider}"
                 )
-                raise InvalidLessonStateException()
-
-            course_record = await self._course_repo.get_by_id(
-                session=session, course_id=lesson_record.course_id
             )
-            if not course_record:
-                raise CourseNotFoundException()
+        voice_name = catalog_voice.slug
 
+        script_parts = LessonScript.deserialize(lesson_record.script)
+        if not script_parts:
+            logger.error(f"Lesson {request.lesson_id} has no script parts")
+            raise AudioGenerationException(message="Lesson has no script content")
+
+        try:
             await self._lesson_repo.update(
                 session=session,
                 lesson_id=request.lesson_id,
                 update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_GENERATING),
             )
 
-            script_parts = LessonScript.deserialize(lesson_record.script)
-
-            if not script_parts:
-                logger.error(f"Lesson {request.lesson_id} has no script parts")
-                await self._lesson_repo.update(
-                    session=session,
-                    lesson_id=request.lesson_id,
-                    update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_FAILED),
-                )
-                raise AudioGenerationException(message="Lesson has no script content")
-
             logger.info(
                 f"Processing {len(script_parts)} script parts for lesson {request.lesson_id}"
             )
 
-            # Determine which voice and provider to use
-            voice_slug = None
-            speed = 1.0
-            if request.audio_config:
-                voice_slug = request.audio_config.voice
-                speed = request.audio_config.speed
-
-            if not voice_slug:
-                voice_slug = lesson_record.voice_slug
-
-            # Fetch the voice from repository if it exists
-            db_voice = None
-            if voice_slug:
-                db_voice = await self._voice_repo.get_by_slug_or_none(
-                    session=session, slug=voice_slug
-                )
-
-            # Determine provider and voice argument
-            if db_voice:
-                provider_type = db_voice.tts_provider
-                provider = self._audio_providers.get(
-                    provider_type
-                ) or self._audio_providers.get("kokoro")
-                voice_name = (
-                    voice_slug
-                    if provider_type == "chatterbox"
-                    else (voice_slug or "af_nicole")
-                )
-            elif voice_slug in ["Lucy", "Michael", "Emily"]:
-                provider_type = "chatterbox"
-                provider = self._audio_providers.get(
-                    "chatterbox"
-                ) or self._audio_providers.get("kokoro")
-                voice_name = voice_slug
-            else:
-                provider_type = "kokoro"
-                provider = self._audio_providers.get("kokoro")
-                voice_name = voice_slug or "af_nicole"
-
-            if not provider:
-                raise AudioGenerationException(
-                    message=f"No audio provider configured for provider type: {provider_type}"
-                )
-
-            # Create a semaphore to limit concurrent TTS requests per lesson
             semaphore = asyncio.Semaphore(self._max_concurrent_tts)
 
             async def generate_speech_with_semaphore(
@@ -177,7 +151,6 @@ class AudioGenerationService(IAudioGenerationService):
                     )
                     return idx, pcm_bytes
 
-            # Find all parts that need speech generation
             speak_tasks = []
             for idx, part in enumerate(script_parts):
                 if (
@@ -189,13 +162,11 @@ class AudioGenerationService(IAudioGenerationService):
                         generate_speech_with_semaphore(idx, part.content)
                     )
 
-            # Generate all speech parts in parallel
             logger.info(
                 f"Generating TTS for {len(speak_tasks)} speak parts in parallel"
             )
             tts_results = await asyncio.gather(*speak_tasks)
 
-            # Build a map of index -> speech_bytes
             speech_data: dict[int, bytes] = {
                 idx: pcm_bytes
                 for idx, pcm_bytes in tts_results
@@ -222,9 +193,7 @@ class AudioGenerationService(IAudioGenerationService):
                     audio_url=audio_url,
                     audio_generated_at=datetime.now(),
                     status=LessonStatus.AUDIO_COMPLETED,
-                    voice_id=db_voice.id if db_voice else None,
-                    voice_slug=voice_slug,
-                    audio_provider=provider_type,
+                    voice_id=voice_id,
                 ),
             )
 
@@ -241,13 +210,7 @@ class AudioGenerationService(IAudioGenerationService):
                 file_size_bytes=file_size,
             )
 
-        except (
-            LessonNotFoundException,
-            CourseNotFoundException,
-            InvalidLessonStateException,
-            AudioProviderException,
-            StorageProviderException,
-        ):
+        except (AudioProviderException, StorageProviderException):
             await self._lesson_repo.update(
                 session=session,
                 lesson_id=request.lesson_id,
@@ -264,6 +227,8 @@ class AudioGenerationService(IAudioGenerationService):
                 lesson_id=request.lesson_id,
                 update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_FAILED),
             )
+            if isinstance(e, AudioGenerationException):
+                raise
             raise AudioGenerationException(
                 message=f"Audio generation failed: {str(e)}"
             ) from e

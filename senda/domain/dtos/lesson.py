@@ -26,8 +26,6 @@ class LessonRecordDTO:
     created_at: datetime.datetime
     updated_at: datetime.datetime
     voice_id: UUID | None = None
-    voice_slug: str | None = None
-    audio_provider: str | None = None
 
 
 @dataclass(frozen=True)
@@ -50,8 +48,6 @@ class LessonDTO:
     created_at: datetime.datetime
     updated_at: datetime.datetime
     voice_id: UUID | None = None
-    voice_slug: str | None = None
-    audio_provider: str | None = None
 
 
 @dataclass(frozen=True)
@@ -89,8 +85,6 @@ class UpdateLessonDTO:
     script_generated_at: datetime.datetime | None = None
     audio_generated_at: datetime.datetime | None = None
     voice_id: UUID | None = None
-    voice_slug: str | None = None
-    audio_provider: str | None = None
 
 
 @dataclass(frozen=True)
