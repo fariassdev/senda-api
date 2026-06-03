@@ -61,34 +61,13 @@ modal run senda.infrastructure.modal.tts.main::download_model --repo-id "Resembl
 
 This runs a one-time utility function on Modal using a lightweight container image that fetches the weights from Hugging Face and commits them to the volume cache.
 
-### Step 2b: Sync Voices to Database and S3 (After uploading)
+### Step 2b: Register voices in the catalog (admin API)
 
-Once your voice samples are in the Modal volume, synchronize them to the Senda database and S3 storage.
+After reference WAVs are available locally (for example from the Chatterbox demo zip), register each voice through **`POST /voices`** as an administrator. The API runs Modal sync, sample generation, S3 uploads, and the database insert in one atomic flow—no separate bulk sync script.
 
-**First, add your Modal credentials to `.env` (use standard access tokens starting with `ak-`/`as-`):**
+Use the CMS voice management UI or call the API directly with multipart form data (`reference_wav` file plus voice metadata). Repeat per voice slug you want in the catalog.
 
-```bash
-MODAL_TOKEN_ID=ak-xxxxxxxxxxxx
-MODAL_TOKEN_SECRET=as-xxxxxxxxxxxx
-```
-
-**Then run the sync:**
-
-```bash
-# Sync all voices from Modal volume
-make sync-voices
-
-# Sync only voices matching a pattern
-make sync-voices FILTER=aaron
-```
-
-This step:
-- Downloads each voice from Modal volume
-- Creates a `Voice` record in the database
-- Uploads the reference WAV to S3 (`voices/reference/{slug}.wav`)
-- Generates and uploads a sample (`voices/samples/{slug}_sample.mp3`)
-
-For detailed instructions and troubleshooting, see [Voice Sync Guide](./VOICE_SYNC_GUIDE.md).
+Ensure `.env` includes Modal and S3 credentials used by the API (`MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`, `MODAL_TTS_ENDPOINT`, `MODAL_SYNC_VOICE_ENDPOINT`, AWS settings).
 
 ### Step 3: Create Hugging Face Secret
 

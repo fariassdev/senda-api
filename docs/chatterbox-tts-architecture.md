@@ -405,7 +405,7 @@ All TTS endpoints (`/synthesize`, `/sync_voice`, `/delete_voice`) require Modal 
 6. **API calls `/sync_voice` on Modal** to copy reference to Modal volume
 7. **API generates sample audio** using the new voice (fixed test text)
 8. **API uploads sample MP3** to `voices/samples/{slug}_sample.mp3` in S3
-9. **API creates Voice record** in database with sync status = true
+9. **API creates Voice record** in database (only if all prior steps succeed)
 10. **Voice appears in CMS catalog**, sample is playable
 
 ### Serving Audio to End Users
@@ -473,13 +473,12 @@ The Senda API can scale independently:
 
 ## 12. Error Handling & Recovery
 
-### Voice Sync Failures
+### Voice creation failures
 
-If a voice cannot be synced to Modal:
-- Error stored in `modal_sync_error` field
-- Voice marked `is_synced_to_modal = false`
-- Retry mechanism available (manual or automated)
-- Editorial workflow blocked (can't use unsync'd voice)
+If `POST /voices` fails during Modal sync, TTS, or S3 upload:
+- No catalog row is created (slug remains available for retry)
+- API returns an error to the CMS (typically `502` for provider failures, `409` if slug exists)
+- Admin retries the same request; Modal and S3 keys for that slug are overwritten idempotently
 
 ### Generation Failures
 
