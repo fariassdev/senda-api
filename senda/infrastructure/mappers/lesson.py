@@ -7,8 +7,7 @@ from senda.infrastructure.models import Lesson
 
 
 class LessonModelMapper(IModelMapper[Lesson, LessonRecordDTO]):
-    @staticmethod
-    def to_dto(model: Lesson) -> LessonRecordDTO:
+    def to_dto(self, model: Lesson) -> LessonRecordDTO:
         dto = LessonRecordDTO(
             id=model.id,
             course_id=model.course_id,
@@ -31,8 +30,7 @@ class LessonModelMapper(IModelMapper[Lesson, LessonRecordDTO]):
         )
         return dto
 
-    @staticmethod
-    def from_dto(dto: LessonRecordDTO) -> Lesson:
+    def from_dto(self, dto: LessonRecordDTO) -> Lesson:
         model = Lesson(
             course_id=dto.course_id,
             lesson_number=dto.lesson_number,

@@ -117,9 +117,9 @@ class Container:
     def lesson_model_mapper() -> IModelMapper:
         return LessonModelMapper()
 
-    @staticmethod
-    def voice_model_mapper() -> IModelMapper:
-        return VoiceModelMapper()
+    def voice_model_mapper(self) -> IModelMapper:
+        base_url = f"https://{self._settings.aws_s3_bucket}.s3.amazonaws.com"
+        return VoiceModelMapper(base_url=base_url)
 
     def user_repository(self) -> IUserRepository:
         return UserRepository(user_mapper=self.user_model_mapper())

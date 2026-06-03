@@ -22,6 +22,8 @@ class VoiceDTO:
     gender: GenderEnum
     reference_s3_key: str
     sample_s3_key: str | None
+    reference_audio_url: str
+    sample_audio_url: str | None
     tts_provider: str
 
     is_active: bool

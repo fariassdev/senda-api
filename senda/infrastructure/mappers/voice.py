@@ -6,8 +6,10 @@ from senda.infrastructure.models import Voice
 class VoiceModelMapper(IModelMapper[Voice, VoiceDTO]):
     """Mapper for Voice model."""
 
-    @staticmethod
-    def to_dto(model: Voice) -> VoiceDTO:
+    def __init__(self, base_url: str) -> None:
+        self._base_url = base_url
+
+    def to_dto(self, model: Voice) -> VoiceDTO:
         return VoiceDTO(
             id=model.id,
             name=model.name,
@@ -17,6 +19,10 @@ class VoiceModelMapper(IModelMapper[Voice, VoiceDTO]):
             gender=GenderEnum(model.gender),
             reference_s3_key=model.reference_s3_key,
             sample_s3_key=model.sample_s3_key,
+            reference_audio_url=f"{self._base_url}/{model.reference_s3_key}",
+            sample_audio_url=f"{self._base_url}/{model.sample_s3_key}"
+            if model.sample_s3_key
+            else None,
             tts_provider=model.tts_provider,
             is_active=model.is_active,
             is_synced_to_modal=model.is_synced_to_modal,
@@ -25,8 +31,7 @@ class VoiceModelMapper(IModelMapper[Voice, VoiceDTO]):
             updated_at=model.updated_at,
         )
 
-    @staticmethod
-    def from_dto(dto: VoiceDTO) -> Voice:
+    def from_dto(self, dto: VoiceDTO) -> Voice:
         model = Voice(
             id=dto.id,
             name=dto.name,

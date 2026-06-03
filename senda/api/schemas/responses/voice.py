@@ -14,8 +14,8 @@ class VoiceData(BaseModel):
     description: str | None = None
     language: str
     gender: str
-    reference_s3_key: str = Field(alias="referenceS3Key")
-    sample_s3_key: str | None = Field(None, alias="sampleS3Key")
+    reference_audio_url: str = Field(alias="referenceAudioUrl")
+    sample_audio_url: str | None = Field(None, alias="sampleAudioUrl")
     tts_provider: str = Field(alias="ttsProvider")
     is_active: bool = Field(alias="isActive")
     is_synced_to_modal: bool = Field(alias="isSyncedToModal")
@@ -40,8 +40,8 @@ class VoiceResponse(BaseModel):
             description=dto.description,
             language=dto.language,
             gender=dto.gender.value,
-            referenceS3Key=dto.reference_s3_key,
-            sampleS3Key=dto.sample_s3_key,
+            referenceAudioUrl=dto.reference_audio_url,
+            sampleAudioUrl=dto.sample_audio_url,
             ttsProvider=dto.tts_provider,
             isActive=dto.is_active,
             isSyncedToModal=dto.is_synced_to_modal,
