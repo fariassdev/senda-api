@@ -47,6 +47,7 @@ flowchart TD
         s3_samples["S3: Samples<br/>voices/samples/"]
         s3_audio["S3: Final Audio<br/>sessions/"]
         modal_vol["Modal Volume<br/>Voice Catalog"]
+        modal_weights["Modal Volume<br/>Model Weights Cache"]
     end
 
     subgraph app["End User"]
@@ -65,6 +66,7 @@ flowchart TD
     voice_mgmt -->|Generate Sample| s3_samples
 
     chatterbox -->|Read Voices| modal_vol
+    chatterbox -->|Load weights from cache| modal_weights
     kokoro -->|Optional| api_server
 
     api_server -->|Get Voice Params| voice_mgmt
@@ -426,7 +428,7 @@ Modal automatically handles scaling through:
 
 - **Concurrent Inputs**: Up to 10 concurrent requests per container (configurable)
 - **Auto-Scaling**: Additional containers spin up when concurrency limits are hit
-- **Cold Start**: Negligible (~1-2 seconds) due to container warm pooling
+- **Cold Start**: Kept low (~1-2 seconds) by caching the ~2GB model weights in the `chatterbox-tts-weights` Modal Volume, eliminating the download overhead on fresh container startups.
 - **GPU Allocation**: A10G GPUs automatically assigned and released per request
 
 ### API Scaling

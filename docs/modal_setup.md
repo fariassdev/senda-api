@@ -45,6 +45,19 @@ modal volume put chatterbox-tts-voices chatterbox-tts-voices/prompts /chatterbox
 
 The volume will be mounted at `/chatterbox-tts/prompts` inside containers at runtime.
 
+### Step 2c: Pre-populate Model Weights Volume (Recommended)
+
+To avoid downloading the ~2GB Chatterbox Turbo model weights from Hugging Face on every container startup/cold-start, Senda uses a dedicated cache volume named `chatterbox-tts-weights`.
+
+Although it is automatically created on deployment if missing, you should pre-populate it to avoid a very slow first generation:
+
+```bash
+# Download and cache model weights into the volume
+modal run senda.infrastructure.modal.tts.main::download_model
+```
+
+This runs a one-time utility function on Modal that fetches the weights from Hugging Face and commits them to the volume cache.
+
 ### Step 2b: Sync Voices to Database and S3 (After uploading)
 
 Once your voice samples are in the Modal volume, synchronize them to the Senda database and S3 storage.
@@ -247,6 +260,7 @@ All endpoints require `requires_proxy_auth=True` and valid Modal credentials.
 |---------|-------|----------|
 | `Secret not found` | HF token secret not created | Create with `python3 -m modal secret create hf-token --env HF_TOKEN="..."` |
 | `Volume not found` | Volume doesn't exist | Create with `python3 -m modal volume create chatterbox-tts-voices` |
+| `Slow first startup` | Weights volume not pre-populated | Run `modal run senda.infrastructure.modal.tts.main::download_model` to pre-cache weights |
 | `CUDA out of memory` | Model too large for GPU | Increase GPU tier or reduce concurrent requests |
 | `Timeout on requests` | Generation takes >600s | Increase timeout in `chatterbox.py` or reduce text length |
 | `401 Unauthorized` | Invalid Modal token credentials | Verify `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`, `MODAL_PROXY_AUTH_TOKEN_ID`, and `MODAL_PROXY_AUTH_TOKEN_SECRET` in `.env` |

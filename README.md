@@ -148,6 +148,7 @@ Senda supports **two TTS engines** for maximum flexibility:
 - **Voice customization** with tunable parameters (exaggeration, temperature, etc.)
 - **Serverless deployment** with automatic scaling and no infrastructure overhead
 - **Managed voice catalog** with voice samples and reference files
+- **Optimized cold start** via model weights pre-caching in a dedicated Modal Volume (`chatterbox-tts-weights`)
 
 ### Kokoro TTS (Fallback) — CPU-Based
 

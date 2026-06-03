@@ -2,12 +2,14 @@ import modal
 from fastapi.responses import StreamingResponse
 
 from .common import (
+    MODEL_DIR,
     VOICE_CONDS_DIR,
     VOICE_PROMPTS_DIR,
     VOICE_VOLUME_MOUNT_DIR,
     TTSRequest,
     app,
     chatterbox_tts_voices_vol,
+    chatterbox_tts_weights_vol,
     tts_image,
 )
 
@@ -15,7 +17,6 @@ with tts_image.imports():
     import io
     import os
 
-    import torch
     import torchaudio as ta
     from chatterbox.tts_turbo import ChatterboxTurboTTS, Conditionals
     from fastapi.responses import StreamingResponse
@@ -26,7 +27,10 @@ with tts_image.imports():
     gpu="T4",
     scaledown_window=60 * 5,
     secrets=[modal.Secret.from_name("hf-token")],
-    volumes={VOICE_VOLUME_MOUNT_DIR: chatterbox_tts_voices_vol},
+    volumes={
+        VOICE_VOLUME_MOUNT_DIR: chatterbox_tts_voices_vol,
+        MODEL_DIR: chatterbox_tts_weights_vol,
+    },
     retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=1.0),
 )
 @modal.concurrent(max_inputs=10)
@@ -91,3 +95,21 @@ class Chatterbox:
         ta.save(buffer, wav.cpu(), self.model.sr, format="wav")
         buffer.seek(0)
         return buffer.read()
+
+
+@app.function(
+    image=tts_image,
+    volumes={MODEL_DIR: chatterbox_tts_weights_vol},
+    secrets=[modal.Secret.from_name("hf-token")],
+    timeout=1800,
+)
+def download_model() -> None:
+    """Download the model weights from HF Hub to the mounted cache Volume and commit."""
+    from huggingface_hub import snapshot_download
+
+    print("Downloading ResembleAI/chatterbox-turbo weights to volume cache...")
+    snapshot_download(repo_id="ResembleAI/chatterbox-turbo")
+
+    print("Committing weights volume...")
+    chatterbox_tts_weights_vol.commit()
+    print("Model weights cached successfully!")
