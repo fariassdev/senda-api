@@ -110,6 +110,13 @@ class VoiceInUseException(BaseInternalException):
     _message = "This voice is in use by one or more lessons and cannot be deleted."
 
 
+class UnsupportedVoiceTtsProviderException(BaseInternalException):
+    """Exception raised when POST /voices requests an unsupported tts_provider."""
+
+    _status_code = 400
+    _message = "Only the chatterbox provider is supported when creating catalog voices."
+
+
 class EmailAlreadyTakenException(BaseInternalException):
     """Exception raised when email was found in database while registration."""
 

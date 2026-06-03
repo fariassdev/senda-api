@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import Form
 from pydantic import BaseModel, Field
 
@@ -9,7 +11,7 @@ class CreateVoiceData(BaseModel):
     slug: str = Field(..., min_length=1)
     gender: str = Field(...)  # 'female' | 'male' | 'neutral'
     language: str = Field(default="es")
-    tts_provider: str = Field(default="chatterbox")
+    tts_provider: Literal["chatterbox"] = Field(default="chatterbox")
     description: str | None = Field(default=None)
 
 
@@ -33,7 +35,7 @@ class CreateVoiceRequest(BaseModel):
         slug: str = Form(...),
         gender: str = Form(...),
         language: str = Form("es"),
-        tts_provider: str = Form("chatterbox"),
+        tts_provider: Literal["chatterbox"] = Form("chatterbox"),
         description: str | None = Form(None),
     ) -> "CreateVoiceRequest":
         return cls(

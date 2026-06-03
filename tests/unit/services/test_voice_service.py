@@ -9,6 +9,7 @@ import pytest
 from senda.core.enums import UserRole
 from senda.core.exceptions import (
     AudioProviderException,
+    UnsupportedVoiceTtsProviderException,
     VoiceInUseException,
     VoiceNotFoundException,
     VoiceSlugAlreadyExistsException,
@@ -223,6 +224,35 @@ class TestVoiceServiceCreate:
             await voice_service.create_voice(
                 session=Mock(),
                 create_item=create_dto,
+                reference_wav=b"wav",
+                current_user=admin_user,
+            )
+
+        mock_chatterbox.sync_voice_to_volume.assert_not_called()
+        mock_voice_repo.add.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_create_rejects_non_chatterbox_tts_provider(
+        self,
+        voice_service: VoiceService,
+        mock_voice_repo: Mock,
+        mock_chatterbox: AsyncMock,
+        create_dto: CreateVoiceDTO,
+        admin_user: UserDTO,
+    ) -> None:
+        kokoro_dto = CreateVoiceDTO(
+            name=create_dto.name,
+            slug=create_dto.slug,
+            description=create_dto.description,
+            language=create_dto.language,
+            gender=create_dto.gender,
+            tts_provider="kokoro",
+        )
+
+        with pytest.raises(UnsupportedVoiceTtsProviderException):
+            await voice_service.create_voice(
+                session=Mock(),
+                create_item=kokoro_dto,
                 reference_wav=b"wav",
                 current_user=admin_user,
             )

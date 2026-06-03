@@ -26,7 +26,8 @@ async def create_voice(
     **On failure:** No catalog row is created. Modal/S3 may hold data keyed by ``slug``;
     retries with the same slug overwrite those objects (see ``voice_provisioning`` module).
 
-    **Errors:** ``409`` if the slug already exists; ``502`` if Modal or S3 fails.
+    **Errors:** ``400`` if ``tts_provider`` is not ``chatterbox``; ``409`` if the slug
+    already exists; ``502`` if Modal or S3 fails.
     """
     wav_bytes = await reference_wav.read()
 

@@ -2,9 +2,10 @@ import logging
 from typing import Any
 from uuid import UUID
 
-from senda.core.enums import UserRole
+from senda.core.enums import TtsProvider, UserRole
 from senda.core.exceptions import (
     InsufficientPermissionsException,
+    UnsupportedVoiceTtsProviderException,
     VoiceInUseException,
     VoiceSlugAlreadyExistsException,
 )
@@ -59,6 +60,9 @@ class VoiceService(IVoiceService):
             session=session, slug=create_item.slug
         ):
             raise VoiceSlugAlreadyExistsException()
+
+        if create_item.tts_provider != TtsProvider.CHATTERBOX.value:
+            raise UnsupportedVoiceTtsProviderException()
 
         logger.info(
             f"Creating new voice '{create_item.name}' (slug: {create_item.slug})"
