@@ -214,8 +214,7 @@ async def sync_voice(
     session: AsyncSession,
     voice_slug: str,
     reference_wav: bytes,
-    modal_token_id: str,
-    modal_token_secret: str,
+    force: bool = False,
 ) -> bool:
     """Synchronize a single voice from Modal to database and S3.
 
@@ -224,8 +223,7 @@ async def sync_voice(
         session: Database session
         voice_slug: Voice slug/identifier
         reference_wav: Voice audio bytes
-        modal_token_id: Modal API token ID
-        modal_token_secret: Modal API token secret
+        force: Whether to force sync/regeneration for existing voices
 
     Returns:
         True if successful, False otherwise
@@ -238,19 +236,9 @@ async def sync_voice(
         existing = await session.execute(stmt)
         existing_voice = existing.scalar_one_or_none()
 
-        if existing_voice:
+        if existing_voice and not force:
             logger.info(f"Voice {voice_slug} already exists in database, skipping...")
             return True
-
-        # Create voice DTO with minimal info
-        create_dto = CreateVoiceDTO(
-            name=voice_slug.title(),  # "custom_voice" -> "Custom_voice"
-            slug=voice_slug,
-            description=f"Voice synced from Modal: {voice_slug}",
-            language="en",
-            gender=GenderEnum.NEUTRAL,  # Will be refined manually
-            tts_provider="chatterbox",
-        )
 
         # Step 1: Upload reference WAV to S3
         storage_provider = container.storage_provider()
@@ -261,18 +249,40 @@ async def sync_voice(
             file_data=reference_wav, key=reference_s3_key, content_type="audio/wav"
         )
 
-        # Step 2: Create Voice record in database
+        # Step 2: Create or retrieve Voice record
         voice_repo = container.voice_repository()
-        voice_dto = await voice_repo.add(
-            session=session, create_item=create_dto, reference_s3_key=reference_s3_key
-        )
-        logger.info(f"Created Voice record in database: {voice_dto.id}")
+        voice_dto: Any
+        if existing_voice:
+            logger.info(f"Voice {voice_slug} already exists, forcing resync...")
+
+            # We mock a simple container for the existing voice id & name
+            class VoiceInfo:
+                def __init__(self, voice_id: Any, name: str):
+                    self.id = voice_id
+                    self.name = name
+
+            voice_dto = VoiceInfo(existing_voice.id, existing_voice.name)
+        else:
+            create_dto = CreateVoiceDTO(
+                name=voice_slug.title(),  # "custom_voice" -> "Custom_voice"
+                slug=voice_slug,
+                description=f"Voice synced from Modal: {voice_slug}",
+                language="en",
+                gender=GenderEnum.NEUTRAL,  # Will be refined manually
+                tts_provider="chatterbox",
+            )
+            voice_dto = await voice_repo.add(
+                session=session,
+                create_item=create_dto,
+                reference_s3_key=reference_s3_key,
+            )
+            logger.info(f"Created Voice record in database: {voice_dto.id}")
 
         # Step 3: Generate sample
         try:
             chatterbox_provider = container.chatterbox_provider()
             preview_text = (
-                f"Hello, I am {create_dto.name}. Take a deep breath, relax, "
+                f"Hello, I am {voice_dto.name}. Take a deep breath, relax, "
                 f"and let me guide you on your journey to mindfulness with Senda."
             )
 
@@ -319,7 +329,10 @@ async def sync_voice(
 
 
 async def main(
-    modal_token_id: str, modal_token_secret: str, voice_filter: str | None = None
+    modal_token_id: str,
+    modal_token_secret: str,
+    voice_filter: str | None = None,
+    force: bool = False,
 ) -> None:
     """Main sync function.
 
@@ -327,6 +340,7 @@ async def main(
         modal_token_id: Modal API token ID
         modal_token_secret: Modal API token secret
         voice_filter: Optional filter to sync only voices matching this pattern
+        force: Whether to force sync/regeneration for existing voices
     """
     logger.info("=== Modal Voice Sync Started ===")
 
@@ -364,12 +378,7 @@ async def main(
 
                 # Sync to database and S3
                 success = await sync_voice(
-                    container,
-                    session,
-                    voice_slug,
-                    reference_wav,
-                    modal_token_id,
-                    modal_token_secret,
+                    container, session, voice_slug, reference_wav, force=force
                 )
 
                 if success:
@@ -407,6 +416,11 @@ def main_cli() -> None:
     parser.add_argument(
         "--filter", help="Optional filter to sync only voices matching this pattern"
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force synchronization and regeneration of samples for existing voices",
+    )
 
     args = parser.parse_args()
 
@@ -423,6 +437,7 @@ def main_cli() -> None:
                 modal_token_id=args.modal_token_id,
                 modal_token_secret=args.modal_token_secret,
                 voice_filter=args.filter,
+                force=args.force,
             )
         )
     except KeyboardInterrupt:
