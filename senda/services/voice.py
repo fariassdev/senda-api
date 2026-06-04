@@ -16,7 +16,10 @@ from senda.domain.services.audio_generation import IStorageProvider
 from senda.domain.services.voice import IVoiceService
 from senda.domain.services.voice_asset_provisioning import IVoiceAssetProvisioner
 from senda.infrastructure.utils.audio_processor import AudioProcessor
-from senda.services.voice_provisioning import provision_voice_assets
+from senda.services.voice_provisioning import (
+    deprovision_voice_assets,
+    provision_voice_assets,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -131,9 +134,8 @@ class VoiceService(IVoiceService):
     ) -> None:
         """Delete catalog voice and its remote/S3 artifacts.
 
-        Order: remote provider assets → S3 reference/sample → DB row. This is not a
-        distributed transaction; if a step fails after earlier ones succeeded, remote
-        or S3 state may be partially removed while the catalog row remains.
+        See :mod:`senda.services.voice_provisioning` for pipeline order and retry
+        semantics when remote or S3 steps fail before the DB row is removed.
         """
         voice = await self._voice_repo.get(session=session, voice_id=voice_id)
 
@@ -145,12 +147,13 @@ class VoiceService(IVoiceService):
 
         logger.info(f"Deleting voice '{voice.slug}' ({voice_id})")
 
-        if provisioner := self._optional_provisioner(voice.tts_provider):
-            await provisioner.delete_remote_assets(voice.slug)
-
-        await self._storage_provider.delete_file(voice.reference_s3_key)
-        if voice.sample_s3_key:
-            await self._storage_provider.delete_file(voice.sample_s3_key)
+        await deprovision_voice_assets(
+            voice_slug=voice.slug,
+            reference_s3_key=voice.reference_s3_key,
+            sample_s3_key=voice.sample_s3_key,
+            voice_asset_provisioner=self._optional_provisioner(voice.tts_provider),
+            storage_provider=self._storage_provider,
+        )
 
         await self._voice_repo.delete(session=session, voice_id=voice_id)
 

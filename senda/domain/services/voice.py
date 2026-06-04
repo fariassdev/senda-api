@@ -50,12 +50,15 @@ class IVoiceService(abc.ABC):
     async def delete_voice(
         self, session: Any, voice_id: UUID, current_user: UserDTO
     ) -> None:
-        """Remove a voice from Modal, S3, and the catalog.
+        """Remove a voice from remote storage, S3, and the catalog.
 
         Raises:
             VoiceNotFoundException: Voice id not found (404).
             VoiceInUseException: One or more lessons reference this voice (409).
-            AudioProviderException: Modal deletion failed (502).
+            AudioProviderException: Remote deletion failed (502).
             StorageProviderException: S3 deletion failed (502).
+
+        See :mod:`senda.services.voice_provisioning` for pipeline order and idempotent
+        retry semantics when remote or S3 steps fail before the DB row is removed.
         """
         ...

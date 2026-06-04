@@ -1,33 +1,37 @@
-"""External asset provisioning for ``POST /voices``.
+"""External asset provisioning for voice catalog lifecycle.
 
-Creation pipeline (strict order)
---------------------------------
-1. **Modal volume sync** — write ``{slug}.wav`` to the Chatterbox prompts volume.
+Creation pipeline (``POST /voices``)
+------------------------------------
+1. **Remote sync** — write reference WAV to the provider store (e.g. Modal volume).
 2. **TTS sample** — synthesize the catalog preview (requires step 1).
 3. **S3 reference upload** — ``voices/reference/{slug}.wav``
-4. **S3 sample upload** — ``voices/samples/{slug}_sample.mp3``
+4. **S3 sample upload** — ``voices/samples/{slug}.mp3``
 
 The database ``INSERT`` is intentionally **last** (in :class:`VoiceService`) so a voice
-catalog row exists only when Modal, TTS, and S3 are all in a good state.
+catalog row exists only when remote, TTS, and S3 are all in a good state.
 
-Why Modal runs before S3
-------------------------
-Step 2 calls the remote synthesize endpoint, which reads the reference from Modal.
-Syncing Modal first keeps a single linear flow without staging the WAV only in S3.
+Deletion pipeline (``DELETE /voices/{voice_id}``)
+---------------------------------------------------
+1. **Remote delete** — remove provider-specific assets (skipped when no provisioner).
+2. **S3 reference delete** — ``voices/reference/{slug}.wav``
+3. **S3 sample delete** — ``voices/samples/{slug}.mp3`` (when present)
+4. **Database delete** — catalog row (in :class:`VoiceService`)
 
-Failure handling (idempotent compensation)
-------------------------------------------
-Modal and S3 object keys are deterministic per ``slug``. We do **not** delete partial
-artifacts on failure; a retry with the same slug overwrites them.
+The catalog row is removed **last** so a ``404`` on retry still means the voice is gone
+from the API even if a prior attempt partially cleaned remote/S3 state.
 
-Effects of a failed request:
+Failure handling
+----------------
+This is not a two-phase commit across Postgres, remote providers, and S3.
 
-- **No DB row** — slug stays free unless a previous run committed (409 on duplicate).
-- **Modal / S3** — may contain data for that slug; safe to overwrite on retry.
+**Create:** Modal and S3 keys are deterministic per ``slug``. Partial artifacts are left
+in place; a retry with the same slug overwrites them. No DB row is created until all
+steps succeed.
 
-This is not a two-phase commit across Postgres, Modal, and S3. The catalog row is the
-source of truth: clients only treat a voice as created after ``201`` and a committed
-transaction that includes the ``INSERT``.
+**Delete:** Remote and S3 deletes are idempotent (missing objects are treated as success).
+If a step fails before the DB delete, the catalog row remains and the client receives an
+error (typically ``502``). A retry continues from the remaining steps because earlier
+deletes are safe to repeat.
 """
 
 from dataclasses import dataclass
@@ -89,3 +93,20 @@ async def provision_voice_assets(
     )
 
     return ProvisionedVoiceAssets(reference_s3_key=ref_key, sample_s3_key=smp_key)
+
+
+async def deprovision_voice_assets(
+    *,
+    voice_slug: str,
+    reference_s3_key: str,
+    sample_s3_key: str | None,
+    voice_asset_provisioner: IVoiceAssetProvisioner | None,
+    storage_provider: IStorageProvider,
+) -> None:
+    """Remove remote and S3 artifacts before the catalog row is deleted."""
+    if voice_asset_provisioner is not None:
+        await voice_asset_provisioner.delete_remote_assets(voice_slug)
+
+    await storage_provider.delete_file(reference_s3_key)
+    if sample_s3_key:
+        await storage_provider.delete_file(sample_s3_key)

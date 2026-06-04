@@ -99,7 +99,9 @@ class VoiceRepository(IVoiceRepository):
             query = query.values(sample_s3_key=update_item.sample_s3_key)
 
         result = await session.execute(query)
-        return self._voice_mapper.to_dto(result.scalar())
+        if not (voice := result.scalar()):
+            raise VoiceNotFoundException()
+        return self._voice_mapper.to_dto(voice)
 
     async def delete(self, session: AsyncSession, voice_id: UUID) -> None:
         query = delete(Voice).where(Voice.id == voice_id)

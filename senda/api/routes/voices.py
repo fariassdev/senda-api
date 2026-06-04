@@ -108,10 +108,17 @@ async def delete_voice(
     current_user: AdminUser,
     voice_service: IVoiceService,
 ) -> None:
-    """Delete a voice from the catalog, Modal volume, and S3.
+    """Delete a voice from the catalog, remote provider store, and S3.
 
-    Returns ``204`` on success. Returns ``409`` if any lesson still references this
-    voice, ``404`` if the voice does not exist.
+    **Pipeline order:** remote delete → S3 reference → S3 sample → DB delete.
+
+    **On success:** ``204``; the catalog row is removed only after all prior steps succeed.
+
+    **On failure:** The catalog row remains. Remote/S3 deletes are idempotent, so retries
+    are safe (see ``voice_provisioning`` module).
+
+    **Errors:** ``409`` if any lesson references this voice, ``404`` if the voice does
+    not exist, ``502`` if remote or S3 deletion fails.
     """
     await voice_service.delete_voice(
         session=session, voice_id=voice_id, current_user=current_user

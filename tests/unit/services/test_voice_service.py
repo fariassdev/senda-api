@@ -9,6 +9,7 @@ import pytest
 from senda.core.enums import TtsProvider, UserRole
 from senda.core.exceptions import (
     AudioProviderException,
+    StorageProviderException,
     UnsupportedVoiceTtsProviderException,
     VoiceInUseException,
     VoiceNotFoundException,
@@ -378,6 +379,36 @@ class TestVoiceServiceDelete:
             )
 
         mock_voice_asset_provisioner.delete_remote_assets.assert_not_called()
+        mock_voice_repo.delete.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_delete_does_not_remove_db_row_when_s3_fails(
+        self,
+        voice_service: VoiceService,
+        mock_voice_repo: Mock,
+        mock_lesson_repo: Mock,
+        mock_voice_asset_provisioner: AsyncMock,
+        mock_storage: AsyncMock,
+        voice_dto: VoiceDTO,
+        admin_user: UserDTO,
+    ) -> None:
+        mock_voice_repo.get = AsyncMock(return_value=voice_dto)
+        mock_lesson_repo.count_using_voice = AsyncMock(return_value=0)
+
+        async def fail_on_reference_delete(key: str, *_args, **_kwargs) -> None:
+            if key == voice_dto.reference_s3_key:
+                raise StorageProviderException(message="S3 delete failed")
+
+        mock_storage.delete_file.side_effect = fail_on_reference_delete
+
+        with pytest.raises(StorageProviderException):
+            await voice_service.delete_voice(
+                session=Mock(), voice_id=voice_dto.id, current_user=admin_user
+            )
+
+        mock_voice_asset_provisioner.delete_remote_assets.assert_called_once_with(
+            voice_dto.slug
+        )
         mock_voice_repo.delete.assert_not_called()
 
     @pytest.mark.asyncio
