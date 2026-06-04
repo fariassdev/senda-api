@@ -41,6 +41,16 @@ class BaseAppSettings(BaseSettings):
     aws_s3_bucket: str = "senda-ai"
     aws_region: str = "eu-west-1"
 
+    # Modal Chatterbox TTS Settings
+    modal_tts_endpoint: str = "http://localhost:8000"
+    modal_sync_voice_endpoint: str = "http://localhost:8000"
+    modal_delete_voice_endpoint: str = "http://localhost:8000"
+    modal_token_id: str = "default_token_id"
+    modal_token_secret: str = "default_token_secret"
+    modal_proxy_auth_token_id: str | None = None
+    modal_proxy_auth_token_secret: str | None = None
+    modal_tts_timeout: float = 600.0  # Timeout in seconds (increased for cold starts)
+
     # Audio Generation Concurrency
     max_concurrent_lessons: int = 5  # Max parallel lesson audio generations
     max_concurrent_tts: int = 3  # Max parallel TTS requests per lesson

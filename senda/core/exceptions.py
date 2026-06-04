@@ -89,6 +89,48 @@ class LessonNotFoundException(BaseInternalException):
     _message = "Lesson with this id does not exist."
 
 
+class VoiceNotFoundException(BaseInternalException):
+    """Exception raised when voice not found in database."""
+
+    _status_code = 404
+    _message = "Voice with this identifier does not exist."
+
+
+class VoiceSlugAlreadyExistsException(BaseInternalException):
+    """Exception raised when a voice slug is already in the catalog."""
+
+    _status_code = 409
+    _message = "A voice with this slug already exists."
+
+
+class VoiceInUseException(BaseInternalException):
+    """Exception raised when a voice is referenced by one or more lessons."""
+
+    _status_code = 409
+    _message = "This voice is in use by one or more lessons and cannot be deleted."
+
+
+class UnsupportedVoiceTtsProviderException(BaseInternalException):
+    """Exception raised when POST /voices requests an unsupported tts_provider."""
+
+    _status_code = 400
+    _message = "Only the chatterbox provider is supported when creating catalog voices."
+
+
+class AudioVoiceRequiredException(BaseInternalException):
+    """Exception raised when audio generation is requested without a catalog voice."""
+
+    _status_code = 400
+    _message = "audio_config.voice_id is required to generate lesson audio."
+
+
+class VoiceNotActiveException(BaseInternalException):
+    """Exception raised when the selected catalog voice is inactive."""
+
+    _status_code = 400
+    _message = "The selected voice is not active."
+
+
 class EmailAlreadyTakenException(BaseInternalException):
     """Exception raised when email was found in database while registration."""
 

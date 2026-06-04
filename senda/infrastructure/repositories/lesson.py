@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -110,6 +111,10 @@ class LessonRepository(ILessonRepository):
             query = query.values(audio_url=update_item.audio_url)
         if update_item.script_generated_at is not None:
             query = query.values(script_generated_at=update_item.script_generated_at)
+        if update_item.audio_generated_at is not None:
+            query = query.values(audio_generated_at=update_item.audio_generated_at)
+        if update_item.voice_id is not None:
+            query = query.values(voice_id=update_item.voice_id)
 
         lesson = await session.scalar(query)
         return self._lesson_mapper.to_dto(lesson)
@@ -128,3 +133,8 @@ class LessonRepository(ILessonRepository):
 
         # Return the updated lessons ordered by lesson_number
         return await self.list_by_course(session=session, course_id=course_id)
+
+    async def count_using_voice(self, session: AsyncSession, voice_id: UUID) -> int:
+        query = select(count()).select_from(Lesson).where(Lesson.voice_id == voice_id)
+        result = await session.scalar(query)
+        return int(result or 0)

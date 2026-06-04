@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 from senda.core.enums import LessonStatus, ScriptPartType
@@ -112,17 +114,18 @@ class BatchScriptGenerationRequest(BaseModel):
 class AudioConfigRequest(BaseModel):
     """Audio configuration options for TTS generation."""
 
-    voice: str | None = Field(
-        None,
-        description="Voice to use for TTS (e.g., 'af_nicole', 'af_bella'). "
-        "If not provided, uses the default voice.",
+    voice_id: UUID = Field(
+        ..., description="Catalog voice id to use for TTS (required)."
     )
-    speed: float = Field(
-        1.0,
+    speed: float | None = Field(
+        default=None,
         ge=0.5,
         le=2.0,
-        description="Speech rate multiplier (0.5 to 2.0, default 1.0).",
+        description="Speech rate multiplier (0.5 to 2.0). Defaults to 1.0 when omitted.",
     )
+
+    def resolved_speed(self) -> float:
+        return 1.0 if self.speed is None else self.speed
 
 
 class BatchAudioGenerationRequest(BaseModel):
@@ -132,14 +135,14 @@ class BatchAudioGenerationRequest(BaseModel):
         "If not provided, generates for all eligible lessons. "
         "If empty list, generates nothing.",
     )
-    audio_config: AudioConfigRequest | None = Field(
-        None, description="Optional audio configuration (voice, speed)."
+    audio_config: AudioConfigRequest = Field(
+        ..., description="Audio configuration (catalog voice_id and speed)."
     )
 
 
 class SingleAudioGenerationRequest(BaseModel):
     """Request body for single lesson audio generation."""
 
-    audio_config: AudioConfigRequest | None = Field(
-        None, description="Optional audio configuration (voice, speed)."
+    audio_config: AudioConfigRequest = Field(
+        ..., description="Audio configuration (catalog voice_id and speed)."
     )

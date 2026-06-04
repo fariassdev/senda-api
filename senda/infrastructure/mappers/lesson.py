@@ -7,8 +7,7 @@ from senda.infrastructure.models import Lesson
 
 
 class LessonModelMapper(IModelMapper[Lesson, LessonRecordDTO]):
-    @staticmethod
-    def to_dto(model: Lesson) -> LessonRecordDTO:
+    def to_dto(self, model: Lesson) -> LessonRecordDTO:
         dto = LessonRecordDTO(
             id=model.id,
             course_id=model.course_id,
@@ -23,13 +22,13 @@ class LessonModelMapper(IModelMapper[Lesson, LessonRecordDTO]):
             audio_url=model.audio_url,
             script_generated_at=model.script_generated_at,
             audio_generated_at=model.audio_generated_at,
+            voice_id=model.voice_id,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
         return dto
 
-    @staticmethod
-    def from_dto(dto: LessonRecordDTO) -> Lesson:
+    def from_dto(self, dto: LessonRecordDTO) -> Lesson:
         model = Lesson(
             course_id=dto.course_id,
             lesson_number=dto.lesson_number,
@@ -43,6 +42,7 @@ class LessonModelMapper(IModelMapper[Lesson, LessonRecordDTO]):
             audio_url=dto.audio_url,
             script_generated_at=dto.script_generated_at,
             audio_generated_at=dto.audio_generated_at,
+            voice_id=dto.voice_id,
             created_at=dto.created_at,
             updated_at=dto.updated_at,
         )
