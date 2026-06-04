@@ -43,6 +43,35 @@ resource "google_artifact_registry_repository" "senda" {
   format        = "DOCKER"
 
   depends_on = [google_project_service.artifactregistry]
+
+  cleanup_policies {
+    id     = "keep-latest"
+    action = "KEEP"
+
+    condition {
+      tag_state    = "TAGGED"
+      tag_prefixes = ["latest"]
+    }
+  }
+
+  cleanup_policies {
+    id     = "keep-staging"
+    action = "KEEP"
+
+    condition {
+      tag_state    = "TAGGED"
+      tag_prefixes = ["staging"]
+    }
+  }
+
+  cleanup_policies {
+    id     = "delete-rest"
+    action = "DELETE"
+
+    condition {
+      tag_state = "ANY"
+    }
+  }
 }
 
 # =============================================================================

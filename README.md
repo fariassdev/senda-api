@@ -1,96 +1,241 @@
-# Senda: AI-Powered Meditation Scripts 🧘‍♀️
+<div align="center">
 
-Senda is a Python-based tool for generating and playing guided meditation scripts. It leverages Google's Generative AI (Gemini) to create the scripts and a local text-to-speech (Kokoro TTS) service to stream the audio.
+<img src="./public/logo.svg" width="150" height="150" alt="Senda Logo">
 
-## ✨ Features
+# Senda API
 
-*   ✨ **AI Script Generation**: Automatically create unique meditation scripts using Gemini.
-*   📚 **Course Architecture**: Design comprehensive meditation courses with multiple lessons.
-*   🗣️ **Text-to-Speech**: Convert generated scripts into audio via a local TTS service.
-*   📦 **Batch Generation**: Generate scripts and audio for entire courses at once.
-*   🌐 **REST API**: Exposes course management functionalities through a FastAPI interface.
+**AI-Powered REST API for Meditation Course Generation**
 
-## 🚀 Getting Started
+[![Python](https://img.shields.io/badge/Python-3.12+-blue?logo=python)](./pyproject.toml)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green?logo=fastapi)](./pyproject.toml)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?logo=postgresql)](.)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](https://github.com/fariassdev/senda/blob/main/LICENSE)
 
-### Using Docker (Recommended)
+Backend API built with **FastAPI** and **Python 3.12** for creating and managing meditation courses. Integrates **Google Gemini** for AI-powered script generation and **Kokoro TTS** for high-quality audio synthesis.
 
-To build and run the application using Docker, run the following command from the project root:
+**Part of the [Senda Project](https://github.com/fariassdev/senda) — A multirepo coordinated with [Senda CMS](https://github.com/fariassdev/senda-cms)**
+
+[Quick Start](#quick-start) • [Configuration](#configuration) • [API Documentation](#api-documentation) • [Development](#development)
+
+</div>
+
+## Overview
+
+Senda API is the core backend service providing RESTful endpoints for meditation course management, AI-powered content generation, and audio production. Built with modern Python tooling and containerized for cloud deployment.
+
+### Key Features
+
+- **Course & Lesson Management** — CRUD operations for organizing meditation content
+- **AI Script Generation** — Leverages Google Gemini to create unique, contextual meditation scripts
+- **Text-to-Speech** — Converts scripts to professional audio using Kokoro TTS
+- **Batch Operations** — Generate content for entire courses simultaneously
+- **JWT Authentication** — Secure admin-only access control
+- **RESTful API** — Comprehensive endpoints with Swagger/OpenAPI documentation
+- **Cloud Ready** — Deployable to Google Cloud Run or any containerized environment
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.12+
+- `uv` package manager
+- PostgreSQL 15+ (or use Docker)
+- Access to external services (Google Gemini API key, etc.)
+
+### Option 1: Docker (Recommended for Full Stack)
+
+Start the entire Senda project from the root:
 
 ```bash
-docker-compose up --build
+cd senda
+make setup    # Builds and runs API + CMS + Database + TTS
 ```
 
-This will start the PostgreSQL database, the Kokoro TTS service, and the FastAPI application. The API will be available at `http://localhost:8000/api`.
+### Option 2: Local Development (API Only)
 
-### Running Locally
+**Setup:**
 
-To run the application locally, you will need to have Python 3.12+ and `uv` installed.
+```bash
+# Full setup (venv + dependencies + pre-commit hooks)
+make setup
 
-#### Installation
+# Configure environment
+cp .env.example .env
+# Edit .env with your API keys and database connection
 
-1.  **Create and activate a virtual environment:**
-    ```sh
-    # Unix
-    uv venv
-    source .venv/bin/activate
-    ```
-
-    ```sh
-    # Windows
-    uv venv
-    .venv\Scripts\activate
-    ```
-
-2.  **Install dependencies:**
-    ```sh
-    uv pip install -e .
-    ```
-
-#### Configuration
-
-1.  **Create a `.env` file** in the root of the project by copying the example file:
-    ```sh
-    cp .env.example .env
-    ```
-2.  **Add your environment variables** to the `.env` file.
-
-
-## 💻 Usage
-
-Senda includes a FastAPI server to manage meditation courses through a RESTful API.
-
-### ▶️ Run the Development Server
-
-There are several ways to start the server:
-
-1. **Development mode with auto-reload** (recommended during development):
-```sh
-uvicorn api:app --reload
+# Run development server (with auto-reload)
+make runserver-dev
 ```
 
-2. **Debug mode** (includes detailed error traces):
-```sh
-uvicorn api:app --reload --log-level debug
+The API will be available at `http://localhost:8081/api`
+
+**Other useful commands:**
+
+```bash
+make test              # Run tests
+make test-cov         # Run tests with coverage
+make migrate          # Run database migrations
+make check            # Lint + format + type checking
+make help             # Show all available commands
 ```
 
-3. **Using Python directly**:
-```sh
-python -m main
+
+## API Documentation
+
+### Access Interactive Docs
+
+Once the server is running, access API documentation at:
+
+- **Swagger UI:** http://localhost:8081/api/docs
+- **ReDoc:** http://localhost:8081/api/redoc
+- **OpenAPI JSON:** http://localhost:8081/api/openapi.json
+
+### Core Endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `GET` | `/api/courses` | List all courses |
+| `POST` | `/api/courses` | Create new course |
+| `GET` | `/api/courses/{id}` | Get course details |
+| `POST` | `/api/courses/{id}/generate-scripts` | Generate all scripts for course |
+| `POST` | `/api/lessons/{id}/generate-audio` | Generate audio for lesson |
+| `GET` | `/api/health` | Health check |
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/senda
+
+# Authentication
+JWT_SECRET=your-secret-key-here
+
+# AI Services
+GEMINI_API_KEY=your-gemini-api-key
+KOKORO_API_URL=http://localhost:8880
+
+# AWS S3 (for audio storage)
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+S3_BUCKET_NAME=senda-audio
 ```
 
-The API will be available at `http://localhost:8000/api`. You can access:
-- API documentation: `http://localhost:8000/api/docs`
-- Alternative docs: `http://localhost:8000/api/redoc`
-- Health check: `http://localhost:8000/api/health`
+## Development
 
-## 🛠️ Development Conventions
+### Project Structure
 
-*   📦 **Package Management**: The project uses `uv` for managing dependencies, as defined in `pyproject.toml`.
-*   🔑 **Environment Variables**: A `.env` file is used to store the environment variables.
-*   📁 **Source Code**: All Python source code is located in the `senda/` directory following hexagonal architecture:
-    - `senda/app.py` - FastAPI application entry point
-    - `senda/api/` - REST API layer (routes, schemas, middlewares)
-    - `senda/core/` - Core configuration, enums, and dependencies
-    - `senda/domain/` - Domain layer (DTOs, repository interfaces)
-    - `senda/infrastructure/` - Infrastructure layer (models, repositories, providers)
-    - `senda/services/` - Business logic and service layer
+```
+senda/
+├── app.py                      # FastAPI application entry point
+├── api/                        # REST API layer
+│   ├── router.py              # Main router configuration
+│   ├── middlewares.py         # Auth, logging, error handling
+│   ├── routes/                # Route handlers by domain
+│   │   ├── authentication.py
+│   │   ├── course.py
+│   │   ├── lesson.py
+│   │   ├── users.py
+│   │   ├── profile.py
+│   │   ├── tag.py
+│   │   └── health_check.py
+│   └── schemas/               # Request/Response schemas
+│       ├── requests/          # Request DTOs
+│       └── responses/         # Response DTOs
+├── core/                       # Configuration & dependencies
+│   ├── config.py              # Environment variables
+│   ├── container.py           # Dependency injection container
+│   ├── dependencies.py        # Dependency resolvers
+│   ├── security.py            # JWT & authentication utilities
+│   ├── exceptions.py          # Custom exceptions
+│   ├── logging.py             # Logging configuration
+│   ├── enums.py               # Shared enumerations
+│   ├── settings/              # Settings configuration
+│   └── utils/                 # Shared utilities
+├── domain/                     # Domain models & repository interfaces
+│   ├── dtos/                  # Data Transfer Objects
+│   ├── exceptions/            # Domain-specific exceptions
+│   ├── repositories/          # Abstract repository interfaces
+│   ├── services/              # Service interfaces
+│   ├── mapper.py              # Domain object mapping
+│   └── utils/
+├── infrastructure/             # Data access & external services
+│   ├── alembic/               # Database migrations (Alembic)
+│   ├── alembic.ini            # Alembic configuration
+│   ├── models.py              # SQLAlchemy ORM models
+│   ├── repositories/          # Repository implementations
+│   ├── providers/             # External service clients
+│   │   ├── gemini.py         # Google Gemini AI
+│   │   ├── kokoro.py         # Kokoro TTS
+│   │   └── s3.py             # AWS S3
+│   ├── loaders/               # Data loaders & fixtures
+│   ├── mappers/               # DTO mappers
+│   ├── prompts/               # AI prompt templates
+│   └── config/                # Infrastructure configuration
+└── services/                   # Business logic & use cases
+    ├── auth.py
+    ├── course.py
+    ├── lesson.py
+    ├── user.py
+    ├── script_generation.py
+    ├── audio_generation.py
+    └── ...
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Run with coverage report
+make test-cov
+
+# Run tests in watch mode
+make test-watch
+
+# Or run directly with pytest (if needed)
+pytest tests/
+pytest tests/test_courses.py
+pytest tests/test_courses.py::test_create_course
+```
+
+## Deployment
+
+### Google Cloud Run
+
+The API is deployed to Google Cloud Run for auto-scaling:
+
+```bash
+# Build container image
+docker build -t senda-api:latest .
+
+# Push to Google Container Registry
+docker tag senda-api:latest gcr.io/YOUR-PROJECT/senda-api
+docker push gcr.io/YOUR-PROJECT/senda-api
+
+# Deploy to Cloud Run
+gcloud run deploy senda-api \
+  --image gcr.io/YOUR-PROJECT/senda-api \
+  --platform managed \
+  --region us-central1 \
+  --set-env-vars DATABASE_URL=$DATABASE_URL,JWT_SECRET=$JWT_SECRET
+```
+
+### Requirements
+
+- PostgreSQL 15+ (Neon for serverless)
+- Kokoro TTS service (Oracle Cloud)
+- Google Gemini API key
+- AWS S3 credentials
+
+## Contributing
+
+Contributions welcome! Please open issues or pull requests.
+
+## License
+
+AGPL-3.0 License — see [LICENSE](https://github.com/fariassdev/senda/blob/main/LICENSE) for details
