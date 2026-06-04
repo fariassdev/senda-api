@@ -244,31 +244,15 @@ class Container:
 
     def chatterbox_provider(self) -> ChatterboxAudioProvider:
         """Creates Chatterbox TTS audio provider running on Modal."""
-        endpoint_url = getattr(
-            self._settings, "modal_tts_endpoint", "http://localhost:8000"
-        )
-        sync_voice_endpoint = getattr(self._settings, "modal_sync_voice_endpoint", None)
-        delete_voice_endpoint = getattr(
-            self._settings, "modal_delete_voice_endpoint", None
-        )
-        token_id = getattr(self._settings, "modal_token_id", "default_token_id")
-        token_secret = getattr(
-            self._settings, "modal_token_secret", "default_token_secret"
-        )
-        proxy_auth_token_id = getattr(self._settings, "modal_proxy_auth_token_id", None)
-        proxy_auth_token_secret = getattr(
-            self._settings, "modal_proxy_auth_token_secret", None
-        )
-        timeout = getattr(self._settings, "modal_tts_timeout", 600.0)
         return ChatterboxAudioProvider(
-            endpoint_url=endpoint_url,
-            token_id=token_id,
-            token_secret=token_secret,
-            sync_voice_endpoint=sync_voice_endpoint,
-            delete_voice_endpoint=delete_voice_endpoint,
-            proxy_auth_token_id=proxy_auth_token_id,
-            proxy_auth_token_secret=proxy_auth_token_secret,
-            timeout=timeout,
+            endpoint_url=self._settings.modal_tts_endpoint,
+            sync_voice_endpoint=self._settings.modal_sync_voice_endpoint,
+            delete_voice_endpoint=self._settings.modal_delete_voice_endpoint,
+            token_id=self._settings.modal_token_id,
+            token_secret=self._settings.modal_token_secret,
+            proxy_auth_token_id=self._settings.modal_proxy_auth_token_id,
+            proxy_auth_token_secret=self._settings.modal_proxy_auth_token_secret,
+            timeout=self._settings.modal_tts_timeout,
         )
 
     def storage_provider(self) -> IStorageProvider:
@@ -280,19 +264,15 @@ class Container:
     @staticmethod
     def audio_processor() -> AudioProcessor:
         """Creates audio processor utility."""
-        from senda.core.config import get_app_settings
-
-        settings = get_app_settings()
-        max_concurrent_tts = getattr(settings, "max_concurrent_tts", 3)
-        return AudioProcessor(max_concurrent_tts=max_concurrent_tts)
+        return AudioProcessor()
 
     def audio_generation_service(self) -> IAudioGenerationService:
         """Creates audio generation service."""
         max_concurrent_lessons = getattr(self._settings, "max_concurrent_lessons", 5)
         max_concurrent_tts = getattr(self._settings, "max_concurrent_tts", 3)
         audio_providers = {
-            "kokoro": self.kokoro_provider(),
-            "chatterbox": self.chatterbox_provider(),
+            TtsProvider.KOKORO: self.kokoro_provider(),
+            TtsProvider.CHATTERBOX: self.chatterbox_provider(),
         }
         return AudioGenerationService(
             course_repo=self.course_repository(),
@@ -300,6 +280,7 @@ class Container:
             voice_repo=self.voice_repository(),
             storage_provider=self.storage_provider(),
             audio_providers=audio_providers,
+            session_factory=self._session,
             audio_processor=self.audio_processor(),
             max_concurrent_lessons=max_concurrent_lessons,
             max_concurrent_tts=max_concurrent_tts,

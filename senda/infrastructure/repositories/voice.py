@@ -91,8 +91,6 @@ class VoiceRepository(IVoiceRepository):
             .returning(Voice)
         )
 
-        if update_item.tts_provider is not None:
-            query = query.values(tts_provider=update_item.tts_provider)
         if update_item.is_active is not None:
             query = query.values(is_active=update_item.is_active)
         if update_item.description is not None:

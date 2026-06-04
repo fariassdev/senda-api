@@ -3,6 +3,7 @@ Test suite for audio generation service logic.
 Tests business logic without external API calls.
 """
 
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
@@ -15,7 +16,6 @@ from senda.core.exceptions import (
     AudioGenerationException,
     AudioProviderException,
     AudioVoiceRequiredException,
-    CourseNotFoundException,
     InvalidLessonStateException,
     LessonNotFoundException,
     StorageProviderException,
@@ -100,6 +100,24 @@ class TestAudioGenerationService:
         return provider
 
     @pytest.fixture
+    def mock_session(self) -> Mock:
+        """Mock database session"""
+        session = Mock(spec=AsyncSession)
+        session.commit = AsyncMock()
+        session.rollback = AsyncMock()
+        return session
+
+    @pytest.fixture
+    def mock_session_factory(self, mock_session: Mock):
+        """Session factory yielding the shared mock session for batch tests."""
+
+        @asynccontextmanager
+        async def factory():
+            yield mock_session
+
+        return factory
+
+    @pytest.fixture
     def audio_service(
         self,
         mock_course_repo,
@@ -109,11 +127,12 @@ class TestAudioGenerationService:
         mock_chatterbox_provider,
         mock_storage_provider,
         mock_audio_processor,
+        mock_session_factory,
     ) -> IAudioGenerationService:
         """Create AudioGenerationService with mocked dependencies"""
         audio_providers = {
-            "kokoro": mock_audio_provider,
-            "chatterbox": mock_chatterbox_provider,
+            TtsProvider.KOKORO: mock_audio_provider,
+            TtsProvider.CHATTERBOX: mock_chatterbox_provider,
         }
         return AudioGenerationService(
             course_repo=mock_course_repo,
@@ -121,13 +140,9 @@ class TestAudioGenerationService:
             voice_repo=mock_voice_repo,
             storage_provider=mock_storage_provider,
             audio_providers=audio_providers,
+            session_factory=mock_session_factory,
             audio_processor=mock_audio_processor,
         )
-
-    @pytest.fixture
-    def mock_session(self) -> Mock:
-        """Mock database session"""
-        return Mock(spec=AsyncSession)
 
     @pytest.fixture
     def sample_lesson_record(self) -> LessonRecordDTO:
@@ -393,29 +408,6 @@ class TestAudioGenerationService:
         mock_lesson_repo.get_or_none = AsyncMock(return_value=pending_lesson)
 
         with pytest.raises(InvalidLessonStateException):
-            await audio_service.generate_lesson_audio(
-                session=mock_session, request=request
-            )
-
-    @pytest.mark.asyncio
-    async def test_generate_lesson_audio_course_not_found(
-        self,
-        audio_service,
-        mock_session,
-        sample_lesson_record,
-        mock_lesson_repo,
-        mock_course_repo,
-        audio_config,
-    ):
-        """Test error when course does not exist"""
-        request = AudioGenerationRequestDTO(
-            lesson_id=1, user_id=1, audio_config=audio_config
-        )
-
-        mock_lesson_repo.get_or_none = AsyncMock(return_value=sample_lesson_record)
-        mock_course_repo.get_by_id = AsyncMock(return_value=None)
-
-        with pytest.raises(CourseNotFoundException):
             await audio_service.generate_lesson_audio(
                 session=mock_session, request=request
             )

@@ -1,10 +1,8 @@
 """Audio processing utilities for combining and exporting audio segments."""
 
-import asyncio
 import io
 import logging
 import tempfile
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from pydub import AudioSegment
@@ -32,7 +30,6 @@ class AudioProcessor:
         sample_rate: int = SAMPLE_RATE,
         channels: int = CHANNELS,
         sample_width: int = SAMPLE_WIDTH,
-        max_concurrent_tts: int = 3,
     ) -> None:
         """Initialize the audio processor.
 
@@ -40,17 +37,14 @@ class AudioProcessor:
             sample_rate: Sample rate in Hz (default: 24000)
             channels: Number of audio channels (default: 1 for mono)
             sample_width: Sample width in bytes (default: 2 for 16-bit)
-            max_concurrent_tts: Max concurrent TTS requests (default: 3)
         """
         self._sample_rate = sample_rate
         self._channels = channels
         self._sample_width = sample_width
-        self._max_concurrent_tts = max_concurrent_tts
 
         logger.info(
             f"Initialized AudioProcessor (rate={sample_rate}Hz, "
-            f"channels={channels}, width={sample_width} bytes, "
-            f"max_concurrent_tts={max_concurrent_tts})"
+            f"channels={channels}, width={sample_width} bytes)"
         )
 
     def pcm_to_audio_segment(self, pcm_data: bytes) -> AudioSegment:

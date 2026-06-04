@@ -47,7 +47,6 @@ class CreateVoiceDTO:
 class UpdateVoiceDTO:
     """DTO for updating a voice."""
 
-    tts_provider: str | None = None
     is_active: bool | None = None
     description: str | None = None
     sample_s3_key: str | None = None

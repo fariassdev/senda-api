@@ -2,9 +2,8 @@ import logging
 from typing import Any
 from uuid import UUID
 
-from senda.core.enums import TtsProvider, UserRole
+from senda.core.enums import TtsProvider
 from senda.core.exceptions import (
-    InsufficientPermissionsException,
     UnsupportedVoiceTtsProviderException,
     VoiceInUseException,
     VoiceSlugAlreadyExistsException,
@@ -69,9 +68,6 @@ class VoiceService(IVoiceService):
         See :mod:`senda.services.voice_provisioning` for pipeline order and
         idempotent retry semantics when Modal or S3 steps fail.
         """
-        if current_user.role != UserRole.ADMIN:
-            raise InsufficientPermissionsException()
-
         if await self._voice_repo.get_by_slug_or_none(
             session=session, slug=create_item.slug
         ):
@@ -106,18 +102,12 @@ class VoiceService(IVoiceService):
         self, session: Any, slug: str, current_user: UserDTO
     ) -> VoiceDTO:
         """Fetch details of a single voice by its unique slug."""
-        if current_user.role != UserRole.ADMIN:
-            raise InsufficientPermissionsException()
-
         return await self._voice_repo.get_by_slug(session=session, slug=slug)
 
     async def list_voices(
         self, session: Any, active_only: bool, current_user: UserDTO
     ) -> list[VoiceDTO]:
         """List all voices in catalog."""
-        if current_user.role != UserRole.ADMIN:
-            raise InsufficientPermissionsException()
-
         if active_only:
             return await self._voice_repo.list_active(session=session)
         return await self._voice_repo.list_all(session=session)
@@ -129,10 +119,7 @@ class VoiceService(IVoiceService):
         update_item: UpdateVoiceDTO,
         current_user: UserDTO,
     ) -> VoiceDTO:
-        """Update voice configurations."""
-        if current_user.role != UserRole.ADMIN:
-            raise InsufficientPermissionsException()
-
+        """Update voice metadata (active flag, description)."""
         await self._voice_repo.get(session=session, voice_id=voice_id)
 
         return await self._voice_repo.update(
@@ -142,10 +129,12 @@ class VoiceService(IVoiceService):
     async def delete_voice(
         self, session: Any, voice_id: UUID, current_user: UserDTO
     ) -> None:
-        """Delete catalog voice and its remote/S3 artifacts."""
-        if current_user.role != UserRole.ADMIN:
-            raise InsufficientPermissionsException()
+        """Delete catalog voice and its remote/S3 artifacts.
 
+        Order: remote provider assets → S3 reference/sample → DB row. This is not a
+        distributed transaction; if a step fails after earlier ones succeeded, remote
+        or S3 state may be partially removed while the catalog row remains.
+        """
         voice = await self._voice_repo.get(session=session, voice_id=voice_id)
 
         lesson_count = await self._lesson_repo.count_using_voice(

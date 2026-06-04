@@ -5,13 +5,12 @@ import logging
 import time
 from datetime import datetime, timezone
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from senda.core.enums import LessonStatus, ScriptPartType
+from senda.core.enums import LessonStatus, ScriptPartType, TtsProvider
 from senda.core.exceptions import (
     AudioGenerationException,
     AudioProviderException,
-    CourseNotFoundException,
     InvalidLessonStateException,
     LessonNotFoundException,
     StorageProviderException,
@@ -49,7 +48,8 @@ class AudioGenerationService(IAudioGenerationService):
         lesson_repo: ILessonRepository,
         voice_repo: IVoiceRepository,
         storage_provider: IStorageProvider,
-        audio_providers: dict[str, IAudioProvider],
+        audio_providers: dict[TtsProvider, IAudioProvider],
+        session_factory: async_sessionmaker[AsyncSession],
         audio_processor: AudioProcessor | None = None,
         max_concurrent_lessons: int = 5,
         max_concurrent_tts: int = 3,
@@ -59,9 +59,25 @@ class AudioGenerationService(IAudioGenerationService):
         self._voice_repo = voice_repo
         self._storage_provider = storage_provider
         self._audio_providers = audio_providers
+        self._session_factory = session_factory
         self._audio_processor = audio_processor or AudioProcessor()
         self._max_concurrent_lessons = max_concurrent_lessons
         self._max_concurrent_tts = max_concurrent_tts
+
+    def _resolve_audio_provider(self, tts_provider: str) -> IAudioProvider:
+        try:
+            provider_key = TtsProvider(tts_provider)
+        except ValueError:
+            raise AudioGenerationException(
+                message=f"Unknown TTS provider: {tts_provider}"
+            ) from None
+
+        provider = self._audio_providers.get(provider_key)
+        if provider is None:
+            raise AudioGenerationException(
+                message=f"No audio provider configured for provider type: {tts_provider}"
+            )
+        return provider
 
     async def generate_lesson_audio(
         self, session: AsyncSession, request: AudioGenerationRequestDTO
@@ -96,12 +112,6 @@ class AudioGenerationService(IAudioGenerationService):
             )
             raise InvalidLessonStateException()
 
-        course_record = await self._course_repo.get_by_id(
-            session=session, course_id=lesson_record.course_id
-        )
-        if not course_record:
-            raise CourseNotFoundException()
-
         voice_id = request.audio_config.voice_id
         speed = request.audio_config.speed
 
@@ -113,14 +123,7 @@ class AudioGenerationService(IAudioGenerationService):
         if not catalog_voice.is_active:
             raise VoiceNotActiveException()
 
-        provider = self._audio_providers.get(catalog_voice.tts_provider)
-        if not provider:
-            raise AudioGenerationException(
-                message=(
-                    "No audio provider configured for provider type: "
-                    f"{catalog_voice.tts_provider}"
-                )
-            )
+        provider = self._resolve_audio_provider(catalog_voice.tts_provider)
         voice_name = catalog_voice.slug
 
         script_parts = LessonScript.deserialize(lesson_record.script)
@@ -314,7 +317,7 @@ class AudioGenerationService(IAudioGenerationService):
         async def process_lesson_with_semaphore(
             lesson_record: LessonRecordDTO,
         ) -> AudioGenerationResultDTO | None:
-            """Process a single lesson with semaphore control."""
+            """Process a single lesson with semaphore control and its own DB session."""
             async with semaphore:
                 lesson_request = AudioGenerationRequestDTO(
                     lesson_id=lesson_record.id,
@@ -323,9 +326,15 @@ class AudioGenerationService(IAudioGenerationService):
                 )
 
                 try:
-                    result = await self.generate_lesson_audio(
-                        session=session, request=lesson_request
-                    )
+                    async with self._session_factory() as lesson_session:
+                        try:
+                            result = await self.generate_lesson_audio(
+                                session=lesson_session, request=lesson_request
+                            )
+                            await lesson_session.commit()
+                        except Exception:
+                            await lesson_session.rollback()
+                            raise
                     logger.info(f"Generated audio for lesson {lesson_record.id}")
                     return result
 

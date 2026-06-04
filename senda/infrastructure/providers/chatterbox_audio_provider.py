@@ -1,7 +1,6 @@
 import base64
 import io
 import logging
-from typing import Any
 
 import httpx
 from pydub import AudioSegment
@@ -23,10 +22,10 @@ class ChatterboxAudioProvider(IAudioProvider):
     def __init__(
         self,
         endpoint_url: str,
+        sync_voice_endpoint: str,
+        delete_voice_endpoint: str,
         token_id: str,
         token_secret: str,
-        sync_voice_endpoint: str | None = None,
-        delete_voice_endpoint: str | None = None,
         proxy_auth_token_id: str | None = None,
         proxy_auth_token_secret: str | None = None,
         timeout: float = 60.0,
@@ -35,25 +34,17 @@ class ChatterboxAudioProvider(IAudioProvider):
 
         Args:
             endpoint_url: The Modal synthesize endpoint URL.
+            sync_voice_endpoint: Modal sync_voice endpoint URL.
+            delete_voice_endpoint: Modal delete_voice endpoint URL.
             token_id: Modal token ID (ak-xxxxxxxxxxxx).
             token_secret: Modal token secret (as-xxxxxxxxxxxx).
-            sync_voice_endpoint: Modal sync_voice endpoint URL (optional).
-            delete_voice_endpoint: Modal delete_voice endpoint URL (optional).
             proxy_auth_token_id: Modal proxy auth token ID (wk-xxxxxxxxxxxx) (optional).
             proxy_auth_token_secret: Modal proxy auth token secret (ws-xxxxxxxxxxxx) (optional).
             timeout: HTTP request timeout in seconds.
         """
         self._synthesize_url = endpoint_url.rstrip("/")
-        self._sync_voice_url = (
-            sync_voice_endpoint.rstrip("/")
-            if sync_voice_endpoint
-            else self._synthesize_url.replace("/synthesize", "/sync_voice")
-        )
-        self._delete_voice_url = (
-            delete_voice_endpoint.rstrip("/")
-            if delete_voice_endpoint
-            else self._synthesize_url.replace("/synthesize", "/delete_voice")
-        )
+        self._sync_voice_url = sync_voice_endpoint.rstrip("/")
+        self._delete_voice_url = delete_voice_endpoint.rstrip("/")
         self._token_id = token_id
         self._token_secret = token_secret
         self._proxy_auth_token_id = proxy_auth_token_id
@@ -101,11 +92,14 @@ class ChatterboxAudioProvider(IAudioProvider):
                 message="Cannot generate speech from empty text"
             )
 
-        effective_voice = voice or "Lucy"
+        if not voice:
+            raise AudioProviderException(
+                message="Voice slug is required for Chatterbox TTS"
+            )
 
-        payload = {"text": text, "voice_slug": effective_voice}
+        payload = {"text": text, "voice_slug": voice}
 
-        logger.debug(f"Generating Chatterbox speech for voice '{effective_voice}'")
+        logger.debug(f"Generating Chatterbox speech for voice '{voice}'")
 
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
@@ -128,12 +122,7 @@ class ChatterboxAudioProvider(IAudioProvider):
                 logger.info(
                     f"Applying speed rate multiplier {speed}x to generated audio"
                 )
-                # Speed up/down segment
-                # Note: speedup in pydub can change pitch, or we can use set_frame_rate
-                # Let's use simple speedup/slowdown or keep pydub's native set_frame_rate adjustments
-                # Pydub speedup is standard
-                if speed > 1.0 or speed < 1.0:
-                    pcm_segment = pcm_segment.speedup(playback_speed=speed)
+                pcm_segment = pcm_segment.speedup(playback_speed=speed)
 
             logger.debug(
                 f"Successfully resampled Chatterbox output to PCM ({len(pcm_segment.raw_data)} bytes)"

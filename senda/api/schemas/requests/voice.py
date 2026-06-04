@@ -51,7 +51,6 @@ class CreateVoiceRequest(BaseModel):
 
 
 class UpdateVoiceData(BaseModel):
-    tts_provider: str | None = Field(None)
     is_active: bool | None = Field(None)
     description: str | None = Field(None)
 
@@ -61,7 +60,5 @@ class UpdateVoiceRequest(BaseModel):
 
     def to_dto(self) -> UpdateVoiceDTO:
         return UpdateVoiceDTO(
-            tts_provider=self.voice.tts_provider,
-            is_active=self.voice.is_active,
-            description=self.voice.description,
+            is_active=self.voice.is_active, description=self.voice.description
         )
