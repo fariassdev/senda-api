@@ -1,5 +1,7 @@
 """Tests for RBAC (Role-Based Access Control) functionality."""
 
+from uuid import uuid4
+
 import pytest
 from fastapi import FastAPI, status
 from httpx import ASGITransport, AsyncClient
@@ -201,7 +203,8 @@ class TestAIGenerationEndpoints:
     ):
         """Regular users should get 403 when trying to generate audio."""
         response = await authorized_test_client.post(
-            f"/courses/{test_course.slug}/lessons/1/generate-audio"
+            f"/courses/{test_course.slug}/lessons/1/generate-audio",
+            json={"audio_config": {"voice_id": str(uuid4())}},
         )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
