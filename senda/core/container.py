@@ -4,8 +4,12 @@ from collections.abc import AsyncIterator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from senda.core.config import get_app_settings
-from senda.core.enums import TtsProvider
 from senda.core.settings.base import BaseAppSettings
+from senda.core.wiring.audio import build_audio_generation_service, build_voice_service
+from senda.core.wiring.gemini import (
+    build_course_generation_provider,
+    build_script_generation_provider,
+)
 from senda.domain.mapper import IModelMapper
 from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.course_tag import ICourseTagRepository
@@ -15,11 +19,7 @@ from senda.domain.repositories.lesson import ILessonRepository
 from senda.domain.repositories.tag import ITagRepository
 from senda.domain.repositories.user import IUserRepository
 from senda.domain.repositories.voice import IVoiceRepository
-from senda.domain.services.audio_generation import (
-    IAudioGenerationService,
-    IAudioProvider,
-    IStorageProvider,
-)
+from senda.domain.services.audio_generation import IAudioGenerationService
 from senda.domain.services.auth import IUserAuthService
 from senda.domain.services.auth_token import IAuthTokenService
 from senda.domain.services.course import ICourseGenerationProvider, ICourseService
@@ -32,28 +32,12 @@ from senda.domain.services.script_generation import (
 from senda.domain.services.tag import ITagService
 from senda.domain.services.user import IUserService
 from senda.domain.services.voice import IVoiceService
-from senda.domain.services.voice_asset_provisioning import IVoiceAssetProvisioner
-from senda.infrastructure.config.gemini_config import GeminiConfig
 from senda.infrastructure.loaders.prompt_loader import PromptLoader
 from senda.infrastructure.mappers.course import CourseModelMapper
 from senda.infrastructure.mappers.lesson import LessonModelMapper
 from senda.infrastructure.mappers.tag import TagModelMapper
 from senda.infrastructure.mappers.user import UserModelMapper
 from senda.infrastructure.mappers.voice import VoiceModelMapper
-from senda.infrastructure.providers.chatterbox_audio_provider import (
-    ChatterboxAudioProvider,
-)
-from senda.infrastructure.providers.chatterbox_voice_asset_provisioner import (
-    ChatterboxVoiceAssetProvisioner,
-)
-from senda.infrastructure.providers.gemini_course_generation_provider import (
-    GeminiCourseGenerationProvider,
-)
-from senda.infrastructure.providers.gemini_script_generation_provider import (
-    GeminiLessonScriptProvider,
-)
-from senda.infrastructure.providers.kokoro_audio_provider import KokoroAudioProvider
-from senda.infrastructure.providers.s3_storage_provider import S3StorageProvider
 from senda.infrastructure.repositories.course import CourseRepository
 from senda.infrastructure.repositories.course_tag import CourseTagRepository
 from senda.infrastructure.repositories.favorite import FavoriteRepository
@@ -62,8 +46,6 @@ from senda.infrastructure.repositories.lesson import LessonRepository
 from senda.infrastructure.repositories.tag import TagRepository
 from senda.infrastructure.repositories.user import UserRepository
 from senda.infrastructure.repositories.voice import VoiceRepository
-from senda.infrastructure.utils.audio_processor import AudioProcessor
-from senda.services.audio_generation import AudioGenerationService
 from senda.services.auth import UserAuthService
 from senda.services.auth_token import AuthTokenService
 from senda.services.course import CourseService
@@ -72,7 +54,6 @@ from senda.services.profile import ProfileService
 from senda.services.script_generation import ScriptGenerationService
 from senda.services.tag import TagService
 from senda.services.user import UserService
-from senda.services.voice import VoiceService
 
 
 class Container:
@@ -177,40 +158,13 @@ class Container:
         return TagService(tag_repo=self.tags_repository())
 
     def prompt_loader(self) -> PromptLoader:
-        """Creates PromptLoader for loading AI prompts from files."""
         return PromptLoader()
 
     def course_generation_provider(self) -> ICourseGenerationProvider | None:
-        """
-        Creates Gemini course generation provider if API key is configured.
-        Returns None if Gemini is not configured.
-        """
-        if (
-            not hasattr(self._settings, "gemini_api_key")
-            or not self._settings.gemini_api_key
-        ):
-            return None
-
-        config = GeminiConfig(api_key=self._settings.gemini_api_key)
-        return GeminiCourseGenerationProvider(
-            config=config, prompt_loader=self.prompt_loader()
-        )
+        return build_course_generation_provider(self._settings, self.prompt_loader())
 
     def script_generation_provider(self) -> ILessonScriptProvider | None:
-        """
-        Creates Gemini script generation provider if API key is configured.
-        Returns None if Gemini is not configured.
-        """
-        if (
-            not hasattr(self._settings, "gemini_api_key")
-            or not self._settings.gemini_api_key
-        ):
-            return None
-
-        config = GeminiConfig(api_key=self._settings.gemini_api_key)
-        return GeminiLessonScriptProvider(
-            config=config, prompt_loader=self.prompt_loader()
-        )
+        return build_script_generation_provider(self._settings, self.prompt_loader())
 
     def course_service(self) -> ICourseService:
         return CourseService(
@@ -234,74 +188,20 @@ class Container:
             script_provider=self.script_generation_provider(),
         )
 
-    def kokoro_provider(self) -> IAudioProvider:
-        """Creates Kokoro TTS audio provider."""
-        api_url = getattr(
-            self._settings, "kokoro_api_url", "http://localhost:8880/v1/audio/speech"
-        )
-        timeout = getattr(self._settings, "kokoro_api_timeout", 600.0)
-        return KokoroAudioProvider(api_url=api_url, timeout=timeout)
-
-    def chatterbox_provider(self) -> ChatterboxAudioProvider:
-        """Creates Chatterbox TTS audio provider running on Modal."""
-        return ChatterboxAudioProvider(
-            endpoint_url=self._settings.modal_tts_endpoint,
-            sync_voice_endpoint=self._settings.modal_sync_voice_endpoint,
-            delete_voice_endpoint=self._settings.modal_delete_voice_endpoint,
-            token_id=self._settings.modal_token_id,
-            token_secret=self._settings.modal_token_secret,
-            proxy_auth_token_id=self._settings.modal_proxy_auth_token_id,
-            proxy_auth_token_secret=self._settings.modal_proxy_auth_token_secret,
-            timeout=self._settings.modal_tts_timeout,
-        )
-
-    def storage_provider(self) -> IStorageProvider:
-        """Creates S3 storage provider."""
-        bucket_name = getattr(self._settings, "aws_s3_bucket", "senda-ai")
-        region = getattr(self._settings, "aws_region", "us-east-1")
-        return S3StorageProvider(bucket_name=bucket_name, region=region)
-
-    @staticmethod
-    def audio_processor() -> AudioProcessor:
-        """Creates audio processor utility."""
-        return AudioProcessor()
-
     def audio_generation_service(self) -> IAudioGenerationService:
-        """Creates audio generation service."""
-        max_concurrent_lessons = getattr(self._settings, "max_concurrent_lessons", 5)
-        max_concurrent_tts = getattr(self._settings, "max_concurrent_tts", 3)
-        audio_providers = {
-            TtsProvider.KOKORO: self.kokoro_provider(),
-            TtsProvider.CHATTERBOX: self.chatterbox_provider(),
-        }
-        return AudioGenerationService(
+        return build_audio_generation_service(
+            settings=self._settings,
             course_repo=self.course_repository(),
             lesson_repo=self.lesson_repository(),
             voice_repo=self.voice_repository(),
-            storage_provider=self.storage_provider(),
-            audio_providers=audio_providers,
             session_factory=self._session,
-            audio_processor=self.audio_processor(),
-            max_concurrent_lessons=max_concurrent_lessons,
-            max_concurrent_tts=max_concurrent_tts,
         )
 
-    def voice_asset_provisioners(self) -> dict[TtsProvider, IVoiceAssetProvisioner]:
-        """Provider-specific voice asset lifecycle handlers."""
-        return {
-            TtsProvider.CHATTERBOX: ChatterboxVoiceAssetProvisioner(
-                chatterbox_provider=self.chatterbox_provider()
-            )
-        }
-
     def voice_service(self) -> IVoiceService:
-        """Creates Voice service."""
-        return VoiceService(
+        return build_voice_service(
+            settings=self._settings,
             voice_repo=self.voice_repository(),
             lesson_repo=self.lesson_repository(),
-            storage_provider=self.storage_provider(),
-            voice_asset_provisioners=self.voice_asset_provisioners(),
-            audio_processor=self.audio_processor(),
         )
 
 
