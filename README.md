@@ -136,33 +136,13 @@ AWS_S3_BUCKET=senda-ai
 AWS_DEFAULT_REGION=eu-west-1
 ```
 
-## Audio Generation: Dual TTS Engines
+## Audio generation (Chatterbox + Kokoro)
 
-Senda supports **two TTS engines** for maximum flexibility:
+Lesson audio uses a **catalog voice** (`voice_id`) and the voice's `tts_provider` (`chatterbox` on Modal GPU, or `kokoro` locally). Chatterbox requires Modal deployment and S3 for storage.
 
-### ChatterboxTTS (Primary) — GPU-Accelerated
+**Docs:** [Chatterbox TTS overview](./docs/chatterbox-tts.md) · [Modal setup](./docs/modal_setup.md)
 
-**Running on Modal.com** for professional-grade synthesis:
-
-- **High-quality synthesis** powered by A10G GPUs (10-20× faster than CPU)
-- **Voice customization** with tunable parameters (exaggeration, temperature, etc.)
-- **Serverless deployment** with automatic scaling and no infrastructure overhead
-- **Managed voice catalog** with voice samples and reference files
-- **Optimized cold start** via model weights pre-caching in a dedicated Modal Volume (`chatterbox-tts-weights`)
-
-### Kokoro TTS (Fallback) — CPU-Based
-
-**Optional local/CPU-based fallback** for development or when GPU unavailable:
-
-- Runs locally or on CPU infrastructure
-- Same API contract as ChatterboxTTS (seamless provider switching)
-- Useful for development environments
-
-### Setup & Documentation
-
-For detailed setup instructions including Modal authentication, voice management, and troubleshooting, see **[ChatterboxTTS Modal Deployment Guide](./docs/modal_setup.md)**.
-
-For a detailed explanation of the audio generation architecture, voice management flows, dual-provider support, and system design, see **[ChatterboxTTS Architecture & Design](./docs/chatterbox-tts-architecture.md)**.
+Pipeline and failure semantics for voice creation/deletion live in `senda/services/voice_provisioning.py` (source of truth — keep docs in sync when changing behavior).
 
 ## Development
 
@@ -209,8 +189,9 @@ senda/
 │   ├── repositories/          # Repository implementations
 │   ├── providers/             # External service clients
 │   │   ├── gemini_*.py        # Google Gemini AI (scripts, courses)
-│   │   ├── chatterbox_audio_provider.py # ChatterboxTTS HTTP client
-│   │   ├── kokoro_audio_provider.py     # Kokoro TTS HTTP client
+│   │   ├── chatterbox_audio_provider.py   # Chatterbox synthesize (IAudioProvider)
+│   │   ├── chatterbox_voice_asset_provisioner.py
+│   │   ├── kokoro_audio_provider.py
 │   │   ├── s3_storage_provider.py       # AWS S3 storage client
 │   │   └── __init__.py
 │   ├── modal/                 # Modal.com serverless deployments
