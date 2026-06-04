@@ -21,7 +21,7 @@ class IVoiceService(abc.ABC):
 
         Raises:
             VoiceSlugAlreadyExistsException: Slug already in the database (409).
-            UnsupportedVoiceTtsProviderException: tts_provider is not chatterbox (400).
+            UnsupportedVoiceTtsProviderException: No asset provisioner for tts_provider (400).
             AudioProviderException: Modal sync or TTS failed (502).
             StorageProviderException: S3 upload failed (502).
         """

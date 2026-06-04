@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from senda.core.enums import UserRole
+from senda.core.enums import TtsProvider, UserRole
 from senda.core.exceptions import (
     AudioProviderException,
     UnsupportedVoiceTtsProviderException,
@@ -19,6 +19,7 @@ from senda.domain.dtos.voice import CreateVoiceDTO, GenderEnum, VoiceDTO
 from senda.domain.repositories.lesson import ILessonRepository
 from senda.domain.repositories.voice import IVoiceRepository
 from senda.domain.services.audio_generation import IStorageProvider
+from senda.domain.services.voice_asset_provisioning import IVoiceAssetProvisioner
 from senda.infrastructure.utils.audio_processor import AudioProcessor
 from senda.services.voice import VoiceService
 from senda.services.voice_provisioning import reference_s3_key, sample_s3_key
@@ -85,12 +86,12 @@ def mock_lesson_repo() -> Mock:
 
 
 @pytest.fixture
-def mock_chatterbox() -> AsyncMock:
-    provider = AsyncMock()
-    provider.sync_voice_to_volume = AsyncMock()
-    provider.generate_speech = AsyncMock(return_value=b"pcm")
-    provider.delete_voice_from_volume = AsyncMock()
-    return provider
+def mock_voice_asset_provisioner() -> AsyncMock:
+    provisioner = AsyncMock(spec=IVoiceAssetProvisioner)
+    provisioner.sync_reference_voice = AsyncMock()
+    provisioner.generate_preview_speech = AsyncMock(return_value=b"pcm")
+    provisioner.delete_remote_assets = AsyncMock()
+    return provisioner
 
 
 @pytest.fixture
@@ -114,14 +115,14 @@ def voice_service(
     mock_voice_repo: Mock,
     mock_lesson_repo: Mock,
     mock_storage: AsyncMock,
-    mock_chatterbox: AsyncMock,
+    mock_voice_asset_provisioner: AsyncMock,
     mock_audio_processor: Mock,
 ) -> VoiceService:
     return VoiceService(
         voice_repo=mock_voice_repo,
         lesson_repo=mock_lesson_repo,
         storage_provider=mock_storage,
-        chatterbox_provider=mock_chatterbox,
+        voice_asset_provisioners={TtsProvider.CHATTERBOX: mock_voice_asset_provisioner},
         audio_processor=mock_audio_processor,
     )
 
@@ -152,7 +153,7 @@ class TestVoiceServiceCreate:
         self,
         voice_service: VoiceService,
         mock_voice_repo: Mock,
-        mock_chatterbox: AsyncMock,
+        mock_voice_asset_provisioner: AsyncMock,
         mock_storage: AsyncMock,
         create_dto: CreateVoiceDTO,
         admin_user: UserDTO,
@@ -189,8 +190,8 @@ class TestVoiceServiceCreate:
                 updated_at=datetime.now(),
             )
 
-        mock_chatterbox.sync_voice_to_volume.side_effect = track_modal
-        mock_chatterbox.generate_speech.side_effect = track_tts
+        mock_voice_asset_provisioner.sync_reference_voice.side_effect = track_modal
+        mock_voice_asset_provisioner.generate_preview_speech.side_effect = track_tts
         mock_storage.upload_file.side_effect = track_upload
         mock_voice_repo.add.side_effect = track_add
 
@@ -214,7 +215,7 @@ class TestVoiceServiceCreate:
         self,
         voice_service: VoiceService,
         mock_voice_repo: Mock,
-        mock_chatterbox: AsyncMock,
+        mock_voice_asset_provisioner: AsyncMock,
         create_dto: CreateVoiceDTO,
         admin_user: UserDTO,
     ) -> None:
@@ -228,7 +229,7 @@ class TestVoiceServiceCreate:
                 current_user=admin_user,
             )
 
-        mock_chatterbox.sync_voice_to_volume.assert_not_called()
+        mock_voice_asset_provisioner.sync_reference_voice.assert_not_called()
         mock_voice_repo.add.assert_not_called()
 
     @pytest.mark.asyncio
@@ -236,7 +237,7 @@ class TestVoiceServiceCreate:
         self,
         voice_service: VoiceService,
         mock_voice_repo: Mock,
-        mock_chatterbox: AsyncMock,
+        mock_voice_asset_provisioner: AsyncMock,
         create_dto: CreateVoiceDTO,
         admin_user: UserDTO,
     ) -> None:
@@ -257,7 +258,7 @@ class TestVoiceServiceCreate:
                 current_user=admin_user,
             )
 
-        mock_chatterbox.sync_voice_to_volume.assert_not_called()
+        mock_voice_asset_provisioner.sync_reference_voice.assert_not_called()
         mock_voice_repo.add.assert_not_called()
 
     @pytest.mark.asyncio
@@ -265,11 +266,13 @@ class TestVoiceServiceCreate:
         self,
         voice_service: VoiceService,
         mock_voice_repo: Mock,
-        mock_chatterbox: AsyncMock,
+        mock_voice_asset_provisioner: AsyncMock,
         create_dto: CreateVoiceDTO,
         admin_user: UserDTO,
     ) -> None:
-        mock_chatterbox.sync_voice_to_volume.side_effect = AudioProviderException()
+        mock_voice_asset_provisioner.sync_reference_voice.side_effect = (
+            AudioProviderException()
+        )
 
         with pytest.raises(AudioProviderException):
             await voice_service.create_voice(
@@ -289,7 +292,7 @@ class TestVoiceServiceDelete:
         voice_service: VoiceService,
         mock_voice_repo: Mock,
         mock_lesson_repo: Mock,
-        mock_chatterbox: AsyncMock,
+        mock_voice_asset_provisioner: AsyncMock,
         mock_storage: AsyncMock,
         voice_dto: VoiceDTO,
         admin_user: UserDTO,
@@ -308,7 +311,7 @@ class TestVoiceServiceDelete:
         async def track_db_delete(*_args, **_kwargs) -> None:
             call_order.append("db_delete")
 
-        mock_chatterbox.delete_voice_from_volume.side_effect = track_modal
+        mock_voice_asset_provisioner.delete_remote_assets.side_effect = track_modal
         mock_storage.delete_file.side_effect = track_s3_delete
         mock_voice_repo.delete.side_effect = track_db_delete
 
@@ -328,7 +331,7 @@ class TestVoiceServiceDelete:
         self,
         voice_service: VoiceService,
         mock_voice_repo: Mock,
-        mock_chatterbox: AsyncMock,
+        mock_voice_asset_provisioner: AsyncMock,
         voice_dto: VoiceDTO,
         admin_user: UserDTO,
     ) -> None:
@@ -354,7 +357,7 @@ class TestVoiceServiceDelete:
             session=Mock(), voice_id=kokoro_voice.id, current_user=admin_user
         )
 
-        mock_chatterbox.delete_voice_from_volume.assert_not_called()
+        mock_voice_asset_provisioner.delete_remote_assets.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_delete_raises_when_voice_in_use_by_lessons(
@@ -362,7 +365,7 @@ class TestVoiceServiceDelete:
         voice_service: VoiceService,
         mock_voice_repo: Mock,
         mock_lesson_repo: Mock,
-        mock_chatterbox: AsyncMock,
+        mock_voice_asset_provisioner: AsyncMock,
         voice_dto: VoiceDTO,
         admin_user: UserDTO,
     ) -> None:
@@ -374,7 +377,7 @@ class TestVoiceServiceDelete:
                 session=Mock(), voice_id=voice_dto.id, current_user=admin_user
             )
 
-        mock_chatterbox.delete_voice_from_volume.assert_not_called()
+        mock_voice_asset_provisioner.delete_remote_assets.assert_not_called()
         mock_voice_repo.delete.assert_not_called()
 
     @pytest.mark.asyncio
@@ -382,7 +385,7 @@ class TestVoiceServiceDelete:
         self,
         voice_service: VoiceService,
         mock_voice_repo: Mock,
-        mock_chatterbox: AsyncMock,
+        mock_voice_asset_provisioner: AsyncMock,
         admin_user: UserDTO,
     ) -> None:
         mock_voice_repo.get = AsyncMock(side_effect=VoiceNotFoundException())
@@ -392,5 +395,5 @@ class TestVoiceServiceDelete:
                 session=Mock(), voice_id=uuid4(), current_user=admin_user
             )
 
-        mock_chatterbox.delete_voice_from_volume.assert_not_called()
+        mock_voice_asset_provisioner.delete_remote_assets.assert_not_called()
         mock_voice_repo.delete.assert_not_called()

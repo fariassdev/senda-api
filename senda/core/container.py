@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from senda.core.config import get_app_settings
+from senda.core.enums import TtsProvider
 from senda.core.settings.base import BaseAppSettings
 from senda.domain.mapper import IModelMapper
 from senda.domain.repositories.course import ICourseRepository
@@ -31,6 +32,7 @@ from senda.domain.services.script_generation import (
 from senda.domain.services.tag import ITagService
 from senda.domain.services.user import IUserService
 from senda.domain.services.voice import IVoiceService
+from senda.domain.services.voice_asset_provisioning import IVoiceAssetProvisioner
 from senda.infrastructure.config.gemini_config import GeminiConfig
 from senda.infrastructure.loaders.prompt_loader import PromptLoader
 from senda.infrastructure.mappers.course import CourseModelMapper
@@ -40,6 +42,9 @@ from senda.infrastructure.mappers.user import UserModelMapper
 from senda.infrastructure.mappers.voice import VoiceModelMapper
 from senda.infrastructure.providers.chatterbox_audio_provider import (
     ChatterboxAudioProvider,
+)
+from senda.infrastructure.providers.chatterbox_voice_asset_provisioner import (
+    ChatterboxVoiceAssetProvisioner,
 )
 from senda.infrastructure.providers.gemini_course_generation_provider import (
     GeminiCourseGenerationProvider,
@@ -300,13 +305,21 @@ class Container:
             max_concurrent_tts=max_concurrent_tts,
         )
 
+    def voice_asset_provisioners(self) -> dict[TtsProvider, IVoiceAssetProvisioner]:
+        """Provider-specific voice asset lifecycle handlers."""
+        return {
+            TtsProvider.CHATTERBOX: ChatterboxVoiceAssetProvisioner(
+                chatterbox_provider=self.chatterbox_provider()
+            )
+        }
+
     def voice_service(self) -> IVoiceService:
         """Creates Voice service."""
         return VoiceService(
             voice_repo=self.voice_repository(),
             lesson_repo=self.lesson_repository(),
             storage_provider=self.storage_provider(),
-            chatterbox_provider=self.chatterbox_provider(),
+            voice_asset_provisioners=self.voice_asset_provisioners(),
             audio_processor=self.audio_processor(),
         )
 

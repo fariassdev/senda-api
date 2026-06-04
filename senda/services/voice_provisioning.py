@@ -33,9 +33,7 @@ transaction that includes the ``INSERT``.
 from dataclasses import dataclass
 
 from senda.domain.services.audio_generation import IStorageProvider
-from senda.infrastructure.providers.chatterbox_audio_provider import (
-    ChatterboxAudioProvider,
-)
+from senda.domain.services.voice_asset_provisioning import IVoiceAssetProvisioner
 from senda.infrastructure.utils.audio_processor import AudioProcessor
 
 _PREVIEW_TEMPLATE = (
@@ -63,21 +61,21 @@ async def provision_voice_assets(
     slug: str,
     name: str,
     reference_wav: bytes,
-    chatterbox_provider: ChatterboxAudioProvider,
+    voice_asset_provisioner: IVoiceAssetProvisioner,
     storage_provider: IStorageProvider,
     audio_processor: AudioProcessor,
 ) -> ProvisionedVoiceAssets:
-    """Run Modal sync, sample generation, and S3 uploads in order."""
+    """Run remote sync, sample generation, and S3 uploads in order."""
     ref_key = reference_s3_key(slug)
     smp_key = sample_s3_key(slug)
 
-    await chatterbox_provider.sync_voice_to_volume(
+    await voice_asset_provisioner.sync_reference_voice(
         voice_slug=slug, reference_wav=reference_wav
     )
 
     preview_text = _PREVIEW_TEMPLATE.format(name=name)
-    sample_pcm = await chatterbox_provider.generate_speech(
-        text=preview_text, voice=slug, speed=1.0
+    sample_pcm = await voice_asset_provisioner.generate_preview_speech(
+        text=preview_text, voice_slug=slug
     )
 
     sample_segment = audio_processor.pcm_to_audio_segment(sample_pcm)

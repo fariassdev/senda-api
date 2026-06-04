@@ -15,9 +15,7 @@ from senda.domain.repositories.lesson import ILessonRepository
 from senda.domain.repositories.voice import IVoiceRepository
 from senda.domain.services.audio_generation import IStorageProvider
 from senda.domain.services.voice import IVoiceService
-from senda.infrastructure.providers.chatterbox_audio_provider import (
-    ChatterboxAudioProvider,
-)
+from senda.domain.services.voice_asset_provisioning import IVoiceAssetProvisioner
 from senda.infrastructure.utils.audio_processor import AudioProcessor
 from senda.services.voice_provisioning import provision_voice_assets
 
@@ -32,14 +30,32 @@ class VoiceService(IVoiceService):
         voice_repo: IVoiceRepository,
         lesson_repo: ILessonRepository,
         storage_provider: IStorageProvider,
-        chatterbox_provider: ChatterboxAudioProvider,
+        voice_asset_provisioners: dict[TtsProvider, IVoiceAssetProvisioner],
         audio_processor: AudioProcessor | None = None,
     ) -> None:
         self._voice_repo = voice_repo
         self._lesson_repo = lesson_repo
         self._storage_provider = storage_provider
-        self._chatterbox_provider = chatterbox_provider
+        self._voice_asset_provisioners = voice_asset_provisioners
         self._audio_processor = audio_processor or AudioProcessor()
+
+    def _resolve_provisioner(self, tts_provider: str) -> IVoiceAssetProvisioner:
+        try:
+            provider_key = TtsProvider(tts_provider)
+        except ValueError:
+            raise UnsupportedVoiceTtsProviderException() from None
+
+        provisioner = self._voice_asset_provisioners.get(provider_key)
+        if provisioner is None:
+            raise UnsupportedVoiceTtsProviderException()
+        return provisioner
+
+    def _optional_provisioner(self, tts_provider: str) -> IVoiceAssetProvisioner | None:
+        try:
+            provider_key = TtsProvider(tts_provider)
+        except ValueError:
+            return None
+        return self._voice_asset_provisioners.get(provider_key)
 
     async def create_voice(
         self,
@@ -61,8 +77,7 @@ class VoiceService(IVoiceService):
         ):
             raise VoiceSlugAlreadyExistsException()
 
-        if create_item.tts_provider != TtsProvider.CHATTERBOX.value:
-            raise UnsupportedVoiceTtsProviderException()
+        provisioner = self._resolve_provisioner(create_item.tts_provider)
 
         logger.info(
             f"Creating new voice '{create_item.name}' (slug: {create_item.slug})"
@@ -72,7 +87,7 @@ class VoiceService(IVoiceService):
             slug=create_item.slug,
             name=create_item.name,
             reference_wav=reference_wav,
-            chatterbox_provider=self._chatterbox_provider,
+            voice_asset_provisioner=provisioner,
             storage_provider=self._storage_provider,
             audio_processor=self._audio_processor,
         )
@@ -127,7 +142,7 @@ class VoiceService(IVoiceService):
     async def delete_voice(
         self, session: Any, voice_id: UUID, current_user: UserDTO
     ) -> None:
-        """Delete catalog voice and its Modal/S3 artifacts."""
+        """Delete catalog voice and its remote/S3 artifacts."""
         if current_user.role != UserRole.ADMIN:
             raise InsufficientPermissionsException()
 
@@ -141,8 +156,8 @@ class VoiceService(IVoiceService):
 
         logger.info(f"Deleting voice '{voice.slug}' ({voice_id})")
 
-        if voice.tts_provider == "chatterbox":
-            await self._chatterbox_provider.delete_voice_from_volume(voice.slug)
+        if provisioner := self._optional_provisioner(voice.tts_provider):
+            await provisioner.delete_remote_assets(voice.slug)
 
         await self._storage_provider.delete_file(voice.reference_s3_key)
         if voice.sample_s3_key:
