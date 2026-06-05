@@ -17,8 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`IVoiceAssetProvisioner` port**: Provider-specific voice asset lifecycle (sync reference, preview TTS, remote delete) with `ChatterboxVoiceAssetProvisioner` implementation.
 - **S3 generic upload/delete**: `IStorageProvider.upload_file` and `delete_file` for voice assets in addition to lesson audio uploads.
 - **Dependency wiring module**: `senda/core/wiring/` extracts TTS, storage, and Gemini factory logic from `Container`.
-- **Documentation**: `docs/chatterbox-tts.md` (overview) and `docs/modal_setup.md` (Modal deploy runbook).
 - **Tests**: Unit suites for `VoiceService` and expanded `AudioGenerationService` coverage.
+- **`CORS_ALLOWED_ORIGINS_REGEX`**: Optional regex env var for dynamic preview origins (e.g. Vercel deployment URLs) via Starlette `allow_origin_regex`.
+- **CORS tests**: Unit tests for `AppSettings` parsing and integration tests for `create_app()` middleware wiring (static origin lists, regex origins, and blocked preflight).
+
+### Security
+
+- **CORS deny-by-default**: Removed the permissive `"*"` default for `CORS_ALLOWED_ORIGINS`. When origins and regex are unset, cross-origin requests are blocked instead of allowed.
 
 ### Changed
 
@@ -28,7 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Batch course audio**: Each parallel lesson uses its own database session to avoid sharing an async SQLAlchemy session across concurrent tasks.
 - **`IModelMapper`**: Instance methods instead of static methods (enables `VoiceModelMapper` with S3 base URL).
 - **Voice API responses**: Include full public `reference_audio_url` and `sample_audio_url` values.
+- **Breaking — CORS configuration**: `cors_allowed_origins` now defaults to `None` (no origins) instead of `"*"`. Deployments must set `CORS_ALLOWED_ORIGINS` and/or `CORS_ALLOWED_ORIGINS_REGEX` explicitly.
+- **`create_app()` CORS wiring**: Normalizes unset origins to `[]` and empty regex to `None` before passing values to `CORSMiddleware`.
+
+### Documentation
+
+- **`docs/chatterbox-tts.md`** (overview) and **`docs/modal_setup.md`** (Modal deploy runbook).
 - **Terraform example**: Updated environment variable set for Modal and audio generation settings.
+- **`.env.example` and `terraform.tfvars.example`**: Added `CORS_ALLOWED_ORIGINS_REGEX` with Vercel-style example patterns.
 
 ---
 
