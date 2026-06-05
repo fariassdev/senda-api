@@ -1,7 +1,7 @@
 from senda.core.settings.app import AppSettings
 from tests.unit.conftest import make_app_settings
 
-PREVIEW_ORIGIN_REGEX = r"^https://my-project-[a-z0-9]+-myteam\.vercel\.app$"
+PREVIEW_ORIGIN_REGEX = r"^https://my-project-[a-z0-9-]+-myteam\.vercel\.app$"
 
 
 def test_app_settings_default_cors_origins():

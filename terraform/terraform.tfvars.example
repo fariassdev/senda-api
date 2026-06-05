@@ -47,7 +47,7 @@ app_name = "senda"
 #   "KOKORO_API_URL"                = "http://my-kokoro-api.app/v1/audio/speech"
 #   "KOKORO_API_TIMEOUT"            = "60"
 #   "CORS_ALLOWED_ORIGINS"          = "https://my-project.vercel.app"
-#   "CORS_ALLOWED_ORIGINS_REGEX"    = "^https://my-project-[a-z0-9]+-myteam\\.vercel\\.app$"
+#   "CORS_ALLOWED_ORIGINS_REGEX"    = "^https://my-project-[a-z0-9-]+-myteam\\.vercel\\.app$"
 # }
 #
 # production_env_vars = {
@@ -74,6 +74,6 @@ app_name = "senda"
 #   "KOKORO_API_URL"                = "http://my-kokoro-api.app/v1/audio/speech"
 #   "KOKORO_API_TIMEOUT"            = "60"
 #   "CORS_ALLOWED_ORIGINS"          = "https://my-project.vercel.app"
-#   "CORS_ALLOWED_ORIGINS_REGEX"    = "^https://my-project-[a-z0-9]+-myteam\\.vercel\\.app$"
+#   "CORS_ALLOWED_ORIGINS_REGEX"    = "^https://my-project-[a-z0-9-]+-myteam\\.vercel\\.app$"
 # }
 # ==============================================================================

@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 from senda.app import create_app
 from tests.unit.conftest import make_app_settings
 
-PREVIEW_ORIGIN = "https://my-project-abc123-myteam.vercel.app"
-PREVIEW_ORIGIN_REGEX = r"^https://my-project-[a-z0-9]+-myteam\.vercel\.app$"
+PREVIEW_ORIGIN = "https://my-project-git-feat-abc123-myteam.vercel.app"
+PREVIEW_ORIGIN_REGEX = r"^https://my-project-[a-z0-9-]+-myteam\.vercel\.app$"
 CORS_PREFLIGHT_PATH = "/api/health-check"
 
 
