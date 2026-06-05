@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Voice API responses**: Include full public `reference_audio_url` and `sample_audio_url` values.
 - **Breaking — CORS configuration**: `cors_allowed_origins` now defaults to `None` (no origins) instead of `"*"`. Deployments must set `CORS_ALLOWED_ORIGINS` and/or `CORS_ALLOWED_ORIGINS_REGEX` explicitly.
 - **`create_app()` CORS wiring**: Normalizes unset origins to `[]` and empty regex to `None` before passing values to `CORSMiddleware`.
+- **GitHub Actions**: Upgraded google-github-actions to v3 for Node 24 support.
 
 ### Documentation
 
