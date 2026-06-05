@@ -1,10 +1,8 @@
 """Audio processing utilities for combining and exporting audio segments."""
 
-import asyncio
 import io
 import logging
 import tempfile
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from pydub import AudioSegment
@@ -32,7 +30,6 @@ class AudioProcessor:
         sample_rate: int = SAMPLE_RATE,
         channels: int = CHANNELS,
         sample_width: int = SAMPLE_WIDTH,
-        max_concurrent_tts: int = 3,
     ) -> None:
         """Initialize the audio processor.
 
@@ -40,17 +37,14 @@ class AudioProcessor:
             sample_rate: Sample rate in Hz (default: 24000)
             channels: Number of audio channels (default: 1 for mono)
             sample_width: Sample width in bytes (default: 2 for 16-bit)
-            max_concurrent_tts: Max concurrent TTS requests (default: 3)
         """
         self._sample_rate = sample_rate
         self._channels = channels
         self._sample_width = sample_width
-        self._max_concurrent_tts = max_concurrent_tts
 
         logger.info(
             f"Initialized AudioProcessor (rate={sample_rate}Hz, "
-            f"channels={channels}, width={sample_width} bytes, "
-            f"max_concurrent_tts={max_concurrent_tts})"
+            f"channels={channels}, width={sample_width} bytes)"
         )
 
     def pcm_to_audio_segment(self, pcm_data: bytes) -> AudioSegment:
@@ -105,27 +99,17 @@ class AudioProcessor:
         logger.debug(f"Created silence segment: {duration_ms}ms")
         return silence
 
-    async def combine_script_parts(
-        self,
-        script_parts: list[ScriptPartDTO],
-        speech_generator: Callable[[str, str | None, float], Awaitable[bytes]],
-        parallel: bool = True,
-        voice: str | None = None,
-        speed: float = 1.0,
+    def combine_script_parts(
+        self, script_parts: list[ScriptPartDTO], speech_data: dict[int, bytes]
     ) -> AudioSegment:
-        """Combine script parts into a single audio segment.
+        """Combine script parts into a single audio segment using pre-generated speech data.
 
-        This method processes each script part, generating speech for "speak"
-        parts and adding silence for "pause" parts.
+        This method processes each script part, converting raw PCM audio data from the
+        provided speech_data map for "speak" parts and adding silence for "pause" parts.
 
         Args:
             script_parts: List of script parts to process
-            speech_generator: Async callable that generates speech bytes from text
-                             Should have signature: async def (text, voice, speed) -> bytes
-            parallel: Whether to generate TTS for all parts in parallel (default: True)
-                     If False, parts are processed sequentially
-            voice: Optional voice override for TTS
-            speed: Speech rate multiplier (0.5 to 2.0, default 1.0)
+            speech_data: Dictionary mapping script part index to raw PCM audio bytes
 
         Returns:
             Combined AudioSegment
@@ -136,40 +120,19 @@ class AudioProcessor:
         if not script_parts:
             raise ValueError("No script parts provided")
 
-        logger.info(
-            f"Combining {len(script_parts)} script parts into audio "
-            f"(parallel={parallel}, max_concurrent={self._max_concurrent_tts})"
-        )
+        logger.info(f"Combining {len(script_parts)} script parts into audio")
 
-        if parallel:
-            return await self._combine_script_parts_parallel(
-                script_parts, speech_generator, voice, speed
-            )
-        else:
-            return await self._combine_script_parts_sequential(
-                script_parts, speech_generator, voice, speed
-            )
-
-    async def _combine_script_parts_sequential(
-        self,
-        script_parts: list[ScriptPartDTO],
-        speech_generator: Callable[[str, str | None, float], Awaitable[bytes]],
-        voice: str | None = None,
-        speed: float = 1.0,
-    ) -> AudioSegment:
-        """Combine script parts sequentially (original behavior)."""
         final_audio = AudioSegment.empty()
 
         for idx, part in enumerate(script_parts):
-            logger.debug(f"Processing part {idx + 1}/{len(script_parts)}: {part.type}")
+            logger.debug(f"Combining part {idx + 1}/{len(script_parts)}: {part.type}")
 
             if part.type == ScriptPartType.SPEAK:
-                if not part.content:
-                    logger.warning(f"Part {idx + 1} has no content, skipping")
+                if idx not in speech_data or not speech_data[idx]:
+                    logger.warning(f"Part {idx + 1} has no generated speech, skipping")
                     continue
 
-                speech_bytes = await speech_generator(part.content, voice, speed)
-                speech_segment = self.pcm_to_audio_segment(speech_bytes)
+                speech_segment = self.pcm_to_audio_segment(speech_data[idx])
                 final_audio += speech_segment
 
             elif part.type == ScriptPartType.PAUSE:
@@ -186,84 +149,6 @@ class AudioProcessor:
 
         logger.info(
             f"Combined audio complete: {len(final_audio)}ms total duration, "
-            f"{len(final_audio.raw_data)} bytes"
-        )
-        return final_audio
-
-    async def _combine_script_parts_parallel(
-        self,
-        script_parts: list[ScriptPartDTO],
-        speech_generator: Callable[[str, str | None, float], Awaitable[bytes]],
-        voice: str | None = None,
-        speed: float = 1.0,
-    ) -> AudioSegment:
-        """Combine script parts with parallel TTS generation.
-
-        This method generates TTS for all "speak" parts in parallel (with semaphore
-        control), then combines them in order with pause segments.
-        """
-        # Create semaphore to limit concurrent TTS requests
-        semaphore = asyncio.Semaphore(self._max_concurrent_tts)
-
-        # Prepare tasks for all speak parts
-        async def generate_speech_with_semaphore(
-            idx: int, content: str
-        ) -> tuple[int, bytes | None]:
-            """Generate speech with semaphore control."""
-            async with semaphore:
-                try:
-                    logger.debug(f"Generating TTS for part {idx + 1}")
-                    speech_bytes = await speech_generator(content, voice, speed)
-                    return (idx, speech_bytes)
-                except Exception as e:
-                    logger.error(f"Failed to generate TTS for part {idx + 1}: {e}")
-                    return (idx, None)
-
-        # Collect all speak tasks
-        speak_tasks = []
-        for idx, part in enumerate(script_parts):
-            if part.type == ScriptPartType.SPEAK and part.content:
-                speak_tasks.append(generate_speech_with_semaphore(idx, part.content))
-
-        # Generate all TTS in parallel
-        logger.info(f"Generating TTS for {len(speak_tasks)} speak parts in parallel")
-        tts_results = await asyncio.gather(*speak_tasks)
-
-        # Build a map of index -> speech_bytes
-        speech_map: dict[int, bytes] = {
-            idx: speech_bytes
-            for idx, speech_bytes in tts_results
-            if speech_bytes is not None
-        }
-
-        # Now combine parts in order
-        final_audio = AudioSegment.empty()
-
-        for idx, part in enumerate(script_parts):
-            logger.debug(f"Combining part {idx + 1}/{len(script_parts)}: {part.type}")
-
-            if part.type == ScriptPartType.SPEAK:
-                if idx not in speech_map:
-                    logger.warning(f"Part {idx + 1} has no generated speech, skipping")
-                    continue
-
-                speech_segment = self.pcm_to_audio_segment(speech_map[idx])
-                final_audio += speech_segment
-
-            elif part.type == ScriptPartType.PAUSE:
-                if part.duration is None or part.duration <= 0:
-                    logger.warning(f"Part {idx + 1} has invalid duration, skipping")
-                    continue
-
-                silence_segment = self.create_silence(part.duration)
-                final_audio += silence_segment
-
-            else:
-                logger.warning(f"Unknown script part type: {part.type}, skipping")
-                continue
-
-        logger.info(
-            f"Combined audio complete (parallel): {len(final_audio)}ms total duration, "
             f"{len(final_audio.raw_data)} bytes"
         )
         return final_audio

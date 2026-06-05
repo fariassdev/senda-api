@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from fastapi import status
@@ -60,7 +61,8 @@ class TestAudioGenerationAPI:
             return_value=mock_result,
         ):
             response = await admin_test_client.post(
-                f"/courses/{test_course.slug}/lessons/{lesson_id}/generate-audio"
+                f"/courses/{test_course.slug}/lessons/{lesson_id}/generate-audio",
+                json={"audio_config": {"voice_id": str(uuid4())}},
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -77,7 +79,8 @@ class TestAudioGenerationAPI:
     ):
         """Test unauthorized access is rejected."""
         response = await test_client.post(
-            f"/courses/{test_course.slug}/lessons/1/generate-audio"
+            f"/courses/{test_course.slug}/lessons/1/generate-audio",
+            json={"audio_config": {"voice_id": str(uuid4())}},
         )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -88,7 +91,8 @@ class TestAudioGenerationAPI:
     ):
         """Test unauthorized access is rejected."""
         response = await authorized_test_client.post(
-            f"/courses/{test_course.slug}/lessons/1/generate-audio"
+            f"/courses/{test_course.slug}/lessons/1/generate-audio",
+            json={"audio_config": {"voice_id": str(uuid4())}},
         )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -106,7 +110,8 @@ class TestAudioGenerationAPI:
             side_effect=LessonNotFoundException(),
         ):
             response = await admin_test_client.post(
-                f"/courses/{test_course.slug}/lessons/99999/generate-audio"
+                f"/courses/{test_course.slug}/lessons/99999/generate-audio",
+                json={"audio_config": {"voice_id": str(uuid4())}},
             )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -142,7 +147,8 @@ class TestAudioGenerationAPI:
             side_effect=InvalidLessonStateException(),
         ):
             response = await admin_test_client.post(
-                f"/courses/{test_course.slug}/lessons/{lesson_id}/generate-audio"
+                f"/courses/{test_course.slug}/lessons/{lesson_id}/generate-audio",
+                json={"audio_config": {"voice_id": str(uuid4())}},
             )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -212,7 +218,8 @@ class TestAudioGenerationAPI:
             return_value=mock_batch_result,
         ):
             response = await admin_test_client.post(
-                f"/courses/{test_course.slug}/generate-batch-audios", json={}
+                f"/courses/{test_course.slug}/generate-batch-audios",
+                json={"audio_config": {"voice_id": str(uuid4())}},
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -241,7 +248,8 @@ class TestAudioGenerationAPI:
     ):
         """Test unauthorized access is rejected."""
         response = await test_client.post(
-            f"/courses/{test_course.slug}/generate-batch-audios", json={}
+            f"/courses/{test_course.slug}/generate-batch-audios",
+            json={"audio_config": {"voice_id": str(uuid4())}},
         )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -260,7 +268,8 @@ class TestAudioGenerationAPI:
             return_value=mock_batch_result,
         ):
             response = await admin_test_client.post(
-                f"/courses/{test_course.slug}/generate-batch-audios", json={}
+                f"/courses/{test_course.slug}/generate-batch-audios",
+                json={"audio_config": {"voice_id": str(uuid4())}},
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -401,7 +410,10 @@ class TestBatchAudioGeneration:
         ):
             response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-batch-audios",
-                json={"lesson_ids": lesson_ids},
+                json={
+                    "lesson_ids": lesson_ids,
+                    "audio_config": {"voice_id": str(uuid4())},
+                },
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -425,7 +437,7 @@ class TestBatchAudioGeneration:
         ):
             response = await admin_test_client.post(
                 f"/courses/{test_course.slug}/generate-batch-audios",
-                json={"lesson_ids": []},
+                json={"lesson_ids": [], "audio_config": {"voice_id": str(uuid4())}},
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -464,7 +476,8 @@ class TestBatchAudioGeneration:
             return_value=mock_batch_result,
         ):
             response = await admin_test_client.post(
-                f"/courses/{test_course.slug}/generate-batch-audios", json={}
+                f"/courses/{test_course.slug}/generate-batch-audios",
+                json={"audio_config": {"voice_id": str(uuid4())}},
             )
 
         assert response.status_code == status.HTTP_200_OK

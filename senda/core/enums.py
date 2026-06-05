@@ -24,6 +24,13 @@ class DifficultyLevel(str, enum.Enum):
     ADVANCED = "ADVANCED"
 
 
+class TtsProvider(str, enum.Enum):
+    """Supported text-to-speech backends."""
+
+    CHATTERBOX = "chatterbox"
+    KOKORO = "kokoro"
+
+
 class ScriptPartType(str, enum.Enum):
     """Script part type enumeration for lesson scripts"""
 

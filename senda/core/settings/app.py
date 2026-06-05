@@ -23,8 +23,8 @@ class AppSettings(BaseAppSettings):
     api_prefix: str = "/api/v1"
 
     # CORS configuration - comma-separated string: "http://localhost:3000,https://example.com"
-    # Empty or missing value defaults to "*"
-    cors_allowed_origins: str = "*"
+    cors_allowed_origins: str | None = None
+    cors_allowed_origins_regex: str | None = None
 
     logging_level: int = logging.INFO
 
@@ -32,15 +32,16 @@ class AppSettings(BaseAppSettings):
         validate_assignment = True
 
     @property
-    def cors_origins_list(self) -> list[str]:
+    def cors_origins_list(self) -> list[str] | None:
         """Parse cors_allowed_origins into a list."""
         if not self.cors_allowed_origins:
-            return ["*"]
-        return [
+            return None
+        origins = [
             origin.strip()
             for origin in self.cors_allowed_origins.split(",")
             if origin.strip()
         ]
+        return origins or None
 
     @property
     def fastapi_kwargs(self) -> dict[str, Any]:

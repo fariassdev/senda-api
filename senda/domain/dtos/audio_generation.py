@@ -1,13 +1,14 @@
 """DTOs for audio generation feature."""
 
 from dataclasses import dataclass
+from uuid import UUID
 
 
 @dataclass(frozen=True)
 class AudioConfigDTO:
     """Configuration for audio generation (voice, speed)."""
 
-    voice: str | None = None  # Voice override (e.g., "af_nicole", "af_bella")
+    voice_id: UUID
     speed: float = 1.0  # Speech rate: 0.5 to 2.0
 
 
@@ -17,7 +18,7 @@ class AudioGenerationRequestDTO:
 
     lesson_id: int
     user_id: int
-    audio_config: AudioConfigDTO | None = None
+    audio_config: AudioConfigDTO
 
 
 @dataclass(frozen=True)
@@ -26,8 +27,8 @@ class CourseAudioGenerationRequestDTO:
 
     slug: str
     user_id: int
+    audio_config: AudioConfigDTO
     lesson_ids: list[int] | None = None  # None = all, [] = none, [ids] = specific
-    audio_config: AudioConfigDTO | None = None
 
 
 @dataclass(frozen=True)

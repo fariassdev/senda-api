@@ -4,8 +4,7 @@ from senda.infrastructure.models import Course
 
 
 class CourseModelMapper(IModelMapper[Course, CourseRecordDTO]):
-    @staticmethod
-    def to_dto(model: Course) -> CourseRecordDTO:
+    def to_dto(self, model: Course) -> CourseRecordDTO:
         dto = CourseRecordDTO(
             id=model.id,
             author_id=model.author_id,
@@ -20,8 +19,7 @@ class CourseModelMapper(IModelMapper[Course, CourseRecordDTO]):
         )
         return dto
 
-    @staticmethod
-    def from_dto(dto: CourseRecordDTO) -> Course:
+    def from_dto(self, dto: CourseRecordDTO) -> Course:
         model = Course(
             author_id=dto.author_id,
             slug=dto.slug,

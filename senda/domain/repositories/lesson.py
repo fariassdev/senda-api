@@ -1,5 +1,6 @@
 import abc
 from typing import Any
+from uuid import UUID
 
 from senda.domain.dtos.lesson import (
     CreateLessonDTO,
@@ -45,3 +46,6 @@ class ILessonRepository(abc.ABC):
     async def reorder(
         self, session: Any, course_id: int, reorder_data: ReorderLessonsDTO
     ) -> list[LessonRecordDTO]: ...
+
+    @abc.abstractmethod
+    async def count_using_voice(self, session: Any, voice_id: UUID) -> int: ...

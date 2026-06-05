@@ -1,6 +1,6 @@
 [project]
 name = "Senda"
-version = "0.1.1"
+version = "0.2.0"
 description = "Senda - AI-Powered Course Platform with Clean Architecture. A modern FastAPI backend featuring AI-generated course content, parallel audio generation, and scalable clean architecture design. Built for educational platforms with Gemini AI integration for script generation, Kokoro TTS for audio synthesis, AWS S3 storage, and PostgreSQL with async SQLAlchemy. Implements domain-driven design with strict separation of concerns across API, services, infrastructure, and domain layers."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -20,6 +20,8 @@ dependencies = [
     "pytest==8.3.3",
     "pytest-asyncio==0.24.0",
     "pytest-cov==6.0.0",
+    "python-dotenv==1.0.0",
+    "python-multipart==0.0.29",
     "python-slugify==8.0.4",
     "sqlalchemy==2.0.36",
     "sqlalchemy-utils==0.41.2",
@@ -30,6 +32,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "modal==1.4.3",
     "mypy==1.9.0",
     "pre-commit==3.7.0",
     "psycopg2-binary==2.9.11",

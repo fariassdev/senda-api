@@ -5,8 +5,7 @@ from senda.infrastructure.models import User
 
 
 class UserModelMapper(IModelMapper[User, UserDTO]):
-    @staticmethod
-    def to_dto(model: User) -> UserDTO:
+    def to_dto(self, model: User) -> UserDTO:
         dto = UserDTO(
             username=model.username,
             email=model.email,
@@ -20,8 +19,7 @@ class UserModelMapper(IModelMapper[User, UserDTO]):
         dto.id = model.id
         return dto
 
-    @staticmethod
-    def from_dto(dto: UserDTO) -> User:
+    def from_dto(self, dto: UserDTO) -> User:
         model = User(
             username=dto.username,
             email=dto.email,
