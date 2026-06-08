@@ -56,13 +56,20 @@ class IStorageProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def upload_file(self, file_data: bytes, key: str, content_type: str) -> str:
+    async def upload_file(
+        self,
+        file_data: bytes,
+        key: str,
+        content_type: str,
+        cache_control: str | None = None,
+    ) -> str:
         """Upload a file to storage at a specific key location.
 
         Args:
             file_data: Raw bytes of the file to upload
             key: Target path/key in storage
             content_type: Content-Type MIME type string
+            cache_control: Optional Cache-Control header for CDN behavior
 
         Returns:
             Public URL of the uploaded file
@@ -70,6 +77,11 @@ class IStorageProvider(abc.ABC):
         Raises:
             StorageProviderException: If upload fails
         """
+        pass
+
+    @abc.abstractmethod
+    def public_url_for_key(self, key: str) -> str:
+        """Build the public URL for an object key without uploading."""
         pass
 
     @abc.abstractmethod

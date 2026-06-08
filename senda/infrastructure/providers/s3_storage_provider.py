@@ -3,7 +3,6 @@
 import logging
 import secrets
 import string
-from typing import BinaryIO
 
 import aioboto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -26,6 +25,7 @@ class S3StorageProvider(IStorageProvider):
         bucket_name: str = "senda-ai",
         region: str = "us-east-1",
         audio_prefix: str = "audio/",
+        cdn_base_url: str | None = None,
     ) -> None:
         """Initialize the S3 storage provider.
 
@@ -33,15 +33,28 @@ class S3StorageProvider(IStorageProvider):
             bucket_name: Name of the S3 bucket
             region: AWS region for the bucket
             audio_prefix: Prefix path for audio files in the bucket
+            cdn_base_url: Optional CDN origin for public URLs (falls back to S3)
         """
         self._bucket_name = bucket_name
         self._region = region
         self._audio_prefix = audio_prefix
+        self._cdn_base_url = cdn_base_url.rstrip("/") if cdn_base_url else None
         self._session = aioboto3.Session()
 
         logger.info(
             f"Initialized S3StorageProvider with bucket={bucket_name}, region={region}"
         )
+
+    def public_url_for_key(self, key: str) -> str:
+        normalized_key = key.lstrip("/")
+        if self._cdn_base_url:
+            if normalized_key:
+                return f"{self._cdn_base_url}/{normalized_key}"
+            return self._cdn_base_url
+        s3_base = f"https://{self._bucket_name}.s3.amazonaws.com"
+        if normalized_key:
+            return f"{s3_base}/{normalized_key}"
+        return s3_base
 
     def _generate_random_string(self, length: int = 10) -> str:
         """Generate a random string for unique filenames.
@@ -95,19 +108,59 @@ class S3StorageProvider(IStorageProvider):
 
         logger.info(f"Uploading audio file to S3: {object_key}")
 
+        return await self._put_object(
+            file_data=file_data, key=object_key, content_type="audio/mpeg"
+        )
+
+    async def upload_file(
+        self,
+        file_data: bytes,
+        key: str,
+        content_type: str,
+        cache_control: str | None = None,
+    ) -> str:
+        """Upload a generic file to S3 and return its public URL."""
+        if not file_data:
+            logger.warning("Empty file data provided for upload")
+            raise StorageProviderException(message="Cannot upload empty file")
+
+        logger.info(
+            f"Uploading file to S3: {key} (type: {content_type}, "
+            f"cache: {cache_control or 'default'})"
+        )
+
+        return await self._put_object(
+            file_data=file_data,
+            key=key,
+            content_type=content_type,
+            cache_control=cache_control,
+        )
+
+    async def _put_object(
+        self,
+        *,
+        file_data: bytes,
+        key: str,
+        content_type: str,
+        cache_control: str | None = None,
+    ) -> str:
         try:
+            put_kwargs: dict = {
+                "Bucket": self._bucket_name,
+                "Key": key,
+                "Body": file_data,
+                "ContentType": content_type,
+            }
+            if cache_control is not None:
+                put_kwargs["CacheControl"] = cache_control
+
             async with self._session.client(
                 "s3", region_name=self._region
             ) as s3_client:
-                await s3_client.put_object(
-                    Bucket=self._bucket_name,
-                    Key=object_key,
-                    Body=file_data,
-                    ContentType="audio/mpeg",
-                )
+                await s3_client.put_object(**put_kwargs)
 
-            public_url = f"https://{self._bucket_name}.s3.amazonaws.com/{object_key}"
-            logger.info(f"Successfully uploaded audio file: {public_url}")
+            public_url = self.public_url_for_key(key)
+            logger.info(f"Successfully uploaded file to S3: {public_url}")
             return public_url
 
         except ClientError as e:
@@ -118,61 +171,20 @@ class S3StorageProvider(IStorageProvider):
                 raise StorageProviderException(
                     message=f"S3 bucket '{self._bucket_name}' does not exist"
                 ) from e
-            elif error_code in ("AccessDenied", "InvalidAccessKeyId"):
+            if error_code in ("AccessDenied", "InvalidAccessKeyId"):
                 raise StorageProviderException(
                     message="S3 access denied - check credentials"
                 ) from e
-            else:
-                raise StorageProviderException(
-                    message=f"S3 upload failed: {error_code}"
-                ) from e
-
-        except BotoCoreError as e:
-            logger.error(f"Boto core error during upload: {e}")
-            raise StorageProviderException(
-                message="S3 service error - check configuration"
-            ) from e
-
-        except Exception as e:
-            logger.exception(f"Unexpected error during S3 upload: {e}")
-            raise StorageProviderException(
-                message=f"Audio upload failed: {str(e)}"
-            ) from e
-
-    async def upload_file(self, file_data: bytes, key: str, content_type: str) -> str:
-        """Upload a generic file to S3 and return its public URL."""
-        if not file_data:
-            logger.warning("Empty file data provided for upload")
-            raise StorageProviderException(message="Cannot upload empty file")
-
-        logger.info(f"Uploading file to S3: {key} (type: {content_type})")
-
-        try:
-            async with self._session.client(
-                "s3", region_name=self._region
-            ) as s3_client:
-                await s3_client.put_object(
-                    Bucket=self._bucket_name,
-                    Key=key,
-                    Body=file_data,
-                    ContentType=content_type,
-                )
-
-            public_url = f"https://{self._bucket_name}.s3.amazonaws.com/{key}"
-            logger.info(f"Successfully uploaded file to S3: {public_url}")
-            return public_url
-
-        except ClientError as e:
-            error_code = e.response.get("Error", {}).get("Code", "Unknown")
-            logger.error(f"S3 client error during upload: {error_code} - {e}")
             raise StorageProviderException(
                 message=f"S3 upload failed: {error_code}"
             ) from e
+
         except BotoCoreError as e:
             logger.error(f"Boto core error during upload: {e}")
             raise StorageProviderException(
                 message="S3 service error - check configuration"
             ) from e
+
         except Exception as e:
             logger.exception(f"Unexpected error during S3 upload: {e}")
             raise StorageProviderException(

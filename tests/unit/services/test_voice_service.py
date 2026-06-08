@@ -100,6 +100,9 @@ def mock_storage() -> AsyncMock:
     provider = AsyncMock(spec=IStorageProvider)
     provider.upload_file = AsyncMock(return_value="https://bucket.s3.amazonaws.com/key")
     provider.delete_file = AsyncMock()
+    provider.public_url_for_key = Mock(
+        return_value="https://bucket.s3.amazonaws.com/key"
+    )
     return provider
 
 

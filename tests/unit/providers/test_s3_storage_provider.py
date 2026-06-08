@@ -212,6 +212,36 @@ class TestS3StorageProvider:
 
             assert "upload failed" in str(exc_info.value).lower()
 
+    def test_public_url_for_key_uses_cdn_when_configured(self) -> None:
+        provider = S3StorageProvider(
+            bucket_name="test-bucket",
+            region="us-east-1",
+            cdn_base_url="https://cdn.senda.com",
+        )
+        assert (
+            provider.public_url_for_key("meditations/1/job/playlist.m3u8")
+            == "https://cdn.senda.com/meditations/1/job/playlist.m3u8"
+        )
+
+    @pytest.mark.asyncio
+    async def test_upload_file_sets_cache_control(self, storage_provider) -> None:
+        mock_s3_client = AsyncMock()
+        mock_s3_client.put_object = AsyncMock()
+
+        with patch.object(storage_provider._session, "client") as mock_client_context:
+            mock_client_context.return_value.__aenter__.return_value = mock_s3_client
+
+            await storage_provider.upload_file(
+                file_data=b"segment",
+                key="meditations/1/job/segment_000.ts",
+                content_type="video/mp2t",
+                cache_control="public, max-age=31536000",
+            )
+
+        call_kwargs = mock_s3_client.put_object.call_args.kwargs
+        assert call_kwargs["CacheControl"] == "public, max-age=31536000"
+        assert call_kwargs["ContentType"] == "video/mp2t"
+
     @pytest.mark.asyncio
     async def test_upload_audio_filename_structure(
         self, storage_provider, sample_audio_data

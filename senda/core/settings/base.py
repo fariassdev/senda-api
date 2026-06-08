@@ -40,6 +40,8 @@ class BaseAppSettings(BaseSettings):
     )
     aws_s3_bucket: str = "senda-ai"
     aws_region: str = "eu-west-1"
+    cdn_base_url: str | None = None
+    hls_segment_seconds: int = 6
 
     # Modal Chatterbox TTS Settings
     modal_tts_endpoint: str = "http://localhost:8000"

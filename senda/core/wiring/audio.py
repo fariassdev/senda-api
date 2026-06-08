@@ -15,6 +15,7 @@ from senda.domain.services.audio_generation import (
 )
 from senda.domain.services.voice import IVoiceService
 from senda.domain.services.voice_asset_provisioning import IVoiceAssetProvisioner
+from senda.infrastructure.audio.composer import AudioComposer
 from senda.infrastructure.providers.chatterbox_audio_provider import (
     ChatterboxAudioProvider,
 )
@@ -31,7 +32,17 @@ from senda.services.voice import VoiceService
 
 def build_storage_provider(settings: BaseAppSettings) -> IStorageProvider:
     return S3StorageProvider(
-        bucket_name=settings.aws_s3_bucket, region=settings.aws_region
+        bucket_name=settings.aws_s3_bucket,
+        region=settings.aws_region,
+        cdn_base_url=settings.cdn_base_url,
+    )
+
+
+def build_audio_composer(settings: BaseAppSettings) -> AudioComposer:
+    return AudioComposer(
+        storage_provider=build_storage_provider(settings),
+        segment_seconds=settings.hls_segment_seconds,
+        cdn_base_url=settings.cdn_base_url,
     )
 
 

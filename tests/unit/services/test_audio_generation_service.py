@@ -72,6 +72,9 @@ class TestAudioGenerationService:
         provider.upload_audio = AsyncMock(
             return_value="https://s3.amazonaws.com/audio/test.mp3"
         )
+        provider.public_url_for_key = Mock(
+            return_value="https://s3.amazonaws.com/audio/test.mp3"
+        )
         return provider
 
     @pytest.fixture
