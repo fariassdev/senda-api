@@ -15,7 +15,6 @@ class AudioGenerationJobDTO:
     voice_slug: str | None
     audio_provider: str | None
     s3_base_path: str
-    speed: float
     status: AudioGenerationJobStatus
     segments_available: int
     segment_count: int | None
@@ -37,7 +36,6 @@ class CreateAudioGenerationJobDTO:
     voice_slug: str
     audio_provider: str
     s3_base_path: str
-    speed: float = 1.0
 
 
 @dataclass(frozen=True)

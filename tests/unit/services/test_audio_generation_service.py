@@ -30,12 +30,12 @@ from senda.domain.dtos.audio_generation import (
     CourseAudioGenerationRequestDTO,
     StartGenerationJobResultDTO,
 )
+from senda.domain.dtos.audio_generation_job import AudioGenerationJobDTO
 from senda.domain.dtos.course import CourseRecordDTO
 from senda.domain.dtos.lesson import LessonRecordDTO
+from senda.domain.dtos.lesson_audio import LessonAudioDTO
 from senda.domain.dtos.script_generation import ScriptPartDTO
 from senda.domain.dtos.voice import GenderEnum, VoiceDTO
-from senda.domain.dtos.audio_generation_job import AudioGenerationJobDTO
-from senda.domain.dtos.lesson_audio import LessonAudioDTO
 from senda.domain.repositories.audio_generation_job import IAudioGenerationJobRepository
 from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.lesson import ILessonRepository
@@ -67,7 +67,6 @@ def make_job_dto(
         voice_slug="af_nicole",
         audio_provider=TtsProvider.KOKORO.value,
         s3_base_path=s3_base_path_for(lesson_id, job_id),
-        speed=1.0,
         status=status,
         segments_available=0,
         segment_count=segment_count,
@@ -294,7 +293,9 @@ class TestAudioGenerationService:
         )
         job_id = uuid4()
         pending_job = make_job_dto(
-            job_id=job_id, voice_id=kokoro_voice_id, status=AudioGenerationJobStatus.PENDING
+            job_id=job_id,
+            voice_id=kokoro_voice_id,
+            status=AudioGenerationJobStatus.PENDING,
         )
         completed_job = make_job_dto(
             job_id=job_id,
@@ -422,7 +423,7 @@ class TestAudioGenerationService:
         mock_chatterbox_provider.generate_speech.assert_called()
         mock_audio_provider.generate_speech.assert_not_called()
         mock_chatterbox_provider.generate_speech.assert_called_with(
-            text="Hello", voice="Lucy", speed=1.0
+            text="Hello", voice="Lucy"
         )
 
     @pytest.mark.asyncio
@@ -642,7 +643,6 @@ class TestAudioGenerationService:
             voice_slug="af_nicole",
             audio_provider=TtsProvider.KOKORO.value,
             s3_base_path=s3_base_path_for(1, job_id),
-            speed=1.0,
             status=AudioGenerationJobStatus.FAILED,
             segments_available=0,
             segment_count=None,
@@ -738,7 +738,9 @@ class TestAudioGenerationService:
             duration_ms=1024,
         )
         audio_service._job_repo.get = AsyncMock(return_value=completed_job)
-        audio_service.start_generation_job = AsyncMock(side_effect=mock_start_generation_job)
+        audio_service.start_generation_job = AsyncMock(
+            side_effect=mock_start_generation_job
+        )
         audio_service.run_generation_pipeline = AsyncMock()
 
         batch_result = await audio_service.generate_course_audios(
@@ -869,7 +871,9 @@ class TestAudioGenerationService:
             duration_ms=1024,
         )
         audio_service._job_repo.get = AsyncMock(return_value=completed_job)
-        audio_service.start_generation_job = AsyncMock(side_effect=mock_start_generation_job)
+        audio_service.start_generation_job = AsyncMock(
+            side_effect=mock_start_generation_job
+        )
         audio_service.run_generation_pipeline = AsyncMock()
 
         batch_result = await audio_service.generate_course_audios(

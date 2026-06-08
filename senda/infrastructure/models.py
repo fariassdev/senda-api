@@ -154,7 +154,6 @@ class AudioGenerationJob(Base):
     voice_slug: Mapped[str | None] = mapped_column(nullable=True)
     audio_provider: Mapped[str | None] = mapped_column(nullable=True)
     s3_base_path: Mapped[str] = mapped_column(nullable=False)
-    speed: Mapped[float] = mapped_column(default=1.0)
     status: Mapped[str] = mapped_column(default=AudioGenerationJobStatus.PENDING.value)
     segments_available: Mapped[int] = mapped_column(default=0)
     segment_count: Mapped[int | None] = mapped_column(nullable=True)

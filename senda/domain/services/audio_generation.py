@@ -1,7 +1,6 @@
 """Abstract interfaces for audio generation services."""
 
 import abc
-
 from uuid import UUID
 
 from senda.domain.dtos.audio_generation import (

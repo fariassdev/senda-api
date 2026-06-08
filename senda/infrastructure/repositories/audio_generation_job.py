@@ -39,7 +39,6 @@ class AudioGenerationJobRepository(IAudioGenerationJobRepository):
                 voice_slug=create_item.voice_slug,
                 audio_provider=create_item.audio_provider,
                 s3_base_path=create_item.s3_base_path,
-                speed=create_item.speed,
                 status=AudioGenerationJobStatus.PENDING.value,
                 segments_available=0,
                 created_at=datetime.now(),

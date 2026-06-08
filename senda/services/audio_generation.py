@@ -9,7 +9,12 @@ from uuid import UUID, uuid4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from senda.core.enums import AudioGenerationJobStatus, LessonStatus, ScriptPartType, TtsProvider
+from senda.core.enums import (
+    AudioGenerationJobStatus,
+    LessonStatus,
+    ScriptPartType,
+    TtsProvider,
+)
 from senda.core.exceptions import (
     AudioGenerationException,
     AudioProviderException,
@@ -109,12 +114,16 @@ class AudioGenerationService(IAudioGenerationService):
             )
         return provider
 
-    def _job_to_start_result(self, job: AudioGenerationJobDTO) -> StartGenerationJobResultDTO:
+    def _job_to_start_result(
+        self, job: AudioGenerationJobDTO
+    ) -> StartGenerationJobResultDTO:
         return StartGenerationJobResultDTO(
             job_id=job.id,
             lesson_id=job.lesson_id,
             status=job.status,
-            playlist_url=playlist_url_for(self._resolve_cdn_base_url(), job.s3_base_path),
+            playlist_url=playlist_url_for(
+                self._resolve_cdn_base_url(), job.s3_base_path
+            ),
             segments_available=job.segments_available,
             lesson_audio_id=job.lesson_audio_id,
         )
@@ -140,9 +149,7 @@ class AudioGenerationService(IAudioGenerationService):
             raise InvalidLessonStateException()
         return lesson_record
 
-    async def _validate_voice(
-        self, session: AsyncSession, voice_id: UUID
-    ) -> VoiceDTO:
+    async def _validate_voice(self, session: AsyncSession, voice_id: UUID) -> VoiceDTO:
         catalog_voice = await self._voice_repo.get_or_none(
             session=session, voice_id=voice_id
         )
@@ -187,7 +194,6 @@ class AudioGenerationService(IAudioGenerationService):
             voice_slug=catalog_voice.slug,
             audio_provider=catalog_voice.tts_provider,
             s3_base_path=s3_base_path_for(request.lesson_id, job_id),
-            speed=request.audio_config.speed,
         )
 
         try:
@@ -221,7 +227,9 @@ class AudioGenerationService(IAudioGenerationService):
                 )
                 script_parts = LessonScript.deserialize(lesson_record.script)
                 if not script_parts:
-                    raise AudioGenerationException(message="Lesson has no script content")
+                    raise AudioGenerationException(
+                        message="Lesson has no script content"
+                    )
 
                 now = datetime.now(timezone.utc)
                 await self._lesson_repo.update(
@@ -233,8 +241,7 @@ class AudioGenerationService(IAudioGenerationService):
                     session=session,
                     job_id=job_id,
                     update_item=UpdateAudioGenerationJobDTO(
-                        status=AudioGenerationJobStatus.GENERATING,
-                        started_at=now,
+                        status=AudioGenerationJobStatus.GENERATING, started_at=now
                     ),
                 )
                 await session.commit()
@@ -244,14 +251,12 @@ class AudioGenerationService(IAudioGenerationService):
                 voice_id = job.voice_id
                 voice_slug = job.voice_slug or catalog_voice.slug
                 audio_provider = job.audio_provider or catalog_voice.tts_provider
-                job_speed = job.speed
 
             provider = self._resolve_audio_provider(catalog_voice.tts_provider)
             speech_data = await self._generate_speech_data(
                 script_parts=script_parts,
                 provider=provider,
                 voice_name=catalog_voice.slug,
-                speed=job_speed,
             )
 
             async def on_segment_ready(segments_available: int) -> None:
@@ -318,8 +323,10 @@ class AudioGenerationService(IAudioGenerationService):
             error_message = str(exc)
             logger.exception("HLS generation job %s failed: %s", job_id, exc)
             async with self._session_factory() as session:
-                job = await self._job_repo.get_or_none(session=session, job_id=job_id)
-                if job:
+                failed_job = await self._job_repo.get_or_none(
+                    session=session, job_id=job_id
+                )
+                if failed_job:
                     await self._job_repo.update(
                         session=session,
                         job_id=job_id,
@@ -330,18 +337,13 @@ class AudioGenerationService(IAudioGenerationService):
                     )
                     await self._lesson_repo.update(
                         session=session,
-                        lesson_id=job.lesson_id,
+                        lesson_id=failed_job.lesson_id,
                         update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_FAILED),
                     )
                     await session.commit()
 
     async def _generate_speech_data(
-        self,
-        *,
-        script_parts: list,
-        provider: IAudioProvider,
-        voice_name: str,
-        speed: float,
+        self, *, script_parts: list, provider: IAudioProvider, voice_name: str
     ) -> dict[int, bytes]:
         semaphore = asyncio.Semaphore(self._max_concurrent_tts)
 
@@ -351,7 +353,7 @@ class AudioGenerationService(IAudioGenerationService):
             async with semaphore:
                 try:
                     pcm_bytes = await provider.generate_speech(
-                        text=text, voice=voice_name, speed=speed
+                        text=text, voice=voice_name
                     )
                     return idx, pcm_bytes
                 except AudioProviderException as exc:
