@@ -8,10 +8,12 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
-from senda.core.enums import LessonStatus
+from senda.core.enums import AudioGenerationJobStatus, LessonStatus
 from senda.domain.dtos.audio_generation import (
+    AudioGenerationJobStatusResultDTO,
     AudioGenerationResultDTO,
     BatchAudioGenerationResultDTO,
+    StartGenerationJobResultDTO,
 )
 from senda.domain.dtos.script_generation import (
     BatchScriptGenerationResultDTO,
@@ -27,7 +29,7 @@ class TestAudioGenerationAPI:
     async def test_generate_lesson_audio_success(
         self, admin_test_client: AsyncClient, test_user, test_course, session
     ):
-        """Test successful lesson audio generation."""
+        """Test async lesson audio generation returns 202 with job metadata."""
         from senda.infrastructure.models import Course, Lesson
 
         course = await session.get(Course, test_course.id)
@@ -48,17 +50,18 @@ class TestAudioGenerationAPI:
         await session.refresh(lesson)
         lesson_id = lesson.id
 
-        mock_result = AudioGenerationResultDTO(
+        job_id = uuid4()
+        mock_result = StartGenerationJobResultDTO(
+            job_id=job_id,
             lesson_id=lesson_id,
-            job_id=uuid4(),
+            status=AudioGenerationJobStatus.PENDING,
             playlist_url="https://cdn.test/meditations/playlist.m3u8",
-            segment_count=2,
-            duration_ms=1024,
-            generation_time_seconds=5.0,
+            segments_available=0,
+            is_new=True,
         )
 
         with patch(
-            "senda.services.audio_generation.AudioGenerationService.generate_lesson_audio",
+            "senda.services.audio_generation.AudioGenerationService.start_generation_job",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -67,13 +70,13 @@ class TestAudioGenerationAPI:
                 json={"audio_config": {"voice_id": str(uuid4())}},
             )
 
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_202_ACCEPTED
         data = response.json()
 
         assert data["lesson_id"] == lesson_id
-        assert data["audio_url"] == "https://cdn.test/meditations/playlist.m3u8"
-        assert data["generation_time_seconds"] == 5.0
-        assert data["file_size_bytes"] == 1024
+        assert data["job_id"] == str(job_id)
+        assert data["status"] == AudioGenerationJobStatus.PENDING.value
+        assert data["playlist_url"] == "https://cdn.test/meditations/playlist.m3u8"
 
     @pytest.mark.anyio
     async def test_generate_lesson_audio_unauthorized(
@@ -107,7 +110,7 @@ class TestAudioGenerationAPI:
         from senda.core.exceptions import LessonNotFoundException
 
         with patch(
-            "senda.services.audio_generation.AudioGenerationService.generate_lesson_audio",
+            "senda.services.audio_generation.AudioGenerationService.start_generation_job",
             new_callable=AsyncMock,
             side_effect=LessonNotFoundException(),
         ):
@@ -144,7 +147,7 @@ class TestAudioGenerationAPI:
         lesson_id = lesson.id
 
         with patch(
-            "senda.services.audio_generation.AudioGenerationService.generate_lesson_audio",
+            "senda.services.audio_generation.AudioGenerationService.start_generation_job",
             new_callable=AsyncMock,
             side_effect=InvalidLessonStateException(),
         ):
@@ -154,6 +157,64 @@ class TestAudioGenerationAPI:
             )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    @pytest.mark.anyio
+    async def test_get_audio_generation_job_status_success(
+        self, authorized_test_client: AsyncClient
+    ):
+        """Test polling job status returns operational HLS progress."""
+        job_id = uuid4()
+        lesson_audio_id = uuid4()
+        mock_status = AudioGenerationJobStatusResultDTO(
+            job_id=job_id,
+            status=AudioGenerationJobStatus.GENERATING,
+            segments_available=2,
+            playlist_url="https://cdn.test/meditations/1/job/playlist.m3u8",
+            lesson_audio_id=lesson_audio_id,
+            error_message=None,
+        )
+
+        with patch(
+            "senda.services.audio_generation.AudioGenerationService.get_job_status",
+            new_callable=AsyncMock,
+            return_value=mock_status,
+        ):
+            response = await authorized_test_client.get(f"/jobs/{job_id}/status")
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["job_id"] == str(job_id)
+        assert data["status"] == AudioGenerationJobStatus.GENERATING.value
+        assert data["segments_available"] == 2
+        assert (
+            data["playlist_url"] == "https://cdn.test/meditations/1/job/playlist.m3u8"
+        )
+        assert data["lesson_audio_id"] == str(lesson_audio_id)
+        assert data["error_message"] is None
+
+    @pytest.mark.anyio
+    async def test_get_audio_generation_job_status_unauthorized(
+        self, test_client: AsyncClient
+    ):
+        """Test unauthorized job status polling is rejected."""
+        response = await test_client.get(f"/jobs/{uuid4()}/status")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.anyio
+    async def test_get_audio_generation_job_status_not_found(
+        self, authorized_test_client: AsyncClient
+    ):
+        """Test job status returns 404 when job does not exist."""
+        from senda.core.exceptions import AudioGenerationJobNotFoundException
+
+        with patch(
+            "senda.services.audio_generation.AudioGenerationService.get_job_status",
+            new_callable=AsyncMock,
+            side_effect=AudioGenerationJobNotFoundException(),
+        ):
+            response = await authorized_test_client.get(f"/jobs/{uuid4()}/status")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.anyio
     async def test_generate_course_audios_success(
@@ -239,12 +300,12 @@ class TestAudioGenerationAPI:
 
         assert generated_audios[0]["lesson_id"] == lesson1_id
         assert (
-            generated_audios[0]["audio_url"]
+            generated_audios[0]["playlist_url"]
             == "https://cdn.test/meditations/lesson1/playlist.m3u8"
         )
         assert generated_audios[1]["lesson_id"] == lesson2_id
         assert (
-            generated_audios[1]["audio_url"]
+            generated_audios[1]["playlist_url"]
             == "https://cdn.test/meditations/lesson2/playlist.m3u8"
         )
 
@@ -318,7 +379,7 @@ class TestAudioGenerationAPI:
 
         assert data["lesson_id"] == lesson_id
         assert data["status"] == LessonStatus.AUDIO_COMPLETED.value
-        assert data["audio_url"] is None
+        assert data["playlist_url"] is None
 
     @pytest.mark.anyio
     async def test_get_lesson_audio_status_unauthorized(
@@ -376,7 +437,7 @@ class TestAudioGenerationAPI:
 
         assert data["lesson_id"] == lesson_id
         assert data["status"] == LessonStatus.SCRIPT_COMPLETED.value
-        assert data["audio_url"] is None
+        assert data["playlist_url"] is None
 
 
 class TestBatchAudioGeneration:

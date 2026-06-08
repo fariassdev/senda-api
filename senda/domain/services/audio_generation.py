@@ -4,6 +4,7 @@ import abc
 from uuid import UUID
 
 from senda.domain.dtos.audio_generation import (
+    AudioGenerationJobStatusResultDTO,
     AudioGenerationRequestDTO,
     AudioGenerationResultDTO,
     BatchAudioGenerationResultDTO,
@@ -109,6 +110,13 @@ class IAudioGenerationService(abc.ABC):
     @abc.abstractmethod
     async def run_generation_pipeline(self, job_id: UUID) -> None:
         """Run the long-running TTS + HLS pipeline for a job."""
+        pass
+
+    @abc.abstractmethod
+    async def get_job_status(
+        self, session: object, job_id: UUID
+    ) -> AudioGenerationJobStatusResultDTO:
+        """Return current job status for CMS polling."""
         pass
 
     @abc.abstractmethod

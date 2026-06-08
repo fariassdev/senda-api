@@ -17,7 +17,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
     rate_limit_requests = 1000
 
     # Status polling endpoints that need much higher limits
-    status_endpoints = ["/script-status", "/audio-status"]
+    status_endpoints = ["/script-status", "/audio-status", "/jobs/"]
     status_rate_limit_requests = 3000  # 3000 requests per minute for status endpoints
 
     def __init__(self, *args: Unpack[tuple[Any]], **kwargs: Any):

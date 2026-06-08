@@ -17,7 +17,7 @@ class LessonData(BaseModel):
     duration_minutes: int = Field(alias="durationMinutes")
     status: str
     script: list[ScriptPartResponse] | None = None
-    audio_url: str | None = Field(alias="audioUrl")
+    playlist_url: str | None = Field(alias="playlistUrl")
     script_generated_at: datetime.datetime | None = Field(alias="scriptGeneratedAt")
     audio_generated_at: datetime.datetime | None = Field(alias="audioGeneratedAt")
     created_at: datetime.datetime = Field(alias="createdAt")
@@ -50,9 +50,9 @@ class LessonResponse(BaseModel):
             ]
             if dto.script
             else None,
-            audioUrl=None,
+            playlistUrl=dto.playlist_url,
             scriptGeneratedAt=dto.script_generated_at,
-            audioGeneratedAt=None,
+            audioGeneratedAt=dto.audio_generated_at,
             createdAt=dto.created_at,
             updatedAt=dto.updated_at,
         )

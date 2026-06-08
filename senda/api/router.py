@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from senda.api.routes import (
+    audio_jobs,
     authentication,
     course,
     health_check,
@@ -24,4 +25,5 @@ router.include_router(router=profile.router, tags=["Profiles"], prefix="/profile
 router.include_router(router=tag.router, tags=["Tags"], prefix="/tags")
 router.include_router(router=course.router, tags=["Courses"], prefix="/courses")
 router.include_router(router=lesson.router, tags=["Lessons"], prefix="/courses")
+router.include_router(router=audio_jobs.router, tags=["Audio Jobs"], prefix="/jobs")
 router.include_router(router=voices.router, tags=["Voices"], prefix="")

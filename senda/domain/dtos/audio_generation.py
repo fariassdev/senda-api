@@ -43,6 +43,19 @@ class StartGenerationJobResultDTO:
     playlist_url: str
     segments_available: int
     lesson_audio_id: UUID | None = None
+    is_new: bool = False
+
+
+@dataclass(frozen=True)
+class AudioGenerationJobStatusResultDTO:
+    """Current operational state for polling an HLS generation job."""
+
+    job_id: UUID
+    status: AudioGenerationJobStatus
+    segments_available: int
+    playlist_url: str
+    lesson_audio_id: UUID | None
+    error_message: str | None
 
 
 @dataclass(frozen=True)

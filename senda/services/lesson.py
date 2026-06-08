@@ -1,26 +1,63 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from senda.core.enums import UserRole
 from senda.domain.dtos.lesson import (
     CreateLessonDTO,
     LessonDTO,
+    LessonRecordDTO,
     LessonsListDTO,
     ReorderLessonsDTO,
     UpdateLessonDTO,
 )
+from senda.domain.dtos.lesson_audio import LessonAudioDTO
 from senda.domain.dtos.user import UserDTO
 from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.lesson import ILessonRepository
+from senda.domain.repositories.lesson_audio import ILessonAudioRepository
 from senda.domain.services.lesson import ILessonService
 from senda.domain.utils.script_serialization import LessonScript
 
 
 class LessonService(ILessonService):
     def __init__(
-        self, course_repo: ICourseRepository, lesson_repo: ILessonRepository
+        self,
+        course_repo: ICourseRepository,
+        lesson_repo: ILessonRepository,
+        lesson_audio_repo: ILessonAudioRepository,
     ) -> None:
         self._course_repo = course_repo
         self._lesson_repo = lesson_repo
+        self._lesson_audio_repo = lesson_audio_repo
+
+    def _to_lesson_dto(
+        self,
+        lesson_record_dto: LessonRecordDTO,
+        lesson_audio: LessonAudioDTO | None = None,
+    ) -> LessonDTO:
+        return LessonDTO(
+            id=lesson_record_dto.id,
+            course_id=lesson_record_dto.course_id,
+            lesson_number=lesson_record_dto.lesson_number,
+            title=lesson_record_dto.title,
+            core_practice=lesson_record_dto.core_practice,
+            key_point=lesson_record_dto.key_point,
+            tone=lesson_record_dto.tone,
+            duration_minutes=lesson_record_dto.duration_minutes,
+            status=lesson_record_dto.status,
+            script=LessonScript.deserialize(lesson_record_dto.script),
+            playlist_url=lesson_audio.playlist_url if lesson_audio else None,
+            script_generated_at=lesson_record_dto.script_generated_at,
+            audio_generated_at=lesson_audio.generated_at if lesson_audio else None,
+            created_at=lesson_record_dto.created_at,
+            updated_at=lesson_record_dto.updated_at,
+        )
+
+    async def _resolve_lesson_audio(
+        self, session: AsyncSession, lesson_id: int
+    ) -> LessonAudioDTO | None:
+        lesson_audios = await self._lesson_audio_repo.list_by_lesson(
+            session=session, lesson_id=lesson_id
+        )
+        return lesson_audios[0] if lesson_audios else None
 
     async def create_course_lesson(
         self,
@@ -38,21 +75,7 @@ class LessonService(ILessonService):
             create_item=lesson_to_create,
         )
 
-        return LessonDTO(
-            id=lesson_record_dto.id,
-            course_id=lesson_record_dto.course_id,
-            lesson_number=lesson_record_dto.lesson_number,
-            title=lesson_record_dto.title,
-            core_practice=lesson_record_dto.core_practice,
-            key_point=lesson_record_dto.key_point,
-            tone=lesson_record_dto.tone,
-            duration_minutes=lesson_record_dto.duration_minutes,
-            status=lesson_record_dto.status,
-            script=LessonScript.deserialize(lesson_record_dto.script),
-            script_generated_at=lesson_record_dto.script_generated_at,
-            created_at=lesson_record_dto.created_at,
-            updated_at=lesson_record_dto.updated_at,
-        )
+        return self._to_lesson_dto(lesson_record_dto)
 
     async def get_course_lesson(
         self,
@@ -61,28 +84,16 @@ class LessonService(ILessonService):
         lesson_id: int,
         current_user: UserDTO | None = None,
     ) -> LessonDTO:
-        # Verify course exists
         await self._course_repo.get_by_slug(session=session, slug=slug)
 
         lesson_record_dto = await self._lesson_repo.get(
             session=session, lesson_id=lesson_id
         )
-
-        return LessonDTO(
-            id=lesson_record_dto.id,
-            course_id=lesson_record_dto.course_id,
-            lesson_number=lesson_record_dto.lesson_number,
-            title=lesson_record_dto.title,
-            core_practice=lesson_record_dto.core_practice,
-            key_point=lesson_record_dto.key_point,
-            tone=lesson_record_dto.tone,
-            duration_minutes=lesson_record_dto.duration_minutes,
-            status=lesson_record_dto.status,
-            script=LessonScript.deserialize(lesson_record_dto.script),
-            script_generated_at=lesson_record_dto.script_generated_at,
-            created_at=lesson_record_dto.created_at,
-            updated_at=lesson_record_dto.updated_at,
+        lesson_audio = await self._resolve_lesson_audio(
+            session=session, lesson_id=lesson_id
         )
+
+        return self._to_lesson_dto(lesson_record_dto, lesson_audio)
 
     async def get_course_lessons(
         self, session: AsyncSession, slug: str, current_user: UserDTO | None = None
@@ -92,24 +103,12 @@ class LessonService(ILessonService):
             session=session, course_id=course.id
         )
 
-        lessons = [
-            LessonDTO(
-                id=lesson_record_dto.id,
-                course_id=lesson_record_dto.course_id,
-                lesson_number=lesson_record_dto.lesson_number,
-                title=lesson_record_dto.title,
-                core_practice=lesson_record_dto.core_practice,
-                key_point=lesson_record_dto.key_point,
-                tone=lesson_record_dto.tone,
-                duration_minutes=lesson_record_dto.duration_minutes,
-                status=lesson_record_dto.status,
-                script=LessonScript.deserialize(lesson_record_dto.script),
-                script_generated_at=lesson_record_dto.script_generated_at,
-                created_at=lesson_record_dto.created_at,
-                updated_at=lesson_record_dto.updated_at,
+        lessons = []
+        for lesson_record_dto in lesson_records:
+            lesson_audio = await self._resolve_lesson_audio(
+                session=session, lesson_id=lesson_record_dto.id
             )
-            for lesson_record_dto in lesson_records
-        ]
+            lessons.append(self._to_lesson_dto(lesson_record_dto, lesson_audio))
 
         lessons_count = await self._lesson_repo.count(
             session=session, course_id=course.id
@@ -132,22 +131,11 @@ class LessonService(ILessonService):
         lesson_record_dto = await self._lesson_repo.update(
             session=session, lesson_id=lesson_id, update_item=lesson_to_update
         )
-
-        return LessonDTO(
-            id=lesson_record_dto.id,
-            course_id=lesson_record_dto.course_id,
-            lesson_number=lesson_record_dto.lesson_number,
-            title=lesson_record_dto.title,
-            core_practice=lesson_record_dto.core_practice,
-            key_point=lesson_record_dto.key_point,
-            tone=lesson_record_dto.tone,
-            duration_minutes=lesson_record_dto.duration_minutes,
-            status=lesson_record_dto.status,
-            script=LessonScript.deserialize(lesson_record_dto.script),
-            script_generated_at=lesson_record_dto.script_generated_at,
-            created_at=lesson_record_dto.created_at,
-            updated_at=lesson_record_dto.updated_at,
+        lesson_audio = await self._resolve_lesson_audio(
+            session=session, lesson_id=lesson_id
         )
+
+        return self._to_lesson_dto(lesson_record_dto, lesson_audio)
 
     async def reorder_course_lessons(
         self,
@@ -162,23 +150,11 @@ class LessonService(ILessonService):
             session=session, course_id=course.id, reorder_data=reorder_data
         )
 
-        lessons = [
-            LessonDTO(
-                id=lesson_record_dto.id,
-                course_id=lesson_record_dto.course_id,
-                lesson_number=lesson_record_dto.lesson_number,
-                title=lesson_record_dto.title,
-                core_practice=lesson_record_dto.core_practice,
-                key_point=lesson_record_dto.key_point,
-                tone=lesson_record_dto.tone,
-                duration_minutes=lesson_record_dto.duration_minutes,
-                status=lesson_record_dto.status,
-                script=LessonScript.deserialize(lesson_record_dto.script),
-                script_generated_at=lesson_record_dto.script_generated_at,
-                created_at=lesson_record_dto.created_at,
-                updated_at=lesson_record_dto.updated_at,
+        lessons = []
+        for lesson_record_dto in lesson_records:
+            lesson_audio = await self._resolve_lesson_audio(
+                session=session, lesson_id=lesson_record_dto.id
             )
-            for lesson_record_dto in lesson_records
-        ]
+            lessons.append(self._to_lesson_dto(lesson_record_dto, lesson_audio))
 
         return LessonsListDTO(lessons=lessons, lessons_count=len(lessons))

@@ -38,7 +38,9 @@ class LessonDTO:
     duration_minutes: int
     status: LessonStatus
     script: list[ScriptPartDTO] | None
+    playlist_url: str | None
     script_generated_at: datetime.datetime | None
+    audio_generated_at: datetime.datetime | None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 

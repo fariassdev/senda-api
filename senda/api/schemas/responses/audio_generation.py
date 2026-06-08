@@ -1,42 +1,121 @@
 """Response schemas for audio generation API endpoints."""
 
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 from senda.domain.dtos.audio_generation import (
+    AudioGenerationJobStatusResultDTO,
     AudioGenerationResultDTO,
     BatchAudioGenerationResultDTO,
+    StartGenerationJobResultDTO,
 )
 
 
-class AudioGenerationResponse(BaseModel):
-    """Response for audio generation request."""
+class StartAudioGenerationResponse(BaseModel):
+    """Response for async HLS audio generation start (HTTP 202)."""
 
+    job_id: UUID = Field(..., description="ID of the audio generation job")
     lesson_id: int = Field(..., description="ID of the lesson")
-    audio_url: str = Field(..., description="Public URL of the generated audio file")
-    generation_time_seconds: float = Field(
-        ..., description="Time taken to generate the audio"
-    )
-    file_size_bytes: int = Field(..., description="Size of the audio file in bytes")
+    status: str = Field(..., description="Current job status")
+    playlist_url: str = Field(..., description="Live HLS playlist URL for playback")
 
     @classmethod
-    def from_dto(cls, dto: AudioGenerationResultDTO) -> "AudioGenerationResponse":
-        """Create response from domain DTO."""
+    def from_dto(
+        cls, dto: StartGenerationJobResultDTO
+    ) -> "StartAudioGenerationResponse":
         return cls(
+            job_id=dto.job_id,
             lesson_id=dto.lesson_id,
-            audio_url=dto.playlist_url,
-            generation_time_seconds=dto.generation_time_seconds,
-            file_size_bytes=dto.duration_ms,
+            status=dto.status.value,
+            playlist_url=dto.playlist_url,
         )
 
     class Config:
-        """Pydantic configuration."""
+        json_schema_extra = {
+            "example": {
+                "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "lesson_id": 1,
+                "status": "PENDING",
+                "playlist_url": "https://cdn.senda.com/meditations/1/job-id/playlist.m3u8",
+            }
+        }
 
+
+class AudioGenerationJobStatusResponse(BaseModel):
+    """Response for polling an HLS audio generation job."""
+
+    job_id: UUID = Field(..., description="ID of the audio generation job")
+    status: str = Field(..., description="Current job status")
+    segments_available: int = Field(
+        ..., description="Number of HLS segments uploaded so far"
+    )
+    playlist_url: str = Field(..., description="Live or final HLS playlist URL")
+    lesson_audio_id: UUID | None = Field(
+        None, description="Published lesson_audio id when generation completes"
+    )
+    error_message: str | None = Field(
+        None, description="Error details when status is FAILED"
+    )
+
+    @classmethod
+    def from_dto(
+        cls, dto: AudioGenerationJobStatusResultDTO
+    ) -> "AudioGenerationJobStatusResponse":
+        return cls(
+            job_id=dto.job_id,
+            status=dto.status.value,
+            segments_available=dto.segments_available,
+            playlist_url=dto.playlist_url,
+            lesson_audio_id=dto.lesson_audio_id,
+            error_message=dto.error_message,
+        )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "status": "GENERATING",
+                "segments_available": 3,
+                "playlist_url": "https://cdn.senda.com/meditations/1/job-id/playlist.m3u8",
+                "lesson_audio_id": None,
+                "error_message": None,
+            }
+        }
+
+
+class AudioGenerationResponse(BaseModel):
+    """Response for completed batch/synchronous audio generation."""
+
+    lesson_id: int = Field(..., description="ID of the lesson")
+    job_id: UUID = Field(..., description="ID of the completed generation job")
+    playlist_url: str = Field(..., description="Final HLS playlist URL")
+    segment_count: int = Field(..., description="Total number of HLS segments")
+    duration_ms: int = Field(..., description="Total audio duration in milliseconds")
+    generation_time_seconds: float = Field(
+        ..., description="Time taken to generate the audio"
+    )
+
+    @classmethod
+    def from_dto(cls, dto: AudioGenerationResultDTO) -> "AudioGenerationResponse":
+        return cls(
+            lesson_id=dto.lesson_id,
+            job_id=dto.job_id,
+            playlist_url=dto.playlist_url,
+            segment_count=dto.segment_count,
+            duration_ms=dto.duration_ms,
+            generation_time_seconds=dto.generation_time_seconds,
+        )
+
+    class Config:
         json_schema_extra = {
             "example": {
                 "lesson_id": 1,
-                "audio_url": "https://senda-ai.s3.amazonaws.com/audio/1_welcome_to_senda_abc123.mp3",
+                "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "playlist_url": "https://cdn.senda.com/meditations/1/job-id/playlist.m3u8",
+                "segment_count": 12,
+                "duration_ms": 300000,
                 "generation_time_seconds": 15.34,
-                "file_size_bytes": 524288,
             }
         }
 
@@ -61,8 +140,6 @@ class CourseAudiosGenerationResponse(BaseModel):
     def from_batch_result(
         cls, batch_result: "BatchAudioGenerationResultDTO"
     ) -> "CourseAudiosGenerationResponse":
-        """Create response from batch generation result DTO."""
-
         return cls(
             generated_audios=[
                 AudioGenerationResponse.from_dto(dto) for dto in batch_result.results
@@ -80,16 +157,16 @@ class CourseAudiosGenerationResponse(BaseModel):
         )
 
     class Config:
-        """Pydantic configuration."""
-
         json_schema_extra = {
             "example": {
                 "generated_audios": [
                     {
                         "lesson_id": 1,
-                        "audio_url": "https://senda-ai.s3.amazonaws.com/audio/1_welcome_abc123.mp3",
+                        "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                        "playlist_url": "https://cdn.senda.com/meditations/1/job-id/playlist.m3u8",
+                        "segment_count": 12,
+                        "duration_ms": 300000,
                         "generation_time_seconds": 15.34,
-                        "file_size_bytes": 524288,
                     }
                 ],
                 "total_lessons_processed": 5,
@@ -114,15 +191,19 @@ class GenerationErrorResponse(BaseModel):
 
 
 class AudioGenerationStatusResponse(BaseModel):
-    """Response for audio generation status check."""
+    """Response for lesson-level audio generation status check."""
 
     lesson_id: int = Field(..., description="ID of the lesson")
     status: str = Field(..., description="Current audio generation status")
-    audio_url: str | None = Field(None, description="Audio URL if generation complete")
+    playlist_url: str | None = Field(
+        None, description="HLS playlist URL if audio is available"
+    )
 
     class Config:
-        """Pydantic configuration."""
-
         json_schema_extra = {
-            "example": {"lesson_id": 1, "status": "AUDIO_GENERATING", "audio_url": None}
+            "example": {
+                "lesson_id": 1,
+                "status": "AUDIO_GENERATING",
+                "playlist_url": None,
+            }
         }

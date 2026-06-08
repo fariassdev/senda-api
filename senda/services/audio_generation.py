@@ -25,6 +25,7 @@ from senda.core.exceptions import (
     VoiceNotFoundException,
 )
 from senda.domain.dtos.audio_generation import (
+    AudioGenerationJobStatusResultDTO,
     AudioGenerationRequestDTO,
     AudioGenerationResultDTO,
     BatchAudioGenerationResultDTO,
@@ -115,7 +116,7 @@ class AudioGenerationService(IAudioGenerationService):
         return provider
 
     def _job_to_start_result(
-        self, job: AudioGenerationJobDTO
+        self, job: AudioGenerationJobDTO, *, is_new: bool = False
     ) -> StartGenerationJobResultDTO:
         return StartGenerationJobResultDTO(
             job_id=job.id,
@@ -126,6 +127,22 @@ class AudioGenerationService(IAudioGenerationService):
             ),
             segments_available=job.segments_available,
             lesson_audio_id=job.lesson_audio_id,
+            is_new=is_new,
+        )
+
+    async def get_job_status(
+        self, session: AsyncSession, job_id: UUID
+    ) -> AudioGenerationJobStatusResultDTO:
+        job = await self._job_repo.get(session=session, job_id=job_id)
+        return AudioGenerationJobStatusResultDTO(
+            job_id=job.id,
+            status=job.status,
+            segments_available=job.segments_available,
+            playlist_url=playlist_url_for(
+                self._resolve_cdn_base_url(), job.s3_base_path
+            ),
+            lesson_audio_id=job.lesson_audio_id,
+            error_message=job.error_message,
         )
 
     async def _validate_lesson_for_generation(
@@ -184,7 +201,7 @@ class AudioGenerationService(IAudioGenerationService):
                 existing_job.id,
                 request.lesson_id,
             )
-            return self._job_to_start_result(existing_job)
+            return self._job_to_start_result(existing_job, is_new=False)
 
         job_id = uuid4()
         create_item = CreateAudioGenerationJobDTO(
@@ -205,12 +222,12 @@ class AudioGenerationService(IAudioGenerationService):
             )
             if raced_job is None:
                 raise
-            return self._job_to_start_result(raced_job)
+            return self._job_to_start_result(raced_job, is_new=False)
 
         logger.info(
             "Created audio generation job %s for lesson %s", job.id, request.lesson_id
         )
-        return self._job_to_start_result(job)
+        return self._job_to_start_result(job, is_new=True)
 
     async def run_generation_pipeline(self, job_id: UUID) -> None:
         """Run TTS + HLS composition and persist job/lesson outcomes."""

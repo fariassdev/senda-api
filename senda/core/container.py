@@ -206,7 +206,9 @@ class Container:
 
     def lesson_service(self) -> ILessonService:
         return LessonService(
-            course_repo=self.course_repository(), lesson_repo=self.lesson_repository()
+            course_repo=self.course_repository(),
+            lesson_repo=self.lesson_repository(),
+            lesson_audio_repo=self.lesson_audio_repository(),
         )
 
     def script_generation_service(self) -> IScriptGenerationService:

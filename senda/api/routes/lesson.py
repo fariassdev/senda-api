@@ -13,6 +13,7 @@ from senda.api.schemas.responses.audio_generation import (
     AudioGenerationResponse,
     AudioGenerationStatusResponse,
     CourseAudiosGenerationResponse,
+    StartAudioGenerationResponse,
 )
 from senda.api.schemas.responses.lesson import LessonResponse, LessonsListResponse
 from senda.api.schemas.responses.script_generation import (
@@ -29,7 +30,6 @@ from senda.core.dependencies import (
     IScriptGenerationService,
     OptionalUser,
 )
-from senda.core.exceptions import LessonNotFoundException
 from senda.domain.dtos.audio_generation import (
     AudioConfigDTO,
     AudioGenerationRequestDTO,
@@ -239,19 +239,23 @@ async def get_lesson_script_status(
 
 @router.post(
     "/{slug}/lessons/{id}/generate-audio",
-    response_model=AudioGenerationResponse,
-    status_code=status.HTTP_200_OK,
+    response_model=StartAudioGenerationResponse,
+    status_code=status.HTTP_202_ACCEPTED,
 )
 async def generate_lesson_audio(
     slug: str,
     session: DBSession,
+    background_tasks: BackgroundTasks,
     current_user: AdminUser,
     audio_service: IAudioGenerationService,
     payload: SingleAudioGenerationRequest,
     lesson_id: int = Path(..., alias="id"),
-) -> AudioGenerationResponse:
+) -> StartAudioGenerationResponse:
     """
-    Generate audio for a specific lesson.
+    Start async HLS audio generation for a specific lesson.
+
+    Returns immediately with a job id and live playlist URL. Poll
+    ``GET /api/jobs/{job_id}/status`` for segment progress.
 
     Requires ``audio_config.voice_id`` referencing an active catalog voice.
     """
@@ -264,9 +268,17 @@ async def generate_lesson_audio(
         lesson_id=lesson_id, user_id=current_user.id, audio_config=audio_config
     )
 
-    result = await audio_service.generate_lesson_audio(session=session, request=request)
+    start_result = await audio_service.start_generation_job(
+        session=session, request=request
+    )
+    await session.commit()
 
-    return AudioGenerationResponse.from_dto(result)
+    if start_result.is_new:
+        background_tasks.add_task(
+            audio_service.run_generation_pipeline, start_result.job_id
+        )
+
+    return StartAudioGenerationResponse.from_dto(start_result)
 
 
 @router.post(
@@ -324,13 +336,12 @@ async def get_lesson_audio_status(
     """
     Get the current audio generation status for a lesson.
     """
-    lesson_record = await lesson_service._lesson_repo.get_or_none(
-        session=session, lesson_id=lesson_id
+    lesson_dto = await lesson_service.get_course_lesson(
+        session=session, slug=slug, lesson_id=lesson_id, current_user=current_user
     )
 
-    if not lesson_record:
-        raise LessonNotFoundException()
-
     return AudioGenerationStatusResponse(
-        lesson_id=lesson_id, status=lesson_record.status.value, audio_url=None
+        lesson_id=lesson_id,
+        status=lesson_dto.status.value,
+        playlist_url=lesson_dto.playlist_url,
     )
