@@ -157,6 +157,7 @@ class AudioGenerationService(IAudioGenerationService):
         if lesson_record.status not in [
             LessonStatus.SCRIPT_COMPLETED,
             LessonStatus.AUDIO_COMPLETED,
+            LessonStatus.AUDIO_FAILED,
         ]:
             logger.warning(
                 "Lesson %s not ready for audio generation: %s",
@@ -455,7 +456,8 @@ class AudioGenerationService(IAudioGenerationService):
         ready_lessons = [
             lesson
             for lesson in all_lessons
-            if lesson.status == LessonStatus.SCRIPT_COMPLETED
+            if lesson.status
+            in [LessonStatus.SCRIPT_COMPLETED, LessonStatus.AUDIO_FAILED]
         ]
 
         if request.lesson_ids is not None:

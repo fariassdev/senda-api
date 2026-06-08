@@ -525,6 +525,74 @@ class TestAudioGenerationService:
             )
 
     @pytest.mark.asyncio
+    async def test_generate_lesson_audio_with_audio_failed_status(
+        self,
+        audio_service,
+        mock_session,
+        sample_lesson_record,
+        mock_lesson_repo,
+        audio_config,
+        mock_voice_repo,
+        kokoro_catalog_voice,
+        mock_job_repo,
+        mock_lesson_audio_repo,
+        mock_audio_composer,
+        kokoro_voice_id,
+    ):
+        """Test that lesson audio generation is allowed when status is AUDIO_FAILED"""
+        request = AudioGenerationRequestDTO(
+            lesson_id=1, user_id=1, audio_config=audio_config
+        )
+        job_id = uuid4()
+        pending_job = make_job_dto(
+            job_id=job_id,
+            voice_id=kokoro_voice_id,
+            status=AudioGenerationJobStatus.PENDING,
+        )
+        completed_job = make_job_dto(
+            job_id=job_id,
+            voice_id=kokoro_voice_id,
+            status=AudioGenerationJobStatus.COMPLETED,
+            segment_count=2,
+            duration_ms=12000,
+        )
+
+        failed_status_lesson = LessonRecordDTO(
+            **{**sample_lesson_record.__dict__, "status": LessonStatus.AUDIO_FAILED}
+        )
+
+        mock_lesson_repo.get_or_none = AsyncMock(return_value=failed_status_lesson)
+        mock_lesson_repo.get = AsyncMock(return_value=failed_status_lesson)
+        mock_lesson_repo.update = AsyncMock(return_value=failed_status_lesson)
+        mock_voice_repo.get_or_none = AsyncMock(return_value=kokoro_catalog_voice)
+        mock_job_repo.get_active_for_lesson_voice = AsyncMock(return_value=None)
+        mock_job_repo.add = AsyncMock(return_value=pending_job)
+        mock_job_repo.get = AsyncMock(return_value=completed_job)
+        mock_lesson_audio_repo.upsert = AsyncMock(
+            return_value=LessonAudioDTO(
+                id=uuid4(),
+                lesson_id=1,
+                voice_id=kokoro_voice_id,
+                voice_slug="af_nicole",
+                audio_provider=TtsProvider.KOKORO.value,
+                playlist_url="https://cdn.test/audio/1/job/playlist.m3u8",
+                hls_base_path=s3_base_path_for(1, job_id),
+                segment_count=2,
+                duration_ms=12000,
+                generated_at=datetime.now(),
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+        )
+
+        result = await audio_service.generate_lesson_audio(
+            session=mock_session, request=request
+        )
+
+        assert isinstance(result, AudioGenerationResultDTO)
+        assert result.lesson_id == 1
+
+    @pytest.mark.asyncio
     async def test_generate_lesson_audio_empty_script(
         self,
         audio_service,
@@ -703,7 +771,7 @@ class TestAudioGenerationService:
             key_point="Point",
             tone="calm",
             duration_minutes=10,
-            status=LessonStatus.SCRIPT_COMPLETED,
+            status=LessonStatus.AUDIO_FAILED,
             script='[{"type": "speak", "content": "World"}]',
             script_generated_at=datetime.now(),
             created_at=datetime.now(),
