@@ -49,3 +49,12 @@ class LessonStatus(str, enum.Enum):
     AUDIO_COMPLETED = "AUDIO_COMPLETED"
     AUDIO_FAILED = "AUDIO_FAILED"
     READY_TO_PUBLISH = "READY_TO_PUBLISH"
+
+
+class AudioGenerationJobStatus(str, enum.Enum):
+    """Operational status for an HLS audio generation job."""
+
+    PENDING = "PENDING"
+    GENERATING = "GENERATING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"

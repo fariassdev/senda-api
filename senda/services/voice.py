@@ -10,7 +10,7 @@ from senda.core.exceptions import (
 )
 from senda.domain.dtos.user import UserDTO
 from senda.domain.dtos.voice import CreateVoiceDTO, UpdateVoiceDTO, VoiceDTO
-from senda.domain.repositories.lesson import ILessonRepository
+from senda.domain.repositories.lesson_audio import ILessonAudioRepository
 from senda.domain.repositories.voice import IVoiceRepository
 from senda.domain.services.audio_generation import IStorageProvider
 from senda.domain.services.voice import IVoiceService
@@ -30,13 +30,13 @@ class VoiceService(IVoiceService):
     def __init__(
         self,
         voice_repo: IVoiceRepository,
-        lesson_repo: ILessonRepository,
+        lesson_audio_repo: ILessonAudioRepository,
         storage_provider: IStorageProvider,
         voice_asset_provisioners: dict[TtsProvider, IVoiceAssetProvisioner],
         audio_processor: AudioProcessor | None = None,
     ) -> None:
         self._voice_repo = voice_repo
-        self._lesson_repo = lesson_repo
+        self._lesson_audio_repo = lesson_audio_repo
         self._storage_provider = storage_provider
         self._voice_asset_provisioners = voice_asset_provisioners
         self._audio_processor = audio_processor or AudioProcessor()
@@ -139,7 +139,7 @@ class VoiceService(IVoiceService):
         """
         voice = await self._voice_repo.get(session=session, voice_id=voice_id)
 
-        lesson_count = await self._lesson_repo.count_using_voice(
+        lesson_count = await self._lesson_audio_repo.count_using_voice(
             session=session, voice_id=voice_id
         )
         if lesson_count > 0:

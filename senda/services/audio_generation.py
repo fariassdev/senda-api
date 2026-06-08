@@ -192,12 +192,7 @@ class AudioGenerationService(IAudioGenerationService):
             await self._lesson_repo.update(
                 session=session,
                 lesson_id=request.lesson_id,
-                update_item=UpdateLessonDTO(
-                    audio_url=audio_url,
-                    audio_generated_at=datetime.now(),
-                    status=LessonStatus.AUDIO_COMPLETED,
-                    voice_id=voice_id,
-                ),
+                update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_COMPLETED),
             )
 
             generation_time = time.time() - start_time

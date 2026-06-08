@@ -96,6 +96,13 @@ class VoiceNotFoundException(BaseInternalException):
     _message = "Voice with this identifier does not exist."
 
 
+class AudioGenerationJobNotFoundException(BaseInternalException):
+    """Exception raised when an audio generation job is not found."""
+
+    _status_code = 404
+    _message = "Audio generation job with this id does not exist."
+
+
 class VoiceSlugAlreadyExistsException(BaseInternalException):
     """Exception raised when a voice slug is already in the catalog."""
 

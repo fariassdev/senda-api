@@ -157,9 +157,7 @@ class TestCourseServiceGeneration:
             duration_minutes=10,
             status="draft",
             script=None,
-            audio_url=None,
             script_generated_at=None,
-            audio_generated_at=None,
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )

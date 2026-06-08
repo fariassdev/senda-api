@@ -158,9 +158,7 @@ class TestAudioGenerationService:
             duration_minutes=10,
             status=LessonStatus.SCRIPT_COMPLETED,
             script='[{"type": "speak", "content": "Hello"}]',
-            audio_url=None,
             script_generated_at=datetime.now(timezone.utc),
-            audio_generated_at=None,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -261,7 +259,7 @@ class TestAudioGenerationService:
         mock_storage_provider.upload_audio.assert_called_once()
         mock_audio_provider.generate_speech.assert_called()
         mock_chatterbox_provider.generate_speech.assert_not_called()
-        # Two updates: 1) Set AUDIO_GENERATING, 2) Set AUDIO_COMPLETED with audio_url
+        # Two updates: 1) Set AUDIO_GENERATING, 2) Set AUDIO_COMPLETED
         assert mock_lesson_repo.update.call_count == 2
 
     @pytest.mark.asyncio
@@ -544,9 +542,7 @@ class TestAudioGenerationService:
             duration_minutes=10,
             status=LessonStatus.SCRIPT_COMPLETED,
             script='[{"type": "speak", "content": "Hello"}]',
-            audio_url=None,
             script_generated_at=datetime.now(timezone.utc),
-            audio_generated_at=None,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -562,9 +558,7 @@ class TestAudioGenerationService:
             duration_minutes=10,
             status=LessonStatus.SCRIPT_COMPLETED,
             script='[{"type": "speak", "content": "World"}]',
-            audio_url=None,
             script_generated_at=datetime.now(timezone.utc),
-            audio_generated_at=None,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -641,9 +635,7 @@ class TestAudioGenerationService:
             duration_minutes=10,
             status=LessonStatus.PENDING,
             script=None,
-            audio_url=None,
             script_generated_at=None,
-            audio_generated_at=None,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -686,9 +678,7 @@ class TestAudioGenerationService:
             duration_minutes=10,
             status=LessonStatus.SCRIPT_COMPLETED,
             script='[{"type": "speak", "content": "Hello"}]',
-            audio_url=None,
             script_generated_at=datetime.now(timezone.utc),
-            audio_generated_at=None,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )

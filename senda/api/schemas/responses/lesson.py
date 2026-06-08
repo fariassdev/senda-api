@@ -50,9 +50,9 @@ class LessonResponse(BaseModel):
             ]
             if dto.script
             else None,
-            audioUrl=dto.audio_url,
+            audioUrl=None,
             scriptGeneratedAt=dto.script_generated_at,
-            audioGeneratedAt=dto.audio_generated_at,
+            audioGeneratedAt=None,
             createdAt=dto.created_at,
             updatedAt=dto.updated_at,
         )

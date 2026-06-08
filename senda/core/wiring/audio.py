@@ -6,6 +6,7 @@ from senda.core.enums import TtsProvider
 from senda.core.settings.base import BaseAppSettings
 from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.lesson import ILessonRepository
+from senda.domain.repositories.lesson_audio import ILessonAudioRepository
 from senda.domain.repositories.voice import IVoiceRepository
 from senda.domain.services.audio_generation import (
     IAudioGenerationService,
@@ -101,11 +102,11 @@ def build_voice_service(
     *,
     settings: BaseAppSettings,
     voice_repo: IVoiceRepository,
-    lesson_repo: ILessonRepository,
+    lesson_audio_repo: ILessonAudioRepository,
 ) -> IVoiceService:
     return VoiceService(
         voice_repo=voice_repo,
-        lesson_repo=lesson_repo,
+        lesson_audio_repo=lesson_audio_repo,
         storage_provider=build_storage_provider(settings),
         voice_asset_provisioners=build_voice_asset_provisioners(settings),
         audio_processor=AudioProcessor(),

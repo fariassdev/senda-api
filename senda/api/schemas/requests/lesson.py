@@ -29,7 +29,6 @@ class UpdateLessonData(BaseModel):
     duration_minutes: int | None = Field(None, ge=1)
     status: str | None = Field(None)
     script: list[ScriptPartDTO] | None = Field(None)
-    audio_url: str | None = Field(None)
 
 
 class CreateLessonRequest(BaseModel):
@@ -77,7 +76,6 @@ class UpdateLessonRequest(BaseModel):
             duration_minutes=self.lesson.duration_minutes,
             status=status_enum,
             script=script_parts,
-            audio_url=self.lesson.audio_url,
         )
 
 

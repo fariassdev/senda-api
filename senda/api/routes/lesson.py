@@ -332,7 +332,5 @@ async def get_lesson_audio_status(
         raise LessonNotFoundException()
 
     return AudioGenerationStatusResponse(
-        lesson_id=lesson_id,
-        status=lesson_record.status.value,
-        audio_url=lesson_record.audio_url,
+        lesson_id=lesson_id, status=lesson_record.status.value, audio_url=None
     )

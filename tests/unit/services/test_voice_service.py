@@ -17,7 +17,7 @@ from senda.core.exceptions import (
 )
 from senda.domain.dtos.user import UserDTO
 from senda.domain.dtos.voice import CreateVoiceDTO, GenderEnum, VoiceDTO
-from senda.domain.repositories.lesson import ILessonRepository
+from senda.domain.repositories.lesson_audio import ILessonAudioRepository
 from senda.domain.repositories.voice import IVoiceRepository
 from senda.domain.services.audio_generation import IStorageProvider
 from senda.domain.services.voice_asset_provisioning import IVoiceAssetProvisioner
@@ -80,8 +80,8 @@ def mock_voice_repo() -> Mock:
 
 
 @pytest.fixture
-def mock_lesson_repo() -> Mock:
-    repo = Mock(spec=ILessonRepository)
+def mock_lesson_audio_repo() -> Mock:
+    repo = Mock(spec=ILessonAudioRepository)
     repo.count_using_voice = AsyncMock(return_value=0)
     return repo
 
@@ -114,14 +114,14 @@ def mock_audio_processor() -> Mock:
 @pytest.fixture
 def voice_service(
     mock_voice_repo: Mock,
-    mock_lesson_repo: Mock,
+    mock_lesson_audio_repo: Mock,
     mock_storage: AsyncMock,
     mock_voice_asset_provisioner: AsyncMock,
     mock_audio_processor: Mock,
 ) -> VoiceService:
     return VoiceService(
         voice_repo=mock_voice_repo,
-        lesson_repo=mock_lesson_repo,
+        lesson_audio_repo=mock_lesson_audio_repo,
         storage_provider=mock_storage,
         voice_asset_provisioners={TtsProvider.CHATTERBOX: mock_voice_asset_provisioner},
         audio_processor=mock_audio_processor,
@@ -292,7 +292,7 @@ class TestVoiceServiceDelete:
         self,
         voice_service: VoiceService,
         mock_voice_repo: Mock,
-        mock_lesson_repo: Mock,
+        mock_lesson_audio_repo: Mock,
         mock_voice_asset_provisioner: AsyncMock,
         mock_storage: AsyncMock,
         voice_dto: VoiceDTO,
@@ -300,7 +300,7 @@ class TestVoiceServiceDelete:
     ) -> None:
         mock_voice_repo.get = AsyncMock(return_value=voice_dto)
         mock_voice_repo.delete = AsyncMock()
-        mock_lesson_repo.count_using_voice = AsyncMock(return_value=0)
+        mock_lesson_audio_repo.count_using_voice = AsyncMock(return_value=0)
         call_order: list[str] = []
 
         async def track_modal(*_args, **_kwargs) -> None:
@@ -365,13 +365,13 @@ class TestVoiceServiceDelete:
         self,
         voice_service: VoiceService,
         mock_voice_repo: Mock,
-        mock_lesson_repo: Mock,
+        mock_lesson_audio_repo: Mock,
         mock_voice_asset_provisioner: AsyncMock,
         voice_dto: VoiceDTO,
         admin_user: UserDTO,
     ) -> None:
         mock_voice_repo.get = AsyncMock(return_value=voice_dto)
-        mock_lesson_repo.count_using_voice = AsyncMock(return_value=2)
+        mock_lesson_audio_repo.count_using_voice = AsyncMock(return_value=2)
 
         with pytest.raises(VoiceInUseException):
             await voice_service.delete_voice(
@@ -386,14 +386,14 @@ class TestVoiceServiceDelete:
         self,
         voice_service: VoiceService,
         mock_voice_repo: Mock,
-        mock_lesson_repo: Mock,
+        mock_lesson_audio_repo: Mock,
         mock_voice_asset_provisioner: AsyncMock,
         mock_storage: AsyncMock,
         voice_dto: VoiceDTO,
         admin_user: UserDTO,
     ) -> None:
         mock_voice_repo.get = AsyncMock(return_value=voice_dto)
-        mock_lesson_repo.count_using_voice = AsyncMock(return_value=0)
+        mock_lesson_audio_repo.count_using_voice = AsyncMock(return_value=0)
 
         async def fail_on_reference_delete(key: str, *_args, **_kwargs) -> None:
             if key == voice_dto.reference_s3_key:

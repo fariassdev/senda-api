@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import Float, ForeignKey, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from senda.core.enums import LessonStatus, UserRole
+from senda.core.enums import AudioGenerationJobStatus, LessonStatus, UserRole
 
 
 class Base(DeclarativeBase):
@@ -114,16 +114,57 @@ class Lesson(Base):
 
     # Generated content (nullable until generated)
     script: Mapped[str] = mapped_column(nullable=True)  # JSON stored as text
-    audio_url: Mapped[str] = mapped_column(nullable=True)
     script_generated_at: Mapped[datetime] = mapped_column(nullable=True)
-    audio_generated_at: Mapped[datetime] = mapped_column(nullable=True)
-
-    voice_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("voices.id"), nullable=True
-    )
 
     created_at: Mapped[datetime]
     updated_at: Mapped[datetime] = mapped_column(nullable=True)
+
+
+class LessonAudio(Base):
+    __tablename__ = "lesson_audio"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    lesson_id: Mapped[int] = mapped_column(
+        ForeignKey("lesson.id", ondelete="CASCADE"), nullable=False
+    )
+    voice_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("voices.id"), nullable=True
+    )
+    voice_slug: Mapped[str | None] = mapped_column(nullable=True)
+    audio_provider: Mapped[str | None] = mapped_column(nullable=True)
+    playlist_url: Mapped[str] = mapped_column(nullable=False)
+    hls_base_path: Mapped[str] = mapped_column(nullable=False)
+    segment_count: Mapped[int] = mapped_column(nullable=False)
+    duration_ms: Mapped[int] = mapped_column(nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(
+        default=datetime.now, onupdate=datetime.now
+    )
+
+
+class AudioGenerationJob(Base):
+    __tablename__ = "audio_generation_jobs"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("lesson.id"), nullable=False)
+    voice_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("voices.id"), nullable=True
+    )
+    voice_slug: Mapped[str | None] = mapped_column(nullable=True)
+    audio_provider: Mapped[str | None] = mapped_column(nullable=True)
+    s3_base_path: Mapped[str] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(default=AudioGenerationJobStatus.PENDING.value)
+    segments_available: Mapped[int] = mapped_column(default=0)
+    segment_count: Mapped[int | None] = mapped_column(nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(nullable=True)
+    lesson_audio_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("lesson_audio.id"), nullable=True
+    )
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
 
 
 class Voice(Base):

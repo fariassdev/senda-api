@@ -19,10 +19,7 @@ class LessonModelMapper(IModelMapper[Lesson, LessonRecordDTO]):
             duration_minutes=model.duration_minutes,
             status=LessonStatus(model.status),
             script=model.script,
-            audio_url=model.audio_url,
             script_generated_at=model.script_generated_at,
-            audio_generated_at=model.audio_generated_at,
-            voice_id=model.voice_id,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
@@ -39,10 +36,7 @@ class LessonModelMapper(IModelMapper[Lesson, LessonRecordDTO]):
             duration_minutes=dto.duration_minutes,
             status=dto.status.value,  # Convert enum to string for DB
             script=dto.script,
-            audio_url=dto.audio_url,
             script_generated_at=dto.script_generated_at,
-            audio_generated_at=dto.audio_generated_at,
-            voice_id=dto.voice_id,
             created_at=dto.created_at,
             updated_at=dto.updated_at,
         )

@@ -1,6 +1,5 @@
 import datetime
 from dataclasses import dataclass
-from uuid import UUID
 
 from senda.core.enums import LessonStatus
 from senda.domain.dtos.script_generation import ScriptPartDTO
@@ -20,12 +19,9 @@ class LessonRecordDTO:
     duration_minutes: int
     status: LessonStatus
     script: str | None
-    audio_url: str | None
     script_generated_at: datetime.datetime | None
-    audio_generated_at: datetime.datetime | None
     created_at: datetime.datetime
     updated_at: datetime.datetime
-    voice_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -42,12 +38,9 @@ class LessonDTO:
     duration_minutes: int
     status: LessonStatus
     script: list[ScriptPartDTO] | None
-    audio_url: str | None
     script_generated_at: datetime.datetime | None
-    audio_generated_at: datetime.datetime | None
     created_at: datetime.datetime
     updated_at: datetime.datetime
-    voice_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -81,10 +74,7 @@ class UpdateLessonDTO:
     duration_minutes: int | None = None
     status: LessonStatus | None = None
     script: list[ScriptPartDTO] | None = None
-    audio_url: str | None = None
     script_generated_at: datetime.datetime | None = None
-    audio_generated_at: datetime.datetime | None = None
-    voice_id: UUID | None = None
 
 
 @dataclass(frozen=True)

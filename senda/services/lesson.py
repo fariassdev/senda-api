@@ -49,9 +49,7 @@ class LessonService(ILessonService):
             duration_minutes=lesson_record_dto.duration_minutes,
             status=lesson_record_dto.status,
             script=LessonScript.deserialize(lesson_record_dto.script),
-            audio_url=lesson_record_dto.audio_url,
             script_generated_at=lesson_record_dto.script_generated_at,
-            audio_generated_at=lesson_record_dto.audio_generated_at,
             created_at=lesson_record_dto.created_at,
             updated_at=lesson_record_dto.updated_at,
         )
@@ -81,9 +79,7 @@ class LessonService(ILessonService):
             duration_minutes=lesson_record_dto.duration_minutes,
             status=lesson_record_dto.status,
             script=LessonScript.deserialize(lesson_record_dto.script),
-            audio_url=lesson_record_dto.audio_url,
             script_generated_at=lesson_record_dto.script_generated_at,
-            audio_generated_at=lesson_record_dto.audio_generated_at,
             created_at=lesson_record_dto.created_at,
             updated_at=lesson_record_dto.updated_at,
         )
@@ -108,9 +104,7 @@ class LessonService(ILessonService):
                 duration_minutes=lesson_record_dto.duration_minutes,
                 status=lesson_record_dto.status,
                 script=LessonScript.deserialize(lesson_record_dto.script),
-                audio_url=lesson_record_dto.audio_url,
                 script_generated_at=lesson_record_dto.script_generated_at,
-                audio_generated_at=lesson_record_dto.audio_generated_at,
                 created_at=lesson_record_dto.created_at,
                 updated_at=lesson_record_dto.updated_at,
             )
@@ -150,9 +144,7 @@ class LessonService(ILessonService):
             duration_minutes=lesson_record_dto.duration_minutes,
             status=lesson_record_dto.status,
             script=LessonScript.deserialize(lesson_record_dto.script),
-            audio_url=lesson_record_dto.audio_url,
             script_generated_at=lesson_record_dto.script_generated_at,
-            audio_generated_at=lesson_record_dto.audio_generated_at,
             created_at=lesson_record_dto.created_at,
             updated_at=lesson_record_dto.updated_at,
         )
@@ -182,9 +174,7 @@ class LessonService(ILessonService):
                 duration_minutes=lesson_record_dto.duration_minutes,
                 status=lesson_record_dto.status,
                 script=LessonScript.deserialize(lesson_record_dto.script),
-                audio_url=lesson_record_dto.audio_url,
                 script_generated_at=lesson_record_dto.script_generated_at,
-                audio_generated_at=lesson_record_dto.audio_generated_at,
                 created_at=lesson_record_dto.created_at,
                 updated_at=lesson_record_dto.updated_at,
             )

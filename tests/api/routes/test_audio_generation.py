@@ -355,7 +355,6 @@ class TestAudioGenerationAPI:
             duration_minutes=10,
             status=LessonStatus.SCRIPT_COMPLETED,
             script='[{"type": "speak", "content": "Hello"}]',
-            audio_url=None,
             created_at=datetime.now(),
         )
         session.add(lesson)

@@ -176,9 +176,7 @@ class CourseService(ICourseService):
                 duration_minutes=lesson_record.duration_minutes,
                 status=lesson_record.status,
                 script=None,
-                audio_url=lesson_record.audio_url,
                 script_generated_at=lesson_record.script_generated_at,
-                audio_generated_at=lesson_record.audio_generated_at,
                 created_at=lesson_record.created_at,
                 updated_at=lesson_record.updated_at,
             )

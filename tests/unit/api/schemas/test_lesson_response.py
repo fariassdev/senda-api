@@ -31,9 +31,7 @@ class TestLessonResponse:
             duration_minutes=10,
             status=LessonStatus.SCRIPT_COMPLETED,
             script=script_parts,
-            audio_url=None,
             script_generated_at=datetime.datetime(2025, 11, 27, 12, 0, 0),
-            audio_generated_at=None,
             created_at=datetime.datetime(2025, 11, 27, 10, 0, 0),
             updated_at=datetime.datetime(2025, 11, 27, 11, 0, 0),
         )
@@ -65,9 +63,7 @@ class TestLessonResponse:
             duration_minutes=15,
             status=LessonStatus.PENDING,
             script=None,
-            audio_url=None,
             script_generated_at=None,
-            audio_generated_at=None,
             created_at=datetime.datetime(2025, 11, 27, 10, 0, 0),
             updated_at=datetime.datetime(2025, 11, 27, 11, 0, 0),
         )
@@ -94,9 +90,7 @@ class TestLessonResponse:
             duration_minutes=20,
             status=LessonStatus.PENDING,
             script=[],
-            audio_url=None,
             script_generated_at=None,
-            audio_generated_at=None,
             created_at=datetime.datetime(2025, 11, 27, 10, 0, 0),
             updated_at=datetime.datetime(2025, 11, 27, 11, 0, 0),
         )
