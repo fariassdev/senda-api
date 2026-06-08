@@ -4,10 +4,12 @@ import asyncio
 import logging
 import time
 from datetime import datetime, timezone
+from uuid import UUID, uuid4
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from senda.core.enums import LessonStatus, ScriptPartType, TtsProvider
+from senda.core.enums import AudioGenerationJobStatus, LessonStatus, ScriptPartType, TtsProvider
 from senda.core.exceptions import (
     AudioGenerationException,
     AudioProviderException,
@@ -23,10 +25,20 @@ from senda.domain.dtos.audio_generation import (
     BatchAudioGenerationResultDTO,
     CourseAudioGenerationRequestDTO,
     GenerationErrorDTO,
+    StartGenerationJobResultDTO,
+)
+from senda.domain.dtos.audio_generation_job import (
+    AudioGenerationJobDTO,
+    CreateAudioGenerationJobDTO,
+    UpdateAudioGenerationJobDTO,
 )
 from senda.domain.dtos.lesson import LessonRecordDTO, UpdateLessonDTO
+from senda.domain.dtos.lesson_audio import UpsertLessonAudioDTO
+from senda.domain.dtos.voice import VoiceDTO
+from senda.domain.repositories.audio_generation_job import IAudioGenerationJobRepository
 from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.lesson import ILessonRepository
+from senda.domain.repositories.lesson_audio import ILessonAudioRepository
 from senda.domain.repositories.voice import IVoiceRepository
 from senda.domain.services.audio_generation import (
     IAudioGenerationService,
@@ -34,22 +46,31 @@ from senda.domain.services.audio_generation import (
     IStorageProvider,
 )
 from senda.domain.utils.script_serialization import LessonScript
+from senda.infrastructure.audio.composer import AudioComposer, playlist_url_for
 from senda.infrastructure.utils.audio_processor import AudioProcessor
 
 logger = logging.getLogger(__name__)
 
 
+def s3_base_path_for(lesson_id: int, job_id: UUID) -> str:
+    return f"meditations/{lesson_id}/{job_id}/"
+
+
 class AudioGenerationService(IAudioGenerationService):
-    """Service to handle lesson audio generation logic."""
+    """Service to handle lesson HLS audio generation."""
 
     def __init__(
         self,
         course_repo: ICourseRepository,
         lesson_repo: ILessonRepository,
         voice_repo: IVoiceRepository,
+        job_repo: IAudioGenerationJobRepository,
+        lesson_audio_repo: ILessonAudioRepository,
         storage_provider: IStorageProvider,
+        audio_composer: AudioComposer,
         audio_providers: dict[TtsProvider, IAudioProvider],
         session_factory: async_sessionmaker[AsyncSession],
+        cdn_base_url: str | None = None,
         audio_processor: AudioProcessor | None = None,
         max_concurrent_lessons: int = 5,
         max_concurrent_tts: int = 3,
@@ -57,12 +78,21 @@ class AudioGenerationService(IAudioGenerationService):
         self._course_repo = course_repo
         self._lesson_repo = lesson_repo
         self._voice_repo = voice_repo
+        self._job_repo = job_repo
+        self._lesson_audio_repo = lesson_audio_repo
         self._storage_provider = storage_provider
+        self._audio_composer = audio_composer
         self._audio_providers = audio_providers
         self._session_factory = session_factory
+        self._cdn_base_url = cdn_base_url
         self._audio_processor = audio_processor or AudioProcessor()
         self._max_concurrent_lessons = max_concurrent_lessons
         self._max_concurrent_tts = max_concurrent_tts
+
+    def _resolve_cdn_base_url(self) -> str:
+        if self._cdn_base_url:
+            return self._cdn_base_url.rstrip("/")
+        return self._storage_provider.public_url_for_key("").rstrip("/")
 
     def _resolve_audio_provider(self, tts_provider: str) -> IAudioProvider:
         try:
@@ -79,25 +109,21 @@ class AudioGenerationService(IAudioGenerationService):
             )
         return provider
 
-    async def generate_lesson_audio(
-        self, session: AsyncSession, request: AudioGenerationRequestDTO
-    ) -> AudioGenerationResultDTO:
-        """Generate and save audio for a single lesson.
+    def _job_to_start_result(self, job: AudioGenerationJobDTO) -> StartGenerationJobResultDTO:
+        return StartGenerationJobResultDTO(
+            job_id=job.id,
+            lesson_id=job.lesson_id,
+            status=job.status,
+            playlist_url=playlist_url_for(self._resolve_cdn_base_url(), job.s3_base_path),
+            segments_available=job.segments_available,
+            lesson_audio_id=job.lesson_audio_id,
+        )
 
-        Raises:
-            LessonNotFoundException: If lesson not found
-            InvalidLessonStateException: If lesson not in SCRIPT_COMPLETED or AUDIO_COMPLETED state
-            VoiceNotFoundException: If catalog voice does not exist
-            VoiceNotActiveException: If catalog voice is inactive
-            AudioProviderException: If TTS generation fails
-            StorageProviderException: If storage upload fails
-            AudioGenerationException: For other errors
-        """
-        logger.info(f"Starting audio generation for lesson {request.lesson_id}")
-        start_time = time.time()
-
+    async def _validate_lesson_for_generation(
+        self, session: AsyncSession, lesson_id: int
+    ) -> LessonRecordDTO:
         lesson_record = await self._lesson_repo.get_or_none(
-            session=session, lesson_id=request.lesson_id
+            session=session, lesson_id=lesson_id
         )
         if not lesson_record:
             raise LessonNotFoundException()
@@ -107,14 +133,16 @@ class AudioGenerationService(IAudioGenerationService):
             LessonStatus.AUDIO_COMPLETED,
         ]:
             logger.warning(
-                f"Lesson {request.lesson_id} not in SCRIPT_COMPLETED state: "
-                f"{lesson_record.status}"
+                "Lesson %s not ready for audio generation: %s",
+                lesson_id,
+                lesson_record.status,
             )
             raise InvalidLessonStateException()
+        return lesson_record
 
-        voice_id = request.audio_config.voice_id
-        speed = request.audio_config.speed
-
+    async def _validate_voice(
+        self, session: AsyncSession, voice_id: UUID
+    ) -> VoiceDTO:
         catalog_voice = await self._voice_repo.get_or_none(
             session=session, voice_id=voice_id
         )
@@ -122,155 +150,285 @@ class AudioGenerationService(IAudioGenerationService):
             raise VoiceNotFoundException()
         if not catalog_voice.is_active:
             raise VoiceNotActiveException()
+        return catalog_voice
 
-        provider = self._resolve_audio_provider(catalog_voice.tts_provider)
-        voice_name = catalog_voice.slug
+    async def start_generation_job(
+        self, session: AsyncSession, request: AudioGenerationRequestDTO
+    ) -> StartGenerationJobResultDTO:
+        """Create or return an active HLS generation job (idempotent per lesson+voice)."""
+        lesson_record = await self._validate_lesson_for_generation(
+            session=session, lesson_id=request.lesson_id
+        )
+        catalog_voice = await self._validate_voice(
+            session=session, voice_id=request.audio_config.voice_id
+        )
 
         script_parts = LessonScript.deserialize(lesson_record.script)
         if not script_parts:
-            logger.error(f"Lesson {request.lesson_id} has no script parts")
             raise AudioGenerationException(message="Lesson has no script content")
 
-        try:
-            await self._lesson_repo.update(
-                session=session,
-                lesson_id=request.lesson_id,
-                update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_GENERATING),
+        voice_id = request.audio_config.voice_id
+        existing_job = await self._job_repo.get_active_for_lesson_voice(
+            session=session, lesson_id=request.lesson_id, voice_id=voice_id
+        )
+        if existing_job:
+            logger.info(
+                "Returning existing active job %s for lesson %s",
+                existing_job.id,
+                request.lesson_id,
             )
+            return self._job_to_start_result(existing_job)
+
+        job_id = uuid4()
+        create_item = CreateAudioGenerationJobDTO(
+            id=job_id,
+            lesson_id=request.lesson_id,
+            voice_id=voice_id,
+            voice_slug=catalog_voice.slug,
+            audio_provider=catalog_voice.tts_provider,
+            s3_base_path=s3_base_path_for(request.lesson_id, job_id),
+            speed=request.audio_config.speed,
+        )
+
+        try:
+            job = await self._job_repo.add(session=session, create_item=create_item)
+        except IntegrityError:
+            await session.rollback()
+            raced_job = await self._job_repo.get_active_for_lesson_voice(
+                session=session, lesson_id=request.lesson_id, voice_id=voice_id
+            )
+            if raced_job is None:
+                raise
+            return self._job_to_start_result(raced_job)
+
+        logger.info(
+            "Created audio generation job %s for lesson %s", job.id, request.lesson_id
+        )
+        return self._job_to_start_result(job)
+
+    async def run_generation_pipeline(self, job_id: UUID) -> None:
+        """Run TTS + HLS composition and persist job/lesson outcomes."""
+        try:
+            async with self._session_factory() as session:
+                job = await self._job_repo.get(session=session, job_id=job_id)
+                lesson_record = await self._lesson_repo.get(
+                    session=session, lesson_id=job.lesson_id
+                )
+                if job.voice_id is None:
+                    raise AudioGenerationException(message="Job is missing voice_id")
+                catalog_voice = await self._validate_voice(
+                    session=session, voice_id=job.voice_id
+                )
+                script_parts = LessonScript.deserialize(lesson_record.script)
+                if not script_parts:
+                    raise AudioGenerationException(message="Lesson has no script content")
+
+                now = datetime.now(timezone.utc)
+                await self._lesson_repo.update(
+                    session=session,
+                    lesson_id=job.lesson_id,
+                    update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_GENERATING),
+                )
+                await self._job_repo.update(
+                    session=session,
+                    job_id=job_id,
+                    update_item=UpdateAudioGenerationJobDTO(
+                        status=AudioGenerationJobStatus.GENERATING,
+                        started_at=now,
+                    ),
+                )
+                await session.commit()
+
+                s3_base_path = job.s3_base_path
+                lesson_id = job.lesson_id
+                voice_id = job.voice_id
+                voice_slug = job.voice_slug or catalog_voice.slug
+                audio_provider = job.audio_provider or catalog_voice.tts_provider
+                job_speed = job.speed
+
+            provider = self._resolve_audio_provider(catalog_voice.tts_provider)
+            speech_data = await self._generate_speech_data(
+                script_parts=script_parts,
+                provider=provider,
+                voice_name=catalog_voice.slug,
+                speed=job_speed,
+            )
+
+            async def on_segment_ready(segments_available: int) -> None:
+                async with self._session_factory() as progress_session:
+                    await self._job_repo.update(
+                        session=progress_session,
+                        job_id=job_id,
+                        update_item=UpdateAudioGenerationJobDTO(
+                            segments_available=segments_available
+                        ),
+                    )
+                    await progress_session.commit()
+
+            composition = await self._audio_composer.compose_hls(
+                job_id=job_id,
+                script_parts=script_parts,
+                speech_data=speech_data,
+                s3_base_path=s3_base_path,
+                cdn_base_url=self._resolve_cdn_base_url(),
+                on_segment_ready=on_segment_ready,
+            )
+
+            async with self._session_factory() as session:
+                completed_at = datetime.now(timezone.utc)
+                lesson_audio = await self._lesson_audio_repo.upsert(
+                    session=session,
+                    upsert_item=UpsertLessonAudioDTO(
+                        lesson_id=lesson_id,
+                        voice_id=voice_id,
+                        voice_slug=voice_slug,
+                        audio_provider=audio_provider,
+                        playlist_url=composition.playlist_url,
+                        hls_base_path=s3_base_path,
+                        segment_count=composition.segment_count,
+                        duration_ms=composition.duration_ms,
+                        generated_at=completed_at,
+                    ),
+                )
+                await self._job_repo.update(
+                    session=session,
+                    job_id=job_id,
+                    update_item=UpdateAudioGenerationJobDTO(
+                        status=AudioGenerationJobStatus.COMPLETED,
+                        segment_count=composition.segment_count,
+                        duration_ms=composition.duration_ms,
+                        lesson_audio_id=lesson_audio.id,
+                        completed_at=completed_at,
+                    ),
+                )
+                await self._lesson_repo.update(
+                    session=session,
+                    lesson_id=lesson_id,
+                    update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_COMPLETED),
+                )
+                await session.commit()
 
             logger.info(
-                f"Processing {len(script_parts)} script parts for lesson {request.lesson_id}"
+                "Completed HLS generation job %s for lesson %s (%s segments)",
+                job_id,
+                lesson_id,
+                composition.segment_count,
             )
+        except Exception as exc:
+            error_message = str(exc)
+            logger.exception("HLS generation job %s failed: %s", job_id, exc)
+            async with self._session_factory() as session:
+                job = await self._job_repo.get_or_none(session=session, job_id=job_id)
+                if job:
+                    await self._job_repo.update(
+                        session=session,
+                        job_id=job_id,
+                        update_item=UpdateAudioGenerationJobDTO(
+                            status=AudioGenerationJobStatus.FAILED,
+                            error_message=error_message,
+                        ),
+                    )
+                    await self._lesson_repo.update(
+                        session=session,
+                        lesson_id=job.lesson_id,
+                        update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_FAILED),
+                    )
+                    await session.commit()
 
-            semaphore = asyncio.Semaphore(self._max_concurrent_tts)
+    async def _generate_speech_data(
+        self,
+        *,
+        script_parts: list,
+        provider: IAudioProvider,
+        voice_name: str,
+        speed: float,
+    ) -> dict[int, bytes]:
+        semaphore = asyncio.Semaphore(self._max_concurrent_tts)
 
-            async def generate_speech_with_semaphore(
-                idx: int, text: str
-            ) -> tuple[int, bytes]:
-                async with semaphore:
-                    logger.debug(f"Generating TTS for part {idx + 1}")
+        async def generate_speech_with_semaphore(
+            idx: int, text: str
+        ) -> tuple[int, bytes | None]:
+            async with semaphore:
+                try:
                     pcm_bytes = await provider.generate_speech(
                         text=text, voice=voice_name, speed=speed
                     )
                     return idx, pcm_bytes
-
-            speak_tasks = []
-            for idx, part in enumerate(script_parts):
-                if (
-                    part.type == ScriptPartType.SPEAK
-                    and part.content
-                    and part.content.strip()
-                ):
-                    speak_tasks.append(
-                        generate_speech_with_semaphore(idx, part.content)
+                except AudioProviderException as exc:
+                    logger.warning(
+                        "TTS failed for script part %s, composer will use silence: %s",
+                        idx + 1,
+                        exc,
                     )
+                    return idx, None
 
-            logger.info(
-                f"Generating TTS for {len(speak_tasks)} speak parts in parallel"
-            )
-            tts_results = await asyncio.gather(*speak_tasks)
+        speak_tasks = []
+        for idx, part in enumerate(script_parts):
+            if (
+                part.type == ScriptPartType.SPEAK
+                and part.content
+                and part.content.strip()
+            ):
+                speak_tasks.append(generate_speech_with_semaphore(idx, part.content))
 
-            speech_data: dict[int, bytes] = {
-                idx: pcm_bytes
-                for idx, pcm_bytes in tts_results
-                if pcm_bytes is not None
-            }
+        if not speak_tasks:
+            return {}
 
-            combined_audio = self._audio_processor.combine_script_parts(
-                script_parts=script_parts, speech_data=speech_data
-            )
+        tts_results = await asyncio.gather(*speak_tasks)
+        return {
+            idx: pcm_bytes for idx, pcm_bytes in tts_results if pcm_bytes is not None
+        }
 
-            mp3_data = self._audio_processor.export_to_mp3(combined_audio)
-            file_size = len(mp3_data)
+    async def generate_lesson_audio(
+        self, session: AsyncSession, request: AudioGenerationRequestDTO
+    ) -> AudioGenerationResultDTO:
+        """Start a job and run the HLS pipeline to completion (blocking)."""
+        logger.info("Starting HLS audio generation for lesson %s", request.lesson_id)
+        start_time = time.time()
 
-            audio_url = await self._storage_provider.upload_audio(
-                file_data=mp3_data,
-                lesson_id=lesson_record.id,
-                lesson_title=lesson_record.title,
-            )
+        start_result = await self.start_generation_job(session=session, request=request)
+        await self.run_generation_pipeline(start_result.job_id)
 
-            await self._lesson_repo.update(
-                session=session,
-                lesson_id=request.lesson_id,
-                update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_COMPLETED),
-            )
-
-            generation_time = time.time() - start_time
-            logger.info(
-                f"Successfully generated audio for lesson {request.lesson_id} "
-                f"in {generation_time:.2f} seconds ({file_size} bytes)"
-            )
-
-            return AudioGenerationResultDTO(
-                lesson_id=request.lesson_id,
-                audio_url=audio_url,
-                generation_time_seconds=generation_time,
-                file_size_bytes=file_size,
-            )
-
-        except (AudioProviderException, StorageProviderException):
-            await self._lesson_repo.update(
-                session=session,
-                lesson_id=request.lesson_id,
-                update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_FAILED),
-            )
-            raise
-
-        except Exception as e:
-            logger.exception(
-                f"Unexpected error generating audio for lesson {request.lesson_id}: {e}"
-            )
-            await self._lesson_repo.update(
-                session=session,
-                lesson_id=request.lesson_id,
-                update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_FAILED),
-            )
-            if isinstance(e, AudioGenerationException):
-                raise
+        job = await self._job_repo.get(session=session, job_id=start_result.job_id)
+        if job.status == AudioGenerationJobStatus.FAILED:
             raise AudioGenerationException(
-                message=f"Audio generation failed: {str(e)}"
-            ) from e
+                message=job.error_message or "Audio generation failed"
+            )
+
+        generation_time = time.time() - start_time
+        logger.info(
+            "Successfully generated HLS audio for lesson %s in %.2f seconds",
+            request.lesson_id,
+            generation_time,
+        )
+
+        return AudioGenerationResultDTO(
+            lesson_id=request.lesson_id,
+            job_id=job.id,
+            playlist_url=start_result.playlist_url,
+            segment_count=job.segment_count or 0,
+            duration_ms=job.duration_ms or 0,
+            generation_time_seconds=generation_time,
+        )
 
     async def generate_course_audios(
         self, session: AsyncSession, request: CourseAudioGenerationRequestDTO
     ) -> BatchAudioGenerationResultDTO:
-        """Generate audio for script-completed lessons in a course.
-
-        This method processes lessons in parallel (up to max_concurrent_lessons at a time)
-        for improved performance.
-
-        Args:
-            session: Database session
-            request: Request with slug and optional lesson_ids
-                - If lesson_ids is None: generate for all eligible lessons
-                - If lesson_ids is []: generate nothing (return empty result)
-                - If lesson_ids is [1, 2, 3]: generate only for those specific lessons
-
-        Returns:
-            BatchAudioGenerationResultDTO with successful results and any errors
-
-        Raises:
-            CourseNotFoundException: If course not found
-
-        Note:
-            This method continues processing even if individual lessons fail.
-            Failed lessons are included in the errors list.
-        """
-        # Handle empty array case - explicit request to generate nothing
+        """Generate HLS audio for script-completed lessons in a course."""
         if request.lesson_ids is not None and len(request.lesson_ids) == 0:
             logger.info(
-                f"Empty lesson_ids provided for course {request.slug} - skipping generation"
+                "Empty lesson_ids provided for course %s - skipping generation",
+                request.slug,
             )
             return BatchAudioGenerationResultDTO(
                 results=[], errors=[], total_requested=0
             )
 
-        logger.info(f"Starting bulk audio generation for course {request.slug}")
+        logger.info("Starting bulk HLS audio generation for course %s", request.slug)
 
         course_record = await self._course_repo.get_by_slug(
             session=session, slug=request.slug
         )
-
         all_lessons = await self._lesson_repo.list_by_course(
             session=session, course_id=course_record.id
         )
@@ -281,90 +439,71 @@ class AudioGenerationService(IAudioGenerationService):
             if lesson.status == LessonStatus.SCRIPT_COMPLETED
         ]
 
-        # If specific lesson_ids provided, filter to only those lessons
         if request.lesson_ids is not None:
             ready_lessons = [
                 lesson for lesson in ready_lessons if lesson.id in request.lesson_ids
             ]
-            logger.info(
-                f"Filtered to {len(ready_lessons)} lessons based on provided IDs"
-            )
 
         if not ready_lessons:
-            logger.info(
-                f"No lessons ready for audio generation in course {request.slug}"
-            )
             return BatchAudioGenerationResultDTO(
                 results=[], errors=[], total_requested=0
             )
 
-        logger.info(
-            f"Found {len(ready_lessons)} lessons ready for audio generation "
-            f"in course {request.slug} (max concurrent: {self._max_concurrent_lessons})"
-        )
-
-        # Create a semaphore to limit concurrent lesson processing
         semaphore = asyncio.Semaphore(self._max_concurrent_lessons)
-
-        # Store errors in a list accessible from the inner function
         generation_errors: list[GenerationErrorDTO] = []
 
         async def process_lesson_with_semaphore(
             lesson_record: LessonRecordDTO,
         ) -> AudioGenerationResultDTO | None:
-            """Process a single lesson with semaphore control and its own DB session."""
             async with semaphore:
                 lesson_request = AudioGenerationRequestDTO(
                     lesson_id=lesson_record.id,
                     user_id=request.user_id,
                     audio_config=request.audio_config,
                 )
-
                 try:
                     async with self._session_factory() as lesson_session:
                         try:
-                            result = await self.generate_lesson_audio(
+                            start = await self.start_generation_job(
                                 session=lesson_session, request=lesson_request
                             )
                             await lesson_session.commit()
                         except Exception:
                             await lesson_session.rollback()
                             raise
-                    logger.info(f"Generated audio for lesson {lesson_record.id}")
-                    return result
 
-                except Exception as e:
-                    error_type = type(e).__name__
-                    error_message = str(e)
-                    logger.error(
-                        f"Failed to generate audio for lesson {lesson_record.id}: {e}",
-                        exc_info=True,
-                    )
+                    await self.run_generation_pipeline(start.job_id)
+
+                    async with self._session_factory() as lesson_session:
+                        job = await self._job_repo.get(
+                            session=lesson_session, job_id=start.job_id
+                        )
+                        if job.status == AudioGenerationJobStatus.FAILED:
+                            raise AudioGenerationException(
+                                message=job.error_message or "Audio generation failed"
+                            )
+                        return AudioGenerationResultDTO(
+                            lesson_id=lesson_record.id,
+                            job_id=job.id,
+                            playlist_url=start.playlist_url,
+                            segment_count=job.segment_count or 0,
+                            duration_ms=job.duration_ms or 0,
+                            generation_time_seconds=0.0,
+                        )
+                except Exception as exc:
                     generation_errors.append(
                         GenerationErrorDTO(
                             lesson_id=lesson_record.id,
-                            error_type=error_type,
-                            error_message=error_message,
+                            error_type=type(exc).__name__,
+                            error_message=str(exc),
                         )
                     )
                     return None
 
-        # Process all lessons in parallel (controlled by semaphore)
         results = await asyncio.gather(
-            *[process_lesson_with_semaphore(lesson) for lesson in ready_lessons],
-            return_exceptions=False,
+            *[process_lesson_with_semaphore(lesson) for lesson in ready_lessons]
         )
-
-        # Filter out None results (failed generations)
-        generated_results: list[AudioGenerationResultDTO] = [
-            result for result in results if result is not None
-        ]
-
-        logger.info(
-            f"Completed bulk generation for course {request.slug}: "
-            f"{len(generated_results)}/{len(ready_lessons)} successful, "
-            f"{len(generation_errors)} errors"
-        )
+        generated_results = [result for result in results if result is not None]
 
         return BatchAudioGenerationResultDTO(
             results=generated_results,

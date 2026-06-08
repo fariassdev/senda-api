@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+from senda.core.enums import AudioGenerationJobStatus
+
 
 @dataclass(frozen=True)
 class AudioConfigDTO:
@@ -32,13 +34,32 @@ class CourseAudioGenerationRequestDTO:
 
 
 @dataclass(frozen=True)
+class StartGenerationJobResultDTO:
+    """Result of initiating an HLS audio generation job."""
+
+    job_id: UUID
+    lesson_id: int
+    status: AudioGenerationJobStatus
+    playlist_url: str
+    segments_available: int
+    lesson_audio_id: UUID | None = None
+
+
+@dataclass(frozen=True)
 class AudioGenerationResultDTO:
-    """Result of audio generation process."""
+    """Result of a completed HLS audio generation."""
 
     lesson_id: int
-    audio_url: str
+    job_id: UUID
+    playlist_url: str
+    segment_count: int
+    duration_ms: int
     generation_time_seconds: float
-    file_size_bytes: int | None = None
+
+    @property
+    def audio_url(self) -> str:
+        """Temporary alias until API responses migrate to playlist_url."""
+        return self.playlist_url
 
 
 @dataclass(frozen=True)

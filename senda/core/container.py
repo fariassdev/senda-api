@@ -222,6 +222,8 @@ class Container:
             course_repo=self.course_repository(),
             lesson_repo=self.lesson_repository(),
             voice_repo=self.voice_repository(),
+            job_repo=self.audio_generation_job_repository(),
+            lesson_audio_repo=self.lesson_audio_repository(),
             session_factory=self._session,
         )
 

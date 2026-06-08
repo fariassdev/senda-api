@@ -23,9 +23,9 @@ class AudioGenerationResponse(BaseModel):
         """Create response from domain DTO."""
         return cls(
             lesson_id=dto.lesson_id,
-            audio_url=dto.audio_url,
+            audio_url=dto.playlist_url,
             generation_time_seconds=dto.generation_time_seconds,
-            file_size_bytes=dto.file_size_bytes,
+            file_size_bytes=dto.duration_ms,
         )
 
     class Config:

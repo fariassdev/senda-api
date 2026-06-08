@@ -2,11 +2,14 @@
 
 import abc
 
+from uuid import UUID
+
 from senda.domain.dtos.audio_generation import (
     AudioGenerationRequestDTO,
     AudioGenerationResultDTO,
     BatchAudioGenerationResultDTO,
     CourseAudioGenerationRequestDTO,
+    StartGenerationJobResultDTO,
 )
 
 
@@ -96,6 +99,18 @@ class IStorageProvider(abc.ABC):
 
 class IAudioGenerationService(abc.ABC):
     """Business logic for audio generation."""
+
+    @abc.abstractmethod
+    async def start_generation_job(
+        self, session: object, request: AudioGenerationRequestDTO
+    ) -> StartGenerationJobResultDTO:
+        """Create or return an active HLS generation job for a lesson."""
+        pass
+
+    @abc.abstractmethod
+    async def run_generation_pipeline(self, job_id: UUID) -> None:
+        """Run the long-running TTS + HLS pipeline for a job."""
+        pass
 
     @abc.abstractmethod
     async def generate_lesson_audio(

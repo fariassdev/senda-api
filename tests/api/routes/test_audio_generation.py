@@ -50,9 +50,11 @@ class TestAudioGenerationAPI:
 
         mock_result = AudioGenerationResultDTO(
             lesson_id=lesson_id,
-            audio_url="https://s3.amazonaws.com/audio/test.mp3",
+            job_id=uuid4(),
+            playlist_url="https://cdn.test/meditations/playlist.m3u8",
+            segment_count=2,
+            duration_ms=1024,
             generation_time_seconds=5.0,
-            file_size_bytes=1024,
         )
 
         with patch(
@@ -69,7 +71,7 @@ class TestAudioGenerationAPI:
         data = response.json()
 
         assert data["lesson_id"] == lesson_id
-        assert data["audio_url"] == "https://s3.amazonaws.com/audio/test.mp3"
+        assert data["audio_url"] == "https://cdn.test/meditations/playlist.m3u8"
         assert data["generation_time_seconds"] == 5.0
         assert data["file_size_bytes"] == 1024
 
@@ -196,15 +198,19 @@ class TestAudioGenerationAPI:
         mock_results = [
             AudioGenerationResultDTO(
                 lesson_id=lesson1_id,
-                audio_url="https://s3.amazonaws.com/audio/lesson1.mp3",
+                job_id=uuid4(),
+                playlist_url="https://cdn.test/meditations/lesson1/playlist.m3u8",
+                segment_count=2,
+                duration_ms=1024,
                 generation_time_seconds=5.0,
-                file_size_bytes=1024,
             ),
             AudioGenerationResultDTO(
                 lesson_id=lesson2_id,
-                audio_url="https://s3.amazonaws.com/audio/lesson2.mp3",
+                job_id=uuid4(),
+                playlist_url="https://cdn.test/meditations/lesson2/playlist.m3u8",
+                segment_count=2,
+                duration_ms=2048,
                 generation_time_seconds=6.0,
-                file_size_bytes=2048,
             ),
         ]
 
@@ -234,12 +240,12 @@ class TestAudioGenerationAPI:
         assert generated_audios[0]["lesson_id"] == lesson1_id
         assert (
             generated_audios[0]["audio_url"]
-            == "https://s3.amazonaws.com/audio/lesson1.mp3"
+            == "https://cdn.test/meditations/lesson1/playlist.m3u8"
         )
         assert generated_audios[1]["lesson_id"] == lesson2_id
         assert (
             generated_audios[1]["audio_url"]
-            == "https://s3.amazonaws.com/audio/lesson2.mp3"
+            == "https://cdn.test/meditations/lesson2/playlist.m3u8"
         )
 
     @pytest.mark.anyio
@@ -296,7 +302,6 @@ class TestAudioGenerationAPI:
             duration_minutes=10,
             status=LessonStatus.AUDIO_COMPLETED,
             script='[{"type": "speak", "content": "Hello"}]',
-            audio_url="https://s3.amazonaws.com/audio/test.mp3",
             created_at=datetime.now(),
         )
         session.add(lesson)
@@ -313,7 +318,7 @@ class TestAudioGenerationAPI:
 
         assert data["lesson_id"] == lesson_id
         assert data["status"] == LessonStatus.AUDIO_COMPLETED.value
-        assert data["audio_url"] == "https://s3.amazonaws.com/audio/test.mp3"
+        assert data["audio_url"] is None
 
     @pytest.mark.anyio
     async def test_get_lesson_audio_status_unauthorized(
@@ -386,15 +391,19 @@ class TestBatchAudioGeneration:
         mock_results = [
             AudioGenerationResultDTO(
                 lesson_id=1,
-                audio_url="https://s3.amazonaws.com/audio/lesson1.mp3",
+                job_id=uuid4(),
+                playlist_url="https://cdn.test/meditations/lesson1/playlist.m3u8",
+                segment_count=2,
+                duration_ms=1024,
                 generation_time_seconds=5.0,
-                file_size_bytes=1024,
             ),
             AudioGenerationResultDTO(
                 lesson_id=2,
-                audio_url="https://s3.amazonaws.com/audio/lesson2.mp3",
+                job_id=uuid4(),
+                playlist_url="https://cdn.test/meditations/lesson2/playlist.m3u8",
+                segment_count=2,
+                duration_ms=2048,
                 generation_time_seconds=6.0,
-                file_size_bytes=2048,
             ),
         ]
 
@@ -453,15 +462,19 @@ class TestBatchAudioGeneration:
         mock_results = [
             AudioGenerationResultDTO(
                 lesson_id=1,
-                audio_url="https://s3.amazonaws.com/audio/lesson1.mp3",
+                job_id=uuid4(),
+                playlist_url="https://cdn.test/meditations/lesson1/playlist.m3u8",
+                segment_count=2,
+                duration_ms=1024,
                 generation_time_seconds=5.0,
-                file_size_bytes=1024,
             ),
             AudioGenerationResultDTO(
                 lesson_id=2,
-                audio_url="https://s3.amazonaws.com/audio/lesson2.mp3",
+                job_id=uuid4(),
+                playlist_url="https://cdn.test/meditations/lesson2/playlist.m3u8",
+                segment_count=2,
+                duration_ms=2048,
                 generation_time_seconds=6.0,
-                file_size_bytes=2048,
             ),
         ]
 

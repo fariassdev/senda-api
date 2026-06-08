@@ -15,6 +15,7 @@ class AudioGenerationJobDTO:
     voice_slug: str | None
     audio_provider: str | None
     s3_base_path: str
+    speed: float
     status: AudioGenerationJobStatus
     segments_available: int
     segment_count: int | None
@@ -30,11 +31,13 @@ class AudioGenerationJobDTO:
 class CreateAudioGenerationJobDTO:
     """DTO for creating a new audio generation job."""
 
+    id: UUID
     lesson_id: int
     voice_id: UUID
     voice_slug: str
     audio_provider: str
     s3_base_path: str
+    speed: float = 1.0
 
 
 @dataclass(frozen=True)

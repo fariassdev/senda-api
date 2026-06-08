@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from senda.core.enums import TtsProvider
 from senda.core.settings.base import BaseAppSettings
+from senda.domain.repositories.audio_generation_job import IAudioGenerationJobRepository
 from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.lesson import ILessonRepository
 from senda.domain.repositories.lesson_audio import ILessonAudioRepository
@@ -94,15 +95,21 @@ def build_audio_generation_service(
     course_repo: ICourseRepository,
     lesson_repo: ILessonRepository,
     voice_repo: IVoiceRepository,
+    job_repo: IAudioGenerationJobRepository,
+    lesson_audio_repo: ILessonAudioRepository,
     session_factory: async_sessionmaker[AsyncSession],
 ) -> IAudioGenerationService:
     return AudioGenerationService(
         course_repo=course_repo,
         lesson_repo=lesson_repo,
         voice_repo=voice_repo,
+        job_repo=job_repo,
+        lesson_audio_repo=lesson_audio_repo,
         storage_provider=build_storage_provider(settings),
+        audio_composer=build_audio_composer(settings),
         audio_providers=build_audio_providers(settings),
         session_factory=session_factory,
+        cdn_base_url=settings.cdn_base_url,
         audio_processor=AudioProcessor(),
         max_concurrent_lessons=settings.max_concurrent_lessons,
         max_concurrent_tts=settings.max_concurrent_tts,
