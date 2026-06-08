@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 
 
 def s3_base_path_for(lesson_id: int, job_id: UUID) -> str:
-    return f"meditations/{lesson_id}/{job_id}/"
+    return f"audio/{lesson_id}/{job_id}/"
 
 
 class AudioGenerationService(IAudioGenerationService):
@@ -248,7 +248,7 @@ class AudioGenerationService(IAudioGenerationService):
                         message="Lesson has no script content"
                     )
 
-                now = datetime.now(timezone.utc)
+                now = datetime.now()
                 await self._lesson_repo.update(
                     session=session,
                     lesson_id=job.lesson_id,
@@ -297,7 +297,7 @@ class AudioGenerationService(IAudioGenerationService):
             )
 
             async with self._session_factory() as session:
-                completed_at = datetime.now(timezone.utc)
+                completed_at = datetime.now()
                 lesson_audio = await self._lesson_audio_repo.upsert(
                     session=session,
                     upsert_item=UpsertLessonAudioDTO(

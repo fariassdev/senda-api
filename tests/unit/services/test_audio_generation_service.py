@@ -75,7 +75,7 @@ def make_job_dto(
         error_message=None,
         started_at=None,
         completed_at=None,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(),
     )
 
 
@@ -126,7 +126,7 @@ class TestAudioGenerationService:
             return_value=HlsCompositionResult(
                 segment_count=2,
                 duration_ms=12000,
-                playlist_url="https://cdn.test/meditations/1/job/playlist.m3u8",
+                playlist_url="https://cdn.test/audio/1/job/playlist.m3u8",
             )
         )
         return composer
@@ -207,9 +207,9 @@ class TestAudioGenerationService:
             duration_minutes=10,
             status=LessonStatus.SCRIPT_COMPLETED,
             script='[{"type": "speak", "content": "Hello"}]',
-            script_generated_at=datetime.now(timezone.utc),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            script_generated_at=datetime.now(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
 
     @pytest.fixture
@@ -224,8 +224,8 @@ class TestAudioGenerationService:
             difficulty_level="Beginner",
             active=True,
             image_placeholder_url=None,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
 
     @pytest.fixture
@@ -247,8 +247,8 @@ class TestAudioGenerationService:
             sample_audio_url="https://example.com/sample.mp3",
             tts_provider=TtsProvider.KOKORO.value,
             is_active=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
 
     @pytest.fixture
@@ -319,13 +319,13 @@ class TestAudioGenerationService:
                 voice_id=kokoro_voice_id,
                 voice_slug="af_nicole",
                 audio_provider=TtsProvider.KOKORO.value,
-                playlist_url="https://cdn.test/meditations/1/job/playlist.m3u8",
+                playlist_url="https://cdn.test/audio/1/job/playlist.m3u8",
                 hls_base_path=s3_base_path_for(1, job_id),
                 segment_count=2,
                 duration_ms=12000,
-                generated_at=datetime.now(timezone.utc),
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                generated_at=datetime.now(),
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
             )
         )
 
@@ -373,8 +373,8 @@ class TestAudioGenerationService:
             sample_audio_url="https://example.com/sample.mp3",
             tts_provider=TtsProvider.CHATTERBOX.value,
             is_active=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
 
         job_id = uuid4()
@@ -407,9 +407,9 @@ class TestAudioGenerationService:
                 hls_base_path=s3_base_path_for(1, job_id),
                 segment_count=1,
                 duration_ms=6000,
-                generated_at=datetime.now(timezone.utc),
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                generated_at=datetime.now(),
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
             )
         )
 
@@ -651,7 +651,7 @@ class TestAudioGenerationService:
             error_message="compose failed",
             started_at=None,
             completed_at=None,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(),
         )
         mock_job_repo.get = AsyncMock(return_value=failed_job)
         mock_audio_composer.compose_hls.side_effect = AudioGenerationException(
@@ -689,9 +689,9 @@ class TestAudioGenerationService:
             duration_minutes=10,
             status=LessonStatus.SCRIPT_COMPLETED,
             script='[{"type": "speak", "content": "Hello"}]',
-            script_generated_at=datetime.now(timezone.utc),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            script_generated_at=datetime.now(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
 
         lesson2 = LessonRecordDTO(
@@ -705,9 +705,9 @@ class TestAudioGenerationService:
             duration_minutes=10,
             status=LessonStatus.SCRIPT_COMPLETED,
             script='[{"type": "speak", "content": "World"}]',
-            script_generated_at=datetime.now(timezone.utc),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            script_generated_at=datetime.now(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
 
         pending_lesson = LessonRecordDTO(
@@ -726,7 +726,7 @@ class TestAudioGenerationService:
                 job_id=job_id,
                 lesson_id=request.lesson_id,
                 status=AudioGenerationJobStatus.PENDING,
-                playlist_url="https://cdn.test/meditations/playlist.m3u8",
+                playlist_url="https://cdn.test/audio/playlist.m3u8",
                 segments_available=0,
             )
 
@@ -794,8 +794,8 @@ class TestAudioGenerationService:
             status=LessonStatus.PENDING,
             script=None,
             script_generated_at=None,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
 
         mock_course_repo.get_by_slug = AsyncMock(return_value=sample_course_record)
@@ -836,9 +836,9 @@ class TestAudioGenerationService:
             duration_minutes=10,
             status=LessonStatus.SCRIPT_COMPLETED,
             script='[{"type": "speak", "content": "Hello"}]',
-            script_generated_at=datetime.now(timezone.utc),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            script_generated_at=datetime.now(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
 
         lesson2 = LessonRecordDTO(**{**lesson1.__dict__, "id": 2})
@@ -858,7 +858,7 @@ class TestAudioGenerationService:
                 job_id=job_id,
                 lesson_id=request.lesson_id,
                 status=AudioGenerationJobStatus.PENDING,
-                playlist_url="https://cdn.test/meditations/playlist.m3u8",
+                playlist_url="https://cdn.test/audio/playlist.m3u8",
                 segments_available=0,
             )
 

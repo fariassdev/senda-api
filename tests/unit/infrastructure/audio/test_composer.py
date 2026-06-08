@@ -23,11 +23,11 @@ class TestPlaylistHelpers:
         rewritten = rewrite_playlist_with_cdn_urls(
             content,
             cdn_base_url="https://cdn.senda.com",
-            s3_base_path="meditations/42/job-id",
+            s3_base_path="audio/42/job-id",
         )
 
-        assert "https://cdn.senda.com/meditations/42/job-id/segment_000.ts" in rewritten
-        assert "https://cdn.senda.com/meditations/42/job-id/segment_001.ts" in rewritten
+        assert "https://cdn.senda.com/audio/42/job-id/segment_000.ts" in rewritten
+        assert "https://cdn.senda.com/audio/42/job-id/segment_001.ts" in rewritten
 
     def test_parse_duration_ms_from_playlist(self) -> None:
         content = "#EXTINF:6.000,\n#EXTINF:4.500,\n"
@@ -42,5 +42,5 @@ class TestPlaylistHelpers:
         assert final.endswith("#EXT-X-ENDLIST\n")
 
     def test_playlist_url_for(self) -> None:
-        url = playlist_url_for("https://cdn.senda.com", "meditations/42/job-id/")
-        assert url == "https://cdn.senda.com/meditations/42/job-id/playlist.m3u8"
+        url = playlist_url_for("https://cdn.senda.com", "audio/42/job-id/")
+        assert url == "https://cdn.senda.com/audio/42/job-id/playlist.m3u8"

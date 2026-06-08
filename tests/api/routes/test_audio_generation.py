@@ -55,7 +55,7 @@ class TestAudioGenerationAPI:
             job_id=job_id,
             lesson_id=lesson_id,
             status=AudioGenerationJobStatus.PENDING,
-            playlist_url="https://cdn.test/meditations/playlist.m3u8",
+            playlist_url="https://cdn.test/audio/playlist.m3u8",
             segments_available=0,
             is_new=True,
         )
@@ -76,7 +76,7 @@ class TestAudioGenerationAPI:
         assert data["lesson_id"] == lesson_id
         assert data["job_id"] == str(job_id)
         assert data["status"] == AudioGenerationJobStatus.PENDING.value
-        assert data["playlist_url"] == "https://cdn.test/meditations/playlist.m3u8"
+        assert data["playlist_url"] == "https://cdn.test/audio/playlist.m3u8"
 
     @pytest.mark.anyio
     async def test_generate_lesson_audio_unauthorized(
@@ -169,7 +169,7 @@ class TestAudioGenerationAPI:
             job_id=job_id,
             status=AudioGenerationJobStatus.GENERATING,
             segments_available=2,
-            playlist_url="https://cdn.test/meditations/1/job/playlist.m3u8",
+            playlist_url="https://cdn.test/audio/1/job/playlist.m3u8",
             lesson_audio_id=lesson_audio_id,
             error_message=None,
         )
@@ -186,9 +186,7 @@ class TestAudioGenerationAPI:
         assert data["job_id"] == str(job_id)
         assert data["status"] == AudioGenerationJobStatus.GENERATING.value
         assert data["segments_available"] == 2
-        assert (
-            data["playlist_url"] == "https://cdn.test/meditations/1/job/playlist.m3u8"
-        )
+        assert data["playlist_url"] == "https://cdn.test/audio/1/job/playlist.m3u8"
         assert data["lesson_audio_id"] == str(lesson_audio_id)
         assert data["error_message"] is None
 
@@ -260,7 +258,7 @@ class TestAudioGenerationAPI:
             AudioGenerationResultDTO(
                 lesson_id=lesson1_id,
                 job_id=uuid4(),
-                playlist_url="https://cdn.test/meditations/lesson1/playlist.m3u8",
+                playlist_url="https://cdn.test/audio/lesson1/playlist.m3u8",
                 segment_count=2,
                 duration_ms=1024,
                 generation_time_seconds=5.0,
@@ -268,7 +266,7 @@ class TestAudioGenerationAPI:
             AudioGenerationResultDTO(
                 lesson_id=lesson2_id,
                 job_id=uuid4(),
-                playlist_url="https://cdn.test/meditations/lesson2/playlist.m3u8",
+                playlist_url="https://cdn.test/audio/lesson2/playlist.m3u8",
                 segment_count=2,
                 duration_ms=2048,
                 generation_time_seconds=6.0,
@@ -301,12 +299,12 @@ class TestAudioGenerationAPI:
         assert generated_audios[0]["lesson_id"] == lesson1_id
         assert (
             generated_audios[0]["playlist_url"]
-            == "https://cdn.test/meditations/lesson1/playlist.m3u8"
+            == "https://cdn.test/audio/lesson1/playlist.m3u8"
         )
         assert generated_audios[1]["lesson_id"] == lesson2_id
         assert (
             generated_audios[1]["playlist_url"]
-            == "https://cdn.test/meditations/lesson2/playlist.m3u8"
+            == "https://cdn.test/audio/lesson2/playlist.m3u8"
         )
 
     @pytest.mark.anyio
@@ -453,7 +451,7 @@ class TestBatchAudioGeneration:
             AudioGenerationResultDTO(
                 lesson_id=1,
                 job_id=uuid4(),
-                playlist_url="https://cdn.test/meditations/lesson1/playlist.m3u8",
+                playlist_url="https://cdn.test/audio/lesson1/playlist.m3u8",
                 segment_count=2,
                 duration_ms=1024,
                 generation_time_seconds=5.0,
@@ -461,7 +459,7 @@ class TestBatchAudioGeneration:
             AudioGenerationResultDTO(
                 lesson_id=2,
                 job_id=uuid4(),
-                playlist_url="https://cdn.test/meditations/lesson2/playlist.m3u8",
+                playlist_url="https://cdn.test/audio/lesson2/playlist.m3u8",
                 segment_count=2,
                 duration_ms=2048,
                 generation_time_seconds=6.0,
@@ -524,7 +522,7 @@ class TestBatchAudioGeneration:
             AudioGenerationResultDTO(
                 lesson_id=1,
                 job_id=uuid4(),
-                playlist_url="https://cdn.test/meditations/lesson1/playlist.m3u8",
+                playlist_url="https://cdn.test/audio/lesson1/playlist.m3u8",
                 segment_count=2,
                 duration_ms=1024,
                 generation_time_seconds=5.0,
@@ -532,7 +530,7 @@ class TestBatchAudioGeneration:
             AudioGenerationResultDTO(
                 lesson_id=2,
                 job_id=uuid4(),
-                playlist_url="https://cdn.test/meditations/lesson2/playlist.m3u8",
+                playlist_url="https://cdn.test/audio/lesson2/playlist.m3u8",
                 segment_count=2,
                 duration_ms=2048,
                 generation_time_seconds=6.0,

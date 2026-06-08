@@ -64,7 +64,7 @@ class TestLessonResponse:
             duration_minutes=20,
             status=LessonStatus.AUDIO_COMPLETED,
             script=None,
-            playlist_url="https://cdn.test/meditations/4/playlist.m3u8",
+            playlist_url="https://cdn.test/audio/4/playlist.m3u8",
             script_generated_at=None,
             audio_generated_at=datetime.datetime(2025, 11, 27, 13, 0, 0),
             created_at=datetime.datetime(2025, 11, 27, 10, 0, 0),
@@ -74,7 +74,7 @@ class TestLessonResponse:
         response = LessonResponse.from_dto(dto=lesson_dto)
 
         assert response.lesson.playlist_url == (
-            "https://cdn.test/meditations/4/playlist.m3u8"
+            "https://cdn.test/audio/4/playlist.m3u8"
         )
         assert response.lesson.audio_generated_at == datetime.datetime(
             2025, 11, 27, 13, 0, 0

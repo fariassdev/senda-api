@@ -219,8 +219,8 @@ class TestS3StorageProvider:
             cdn_base_url="https://cdn.senda.com",
         )
         assert (
-            provider.public_url_for_key("meditations/1/job/playlist.m3u8")
-            == "https://cdn.senda.com/meditations/1/job/playlist.m3u8"
+            provider.public_url_for_key("audio/1/job/playlist.m3u8")
+            == "https://cdn.senda.com/audio/1/job/playlist.m3u8"
         )
 
     @pytest.mark.asyncio
@@ -233,7 +233,7 @@ class TestS3StorageProvider:
 
             await storage_provider.upload_file(
                 file_data=b"segment",
-                key="meditations/1/job/segment_000.ts",
+                key="audio/1/job/segment_000.ts",
                 content_type="video/mp2t",
                 cache_control="public, max-age=31536000",
             )

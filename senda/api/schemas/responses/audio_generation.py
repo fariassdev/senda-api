@@ -37,7 +37,7 @@ class StartAudioGenerationResponse(BaseModel):
                 "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
                 "lesson_id": 1,
                 "status": "PENDING",
-                "playlist_url": "https://cdn.senda.com/meditations/1/job-id/playlist.m3u8",
+                "playlist_url": "https://cdn.senda.com/audio/1/job-id/playlist.m3u8",
             }
         }
 
@@ -77,7 +77,7 @@ class AudioGenerationJobStatusResponse(BaseModel):
                 "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
                 "status": "GENERATING",
                 "segments_available": 3,
-                "playlist_url": "https://cdn.senda.com/meditations/1/job-id/playlist.m3u8",
+                "playlist_url": "https://cdn.senda.com/audio/1/job-id/playlist.m3u8",
                 "lesson_audio_id": None,
                 "error_message": None,
             }
@@ -112,7 +112,7 @@ class AudioGenerationResponse(BaseModel):
             "example": {
                 "lesson_id": 1,
                 "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-                "playlist_url": "https://cdn.senda.com/meditations/1/job-id/playlist.m3u8",
+                "playlist_url": "https://cdn.senda.com/audio/1/job-id/playlist.m3u8",
                 "segment_count": 12,
                 "duration_ms": 300000,
                 "generation_time_seconds": 15.34,
@@ -163,7 +163,7 @@ class CourseAudiosGenerationResponse(BaseModel):
                     {
                         "lesson_id": 1,
                         "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-                        "playlist_url": "https://cdn.senda.com/meditations/1/job-id/playlist.m3u8",
+                        "playlist_url": "https://cdn.senda.com/audio/1/job-id/playlist.m3u8",
                         "segment_count": 12,
                         "duration_ms": 300000,
                         "generation_time_seconds": 15.34,
