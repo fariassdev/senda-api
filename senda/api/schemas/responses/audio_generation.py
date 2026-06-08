@@ -90,8 +90,6 @@ class AudioGenerationResponse(BaseModel):
     lesson_id: int = Field(..., description="ID of the lesson")
     job_id: UUID = Field(..., description="ID of the completed generation job")
     playlist_url: str = Field(..., description="Final HLS playlist URL")
-    segment_count: int = Field(..., description="Total number of HLS segments")
-    duration_ms: int = Field(..., description="Total audio duration in milliseconds")
     generation_time_seconds: float = Field(
         ..., description="Time taken to generate the audio"
     )
@@ -102,8 +100,6 @@ class AudioGenerationResponse(BaseModel):
             lesson_id=dto.lesson_id,
             job_id=dto.job_id,
             playlist_url=dto.playlist_url,
-            segment_count=dto.segment_count,
-            duration_ms=dto.duration_ms,
             generation_time_seconds=dto.generation_time_seconds,
         )
 
@@ -113,8 +109,6 @@ class AudioGenerationResponse(BaseModel):
                 "lesson_id": 1,
                 "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
                 "playlist_url": "https://cdn.senda.com/audio/1/job-id/playlist.m3u8",
-                "segment_count": 12,
-                "duration_ms": 300000,
                 "generation_time_seconds": 15.34,
             }
         }
@@ -164,8 +158,6 @@ class CourseAudiosGenerationResponse(BaseModel):
                         "lesson_id": 1,
                         "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
                         "playlist_url": "https://cdn.senda.com/audio/1/job-id/playlist.m3u8",
-                        "segment_count": 12,
-                        "duration_ms": 300000,
                         "generation_time_seconds": 15.34,
                     }
                 ],

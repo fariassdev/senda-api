@@ -88,10 +88,6 @@ class AudioGenerationJobRepository(IAudioGenerationJobRepository):
             query = query.values(status=update_item.status.value)
         if update_item.segments_available is not None:
             query = query.values(segments_available=update_item.segments_available)
-        if update_item.segment_count is not None:
-            query = query.values(segment_count=update_item.segment_count)
-        if update_item.duration_ms is not None:
-            query = query.values(duration_ms=update_item.duration_ms)
         if update_item.lesson_audio_id is not None:
             query = query.values(lesson_audio_id=update_item.lesson_audio_id)
         if update_item.error_message is not None:

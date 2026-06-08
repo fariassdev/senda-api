@@ -308,7 +308,6 @@ class AudioGenerationService(IAudioGenerationService):
                         audio_provider=audio_provider,
                         playlist_url=composition.playlist_url,
                         hls_base_path=s3_base_path,
-                        segment_count=composition.segment_count,
                         duration_ms=composition.duration_ms,
                         generated_at=completed_at,
                     ),
@@ -318,8 +317,6 @@ class AudioGenerationService(IAudioGenerationService):
                     job_id=job_id,
                     update_item=UpdateAudioGenerationJobDTO(
                         status=AudioGenerationJobStatus.COMPLETED,
-                        segment_count=composition.segment_count,
-                        duration_ms=composition.duration_ms,
                         lesson_audio_id=lesson_audio.id,
                         completed_at=completed_at,
                     ),
@@ -332,10 +329,7 @@ class AudioGenerationService(IAudioGenerationService):
                 await session.commit()
 
             logger.info(
-                "Completed HLS generation job %s for lesson %s (%s segments)",
-                job_id,
-                lesson_id,
-                composition.segment_count,
+                "Completed HLS generation job %s for lesson %s", job_id, lesson_id
             )
         except Exception as exc:
             error_message = str(exc)
@@ -426,8 +420,6 @@ class AudioGenerationService(IAudioGenerationService):
             lesson_id=request.lesson_id,
             job_id=job.id,
             playlist_url=start_result.playlist_url,
-            segment_count=job.segment_count or 0,
-            duration_ms=job.duration_ms or 0,
             generation_time_seconds=generation_time,
         )
 
@@ -507,8 +499,6 @@ class AudioGenerationService(IAudioGenerationService):
                             lesson_id=lesson_record.id,
                             job_id=job.id,
                             playlist_url=start.playlist_url,
-                            segment_count=job.segment_count or 0,
-                            duration_ms=job.duration_ms or 0,
                             generation_time_seconds=0.0,
                         )
                 except Exception as exc:

@@ -17,8 +17,6 @@ class AudioGenerationJobDTO:
     s3_base_path: str
     status: AudioGenerationJobStatus
     segments_available: int
-    segment_count: int | None
-    duration_ms: int | None
     lesson_audio_id: UUID | None
     error_message: str | None
     started_at: datetime.datetime | None
@@ -44,8 +42,6 @@ class UpdateAudioGenerationJobDTO:
 
     status: AudioGenerationJobStatus | None = None
     segments_available: int | None = None
-    segment_count: int | None = None
-    duration_ms: int | None = None
     lesson_audio_id: UUID | None = None
     error_message: str | None = None
     started_at: datetime.datetime | None = None

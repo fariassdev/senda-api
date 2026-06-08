@@ -30,7 +30,6 @@ def upgrade() -> None:
         sa.Column("audio_provider", sa.String(length=50), nullable=True),
         sa.Column("playlist_url", sa.String(), nullable=False),
         sa.Column("hls_base_path", sa.String(), nullable=False),
-        sa.Column("segment_count", sa.Integer(), nullable=False),
         sa.Column("duration_ms", sa.Integer(), nullable=False),
         sa.Column("generated_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column(
@@ -64,8 +63,6 @@ def upgrade() -> None:
         sa.Column(
             "segments_available", sa.Integer(), nullable=False, server_default="0"
         ),
-        sa.Column("segment_count", sa.Integer(), nullable=True),
-        sa.Column("duration_ms", sa.Integer(), nullable=True),
         sa.Column("lesson_audio_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),

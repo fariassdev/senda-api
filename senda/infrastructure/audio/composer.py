@@ -40,7 +40,6 @@ ENDLIST_TAG = "#EXT-X-ENDLIST"
 class HlsCompositionResult:
     """Result of a completed HLS composition."""
 
-    segment_count: int
     duration_ms: int
     playlist_url: str
 
@@ -266,11 +265,9 @@ class AudioComposer:
                 cache_control=CACHE_IMMUTABLE,
             )
 
-            segment_count = len(list(tmp_dir.glob("segment_*.ts")))
             duration_ms = parse_duration_ms_from_playlist(final_playlist)
 
             return HlsCompositionResult(
-                segment_count=segment_count,
                 duration_ms=duration_ms,
                 playlist_url=playlist_url_for(resolved_cdn, base_path),
             )

@@ -134,7 +134,6 @@ class LessonAudio(Base):
     audio_provider: Mapped[str | None] = mapped_column(nullable=True)
     playlist_url: Mapped[str] = mapped_column(nullable=False)
     hls_base_path: Mapped[str] = mapped_column(nullable=False)
-    segment_count: Mapped[int] = mapped_column(nullable=False)
     duration_ms: Mapped[int] = mapped_column(nullable=False)
     generated_at: Mapped[datetime] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
@@ -156,8 +155,6 @@ class AudioGenerationJob(Base):
     s3_base_path: Mapped[str] = mapped_column(nullable=False)
     status: Mapped[str] = mapped_column(default=AudioGenerationJobStatus.PENDING.value)
     segments_available: Mapped[int] = mapped_column(default=0)
-    segment_count: Mapped[int | None] = mapped_column(nullable=True)
-    duration_ms: Mapped[int | None] = mapped_column(nullable=True)
     lesson_audio_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("lesson_audio.id"), nullable=True
     )

@@ -14,7 +14,6 @@ class LessonAudioDTO:
     audio_provider: str | None
     playlist_url: str
     hls_base_path: str
-    segment_count: int
     duration_ms: int
     generated_at: datetime.datetime
     created_at: datetime.datetime
@@ -31,6 +30,5 @@ class UpsertLessonAudioDTO:
     audio_provider: str
     playlist_url: str
     hls_base_path: str
-    segment_count: int
     duration_ms: int
     generated_at: datetime.datetime

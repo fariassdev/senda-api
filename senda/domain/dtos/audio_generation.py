@@ -65,8 +65,6 @@ class AudioGenerationResultDTO:
     lesson_id: int
     job_id: UUID
     playlist_url: str
-    segment_count: int
-    duration_ms: int
     generation_time_seconds: float
 
     @property

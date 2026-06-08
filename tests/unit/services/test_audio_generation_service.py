@@ -6,7 +6,7 @@ Tests business logic without external API calls.
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,8 +57,7 @@ def make_job_dto(
     lesson_id: int = 1,
     voice_id,
     status: AudioGenerationJobStatus = AudioGenerationJobStatus.PENDING,
-    segment_count: int | None = None,
-    duration_ms: int | None = None,
+    lesson_audio_id: UUID | None = None,
 ) -> AudioGenerationJobDTO:
     return AudioGenerationJobDTO(
         id=job_id,
@@ -69,9 +68,7 @@ def make_job_dto(
         s3_base_path=s3_base_path_for(lesson_id, job_id),
         status=status,
         segments_available=0,
-        segment_count=segment_count,
-        duration_ms=duration_ms,
-        lesson_audio_id=None,
+        lesson_audio_id=lesson_audio_id,
         error_message=None,
         started_at=None,
         completed_at=None,
@@ -124,7 +121,6 @@ class TestAudioGenerationService:
         composer = AsyncMock(spec=AudioComposer)
         composer.compose_hls = AsyncMock(
             return_value=HlsCompositionResult(
-                segment_count=2,
                 duration_ms=12000,
                 playlist_url="https://cdn.test/audio/1/job/playlist.m3u8",
             )
@@ -297,12 +293,12 @@ class TestAudioGenerationService:
             voice_id=kokoro_voice_id,
             status=AudioGenerationJobStatus.PENDING,
         )
+        lesson_audio_id = uuid4()
         completed_job = make_job_dto(
             job_id=job_id,
             voice_id=kokoro_voice_id,
             status=AudioGenerationJobStatus.COMPLETED,
-            segment_count=2,
-            duration_ms=12000,
+            lesson_audio_id=lesson_audio_id,
         )
 
         mock_lesson_repo.get_or_none = AsyncMock(return_value=sample_lesson_record)
@@ -312,22 +308,22 @@ class TestAudioGenerationService:
         mock_job_repo.get_active_for_lesson_voice = AsyncMock(return_value=None)
         mock_job_repo.add = AsyncMock(return_value=pending_job)
         mock_job_repo.get = AsyncMock(return_value=completed_job)
-        mock_lesson_audio_repo.upsert = AsyncMock(
-            return_value=LessonAudioDTO(
-                id=uuid4(),
-                lesson_id=1,
-                voice_id=kokoro_voice_id,
-                voice_slug="af_nicole",
-                audio_provider=TtsProvider.KOKORO.value,
-                playlist_url="https://cdn.test/audio/1/job/playlist.m3u8",
-                hls_base_path=s3_base_path_for(1, job_id),
-                segment_count=2,
-                duration_ms=12000,
-                generated_at=datetime.now(),
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-            )
+
+        lesson_audio_dto = LessonAudioDTO(
+            id=lesson_audio_id,
+            lesson_id=1,
+            voice_id=kokoro_voice_id,
+            voice_slug="af_nicole",
+            audio_provider=TtsProvider.KOKORO.value,
+            playlist_url="https://cdn.test/audio/1/job/playlist.m3u8",
+            hls_base_path=s3_base_path_for(1, job_id),
+            duration_ms=12000,
+            generated_at=datetime.now(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
+        mock_lesson_audio_repo.upsert = AsyncMock(return_value=lesson_audio_dto)
+        mock_lesson_audio_repo.get_or_none = AsyncMock(return_value=lesson_audio_dto)
 
         result = await audio_service.generate_lesson_audio(
             session=mock_session, request=request
@@ -336,8 +332,6 @@ class TestAudioGenerationService:
         assert isinstance(result, AudioGenerationResultDTO)
         assert result.lesson_id == 1
         assert result.playlist_url.endswith("playlist.m3u8")
-        assert result.segment_count == 2
-        assert result.duration_ms == 12000
         assert result.generation_time_seconds >= 0
 
         mock_audio_composer.compose_hls.assert_called_once()
@@ -387,30 +381,33 @@ class TestAudioGenerationService:
         mock_job_repo.add = AsyncMock(
             return_value=make_job_dto(job_id=job_id, voice_id=voice_id)
         )
+        lesson_audio_id = uuid4()
         mock_job_repo.get = AsyncMock(
             return_value=make_job_dto(
                 job_id=job_id,
                 voice_id=voice_id,
                 status=AudioGenerationJobStatus.COMPLETED,
-                segment_count=1,
-                duration_ms=6000,
+                lesson_audio_id=lesson_audio_id,
             )
         )
+        lesson_audio_dto = LessonAudioDTO(
+            id=lesson_audio_id,
+            lesson_id=1,
+            voice_id=voice_id,
+            voice_slug="Lucy",
+            audio_provider=TtsProvider.CHATTERBOX.value,
+            playlist_url="https://cdn.test/playlist.m3u8",
+            hls_base_path=s3_base_path_for(1, job_id),
+            duration_ms=6000,
+            generated_at=datetime.now(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
         audio_service._lesson_audio_repo.upsert = AsyncMock(
-            return_value=LessonAudioDTO(
-                id=uuid4(),
-                lesson_id=1,
-                voice_id=voice_id,
-                voice_slug="Lucy",
-                audio_provider=TtsProvider.CHATTERBOX.value,
-                playlist_url="https://cdn.test/playlist.m3u8",
-                hls_base_path=s3_base_path_for(1, job_id),
-                segment_count=1,
-                duration_ms=6000,
-                generated_at=datetime.now(),
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-            )
+            return_value=lesson_audio_dto
+        )
+        audio_service._lesson_audio_repo.get_or_none = AsyncMock(
+            return_value=lesson_audio_dto
         )
 
         await audio_service.generate_lesson_audio(
@@ -549,12 +546,12 @@ class TestAudioGenerationService:
             voice_id=kokoro_voice_id,
             status=AudioGenerationJobStatus.PENDING,
         )
+        lesson_audio_id = uuid4()
         completed_job = make_job_dto(
             job_id=job_id,
             voice_id=kokoro_voice_id,
             status=AudioGenerationJobStatus.COMPLETED,
-            segment_count=2,
-            duration_ms=12000,
+            lesson_audio_id=lesson_audio_id,
         )
 
         failed_status_lesson = LessonRecordDTO(
@@ -568,22 +565,22 @@ class TestAudioGenerationService:
         mock_job_repo.get_active_for_lesson_voice = AsyncMock(return_value=None)
         mock_job_repo.add = AsyncMock(return_value=pending_job)
         mock_job_repo.get = AsyncMock(return_value=completed_job)
-        mock_lesson_audio_repo.upsert = AsyncMock(
-            return_value=LessonAudioDTO(
-                id=uuid4(),
-                lesson_id=1,
-                voice_id=kokoro_voice_id,
-                voice_slug="af_nicole",
-                audio_provider=TtsProvider.KOKORO.value,
-                playlist_url="https://cdn.test/audio/1/job/playlist.m3u8",
-                hls_base_path=s3_base_path_for(1, job_id),
-                segment_count=2,
-                duration_ms=12000,
-                generated_at=datetime.now(),
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-            )
+
+        lesson_audio_dto = LessonAudioDTO(
+            id=lesson_audio_id,
+            lesson_id=1,
+            voice_id=kokoro_voice_id,
+            voice_slug="af_nicole",
+            audio_provider=TtsProvider.KOKORO.value,
+            playlist_url="https://cdn.test/audio/1/job/playlist.m3u8",
+            hls_base_path=s3_base_path_for(1, job_id),
+            duration_ms=12000,
+            generated_at=datetime.now(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
+        mock_lesson_audio_repo.upsert = AsyncMock(return_value=lesson_audio_dto)
+        mock_lesson_audio_repo.get_or_none = AsyncMock(return_value=lesson_audio_dto)
 
         result = await audio_service.generate_lesson_audio(
             session=mock_session, request=request
@@ -713,8 +710,6 @@ class TestAudioGenerationService:
             s3_base_path=s3_base_path_for(1, job_id),
             status=AudioGenerationJobStatus.FAILED,
             segments_available=0,
-            segment_count=None,
-            duration_ms=None,
             lesson_audio_id=None,
             error_message="compose failed",
             started_at=None,
@@ -798,14 +793,29 @@ class TestAudioGenerationService:
                 segments_available=0,
             )
 
+        lesson_audio_id = uuid4()
         completed_job = make_job_dto(
             job_id=job_id,
             voice_id=uuid4(),
             status=AudioGenerationJobStatus.COMPLETED,
-            segment_count=2,
-            duration_ms=1024,
+            lesson_audio_id=lesson_audio_id,
         )
         audio_service._job_repo.get = AsyncMock(return_value=completed_job)
+        audio_service._lesson_audio_repo.get_or_none = AsyncMock(
+            return_value=LessonAudioDTO(
+                id=lesson_audio_id,
+                lesson_id=1,
+                voice_id=uuid4(),
+                voice_slug="nova",
+                audio_provider="chatterbox",
+                playlist_url="https://cdn.test/audio/playlist.m3u8",
+                hls_base_path="audio/1/job/",
+                duration_ms=1024,
+                generated_at=datetime.now(),
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+        )
         audio_service.start_generation_job = AsyncMock(
             side_effect=mock_start_generation_job
         )
@@ -829,7 +839,6 @@ class TestAudioGenerationService:
                 2,
             ]  # Should be lesson 1 or 2, not the pending lesson 3
             assert result.playlist_url.endswith("playlist.m3u8")
-            assert result.duration_ms == 1024
 
         # Ensure we have results for both ready lessons
         lesson_ids = {result.lesson_id for result in batch_result.results}
@@ -930,15 +939,30 @@ class TestAudioGenerationService:
                 segments_available=0,
             )
 
+        lesson_audio_id = uuid4()
         completed_job = make_job_dto(
             job_id=job_id,
             voice_id=uuid4(),
             lesson_id=2,
             status=AudioGenerationJobStatus.COMPLETED,
-            segment_count=2,
-            duration_ms=1024,
+            lesson_audio_id=lesson_audio_id,
         )
         audio_service._job_repo.get = AsyncMock(return_value=completed_job)
+        audio_service._lesson_audio_repo.get_or_none = AsyncMock(
+            return_value=LessonAudioDTO(
+                id=lesson_audio_id,
+                lesson_id=2,
+                voice_id=uuid4(),
+                voice_slug="nova",
+                audio_provider="chatterbox",
+                playlist_url="https://cdn.test/audio/playlist.m3u8",
+                hls_base_path="audio/2/job/",
+                duration_ms=1024,
+                generated_at=datetime.now(),
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+        )
         audio_service.start_generation_job = AsyncMock(
             side_effect=mock_start_generation_job
         )
@@ -963,4 +987,3 @@ class TestAudioGenerationService:
         assert isinstance(result, AudioGenerationResultDTO)
         assert result.lesson_id == 2
         assert result.playlist_url.endswith("playlist.m3u8")
-        assert result.duration_ms == 1024
