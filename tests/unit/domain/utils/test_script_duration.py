@@ -15,8 +15,21 @@ class TestEstimateScriptDurationMs:
 
         duration_ms = estimate_script_duration_ms(script_parts)
 
-        # 10 words at 113 wpm ~= 5s + 5s pause
+        # 10 words at 126 wpm ~= 5s + 5s pause
         assert duration_ms == 10_000
+
+    def test_estimates_reading_time_for_longer_speech(self) -> None:
+        script_parts = [
+            ScriptPartDTO(
+                type=ScriptPartType.SPEAK,
+                content=" ".join(f"word{i}" for i in range(100)),
+            )
+        ]
+
+        duration_ms = estimate_script_duration_ms(script_parts)
+
+        # 100 words at 126 wpm ~= 48s
+        assert duration_ms == 48_000
 
     def test_falls_back_to_target_duration_minutes(self) -> None:
         duration_ms = estimate_script_duration_ms([], target_duration_minutes=10)

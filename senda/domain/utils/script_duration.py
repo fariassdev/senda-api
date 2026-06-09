@@ -3,8 +3,8 @@
 from senda.core.enums import ScriptPartType
 from senda.domain.dtos.script_generation import ScriptPartDTO
 
-# Matches senda-cms ScriptPreview MEDITATION_WORDS_PER_MINUTE
-MEDITATION_WORDS_PER_MINUTE = 113
+# Shared with senda-cms ScriptPreview MEDITATION_WORDS_PER_MINUTE
+MEDITATION_WORDS_PER_MINUTE = 126
 
 
 def estimate_script_duration_ms(
