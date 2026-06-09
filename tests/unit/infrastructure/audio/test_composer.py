@@ -2,6 +2,7 @@
 
 from senda.infrastructure.audio.composer import (
     ensure_endlist,
+    ensure_start_at_zero,
     parse_duration_ms_from_playlist,
     playlist_url_for,
     rewrite_playlist_with_cdn_urls,
@@ -68,6 +69,14 @@ class TestPlaylistHelpers:
 
         final = ensure_endlist(stripped)
         assert final.endswith("#EXT-X-ENDLIST\n")
+
+    def test_ensure_start_at_zero(self) -> None:
+        content = "#EXTM3U\n#EXT-X-VERSION:3\n#EXTINF:6.000,\nsegment_000.ts\n"
+        with_start = ensure_start_at_zero(content)
+
+        assert "#EXT-X-START:TIME-OFFSET=0" in with_start
+        assert with_start.index("#EXT-X-START") < with_start.index("#EXTINF")
+        assert ensure_start_at_zero(with_start) == with_start
 
     def test_playlist_url_for(self) -> None:
         url = playlist_url_for("https://cdn.senda.com", "audio/42/job-id/")

@@ -34,6 +34,7 @@ CACHE_IMMUTABLE = "public, max-age=31536000"
 WATCH_POLL_INTERVAL_SECONDS = 0.5
 EXTINF_PATTERN = re.compile(r"#EXTINF:([0-9.]+),")
 ENDLIST_TAG = "#EXT-X-ENDLIST"
+START_AT_ZERO_TAG = "#EXT-X-START:TIME-OFFSET=0"
 
 
 @dataclass(frozen=True)
@@ -95,6 +96,21 @@ def strip_endlist(playlist_content: str) -> str:
         line for line in playlist_content.splitlines() if line.strip() != ENDLIST_TAG
     ]
     return "\n".join(lines) + "\n"
+
+
+def ensure_start_at_zero(playlist_content: str) -> str:
+    """Hint players to begin at the start of a growing event playlist."""
+    if START_AT_ZERO_TAG in playlist_content:
+        return playlist_content
+
+    lines = playlist_content.splitlines()
+    if not lines:
+        return f"{START_AT_ZERO_TAG}\n"
+
+    if lines[0].strip() == "#EXTM3U":
+        return "\n".join([lines[0], START_AT_ZERO_TAG, *lines[1:]]) + "\n"
+
+    return f"{START_AT_ZERO_TAG}\n{playlist_content}"
 
 
 def ensure_endlist(playlist_content: str) -> str:
@@ -389,6 +405,7 @@ class AudioComposer:
                     live_playlist = strip_endlist(
                         playlist_path.read_text(encoding="utf-8")
                     )
+                    live_playlist = ensure_start_at_zero(live_playlist)
                     live_playlist = rewrite_playlist_with_cdn_urls(
                         live_playlist, cdn_base_url, base_path, uploaded_segments
                     )
