@@ -52,8 +52,13 @@ from senda.domain.services.audio_generation import (
     IAudioProvider,
     IStorageProvider,
 )
+from senda.domain.utils.script_duration import estimate_script_duration_ms
 from senda.domain.utils.script_serialization import LessonScript
-from senda.infrastructure.audio.composer import AudioComposer, playlist_url_for
+from senda.infrastructure.audio.composer import (
+    AudioComposer,
+    SegmentProgress,
+    playlist_url_for,
+)
 from senda.infrastructure.utils.audio_processor import AudioProcessor
 
 logger = logging.getLogger(__name__)
@@ -154,6 +159,8 @@ class AudioGenerationService(IAudioGenerationService):
             job_id=job.id,
             status=job.status,
             segments_available=job.segments_available,
+            available_duration_ms=job.available_duration_ms,
+            estimated_total_duration_ms=job.estimated_total_duration_ms,
             playlist_url=playlist_url_for(
                 self._resolve_cdn_base_url(), job.s3_base_path
             ),
@@ -220,6 +227,10 @@ class AudioGenerationService(IAudioGenerationService):
             )
             return self._job_to_start_result(existing_job, is_new=False)
 
+        estimated_total_duration_ms = estimate_script_duration_ms(
+            script_parts, target_duration_minutes=lesson_record.duration_minutes
+        )
+
         job_id = uuid4()
         create_item = CreateAudioGenerationJobDTO(
             id=job_id,
@@ -228,6 +239,7 @@ class AudioGenerationService(IAudioGenerationService):
             voice_slug=catalog_voice.slug,
             audio_provider=catalog_voice.tts_provider,
             s3_base_path=s3_base_path_for(request.lesson_id, job_id),
+            estimated_total_duration_ms=estimated_total_duration_ms,
         )
 
         try:
@@ -266,6 +278,10 @@ class AudioGenerationService(IAudioGenerationService):
                         message="Lesson has no script content"
                     )
 
+                estimated_total_duration_ms = estimate_script_duration_ms(
+                    script_parts, target_duration_minutes=lesson_record.duration_minutes
+                )
+
                 now = datetime.now()
                 await self._lesson_repo.update(
                     session=session,
@@ -276,7 +292,9 @@ class AudioGenerationService(IAudioGenerationService):
                     session=session,
                     job_id=job_id,
                     update_item=UpdateAudioGenerationJobDTO(
-                        status=AudioGenerationJobStatus.GENERATING, started_at=now
+                        status=AudioGenerationJobStatus.GENERATING,
+                        started_at=now,
+                        estimated_total_duration_ms=estimated_total_duration_ms,
                     ),
                 )
                 await session.commit()
@@ -326,13 +344,14 @@ class AudioGenerationService(IAudioGenerationService):
                 _, pcm_bytes = await task
                 return pcm_bytes
 
-            async def on_segment_ready(segments_available: int) -> None:
+            async def on_segment_ready(progress: SegmentProgress) -> None:
                 async with self._session_factory() as progress_session:
                     await self._job_repo.update(
                         session=progress_session,
                         job_id=job_id,
                         update_item=UpdateAudioGenerationJobDTO(
-                            segments_available=segments_available
+                            segments_available=progress.segments_available,
+                            available_duration_ms=progress.available_duration_ms,
                         ),
                     )
                     await progress_session.commit()
@@ -371,6 +390,7 @@ class AudioGenerationService(IAudioGenerationService):
                     update_item=UpdateAudioGenerationJobDTO(
                         status=AudioGenerationJobStatus.COMPLETED,
                         lesson_audio_id=lesson_audio.id,
+                        available_duration_ms=composition.duration_ms,
                         completed_at=completed_at,
                     ),
                 )

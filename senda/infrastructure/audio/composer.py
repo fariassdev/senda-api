@@ -45,6 +45,14 @@ class HlsCompositionResult:
     playlist_url: str
 
 
+@dataclass(frozen=True)
+class SegmentProgress:
+    """Incremental upload progress for live HLS playback."""
+
+    segments_available: int
+    available_duration_ms: int
+
+
 def normalize_base_path(s3_base_path: str) -> str:
     """Ensure S3 base path ends with a slash."""
     return s3_base_path if s3_base_path.endswith("/") else f"{s3_base_path}/"
@@ -240,7 +248,7 @@ class AudioComposer:
         speech_data: Callable[[int], Awaitable[bytes | None]],
         s3_base_path: str,
         cdn_base_url: str | None = None,
-        on_segment_ready: Callable[[int], Awaitable[None]] | None = None,
+        on_segment_ready: Callable[[SegmentProgress], Awaitable[None]] | None = None,
     ) -> HlsCompositionResult:
         """Feed PCM to ffmpeg, upload HLS segments incrementally, return artifact metadata."""
         if not script_parts:
@@ -356,7 +364,7 @@ class AudioComposer:
         base_path: str,
         cdn_base_url: str,
         proc: asyncio.subprocess.Process,
-        on_segment_ready: Callable[[int], Awaitable[None]] | None,
+        on_segment_ready: Callable[[SegmentProgress], Awaitable[None]] | None,
     ) -> None:
         uploaded_segments: set[str] = set()
         segments_available = 0
@@ -397,10 +405,8 @@ class AudioComposer:
                     uploaded_segments.add(name)
                 segments_available += len(uploaded_names)
 
-                if on_segment_ready is not None:
-                    await on_segment_ready(segments_available)
-
                 playlist_path = tmp_dir / PLAYLIST_FILENAME
+                available_duration_ms = 0
                 if playlist_path.exists():
                     live_playlist = strip_endlist(
                         playlist_path.read_text(encoding="utf-8")
@@ -409,6 +415,9 @@ class AudioComposer:
                     live_playlist = rewrite_playlist_with_cdn_urls(
                         live_playlist, cdn_base_url, base_path, uploaded_segments
                     )
+                    available_duration_ms = parse_duration_ms_from_playlist(
+                        live_playlist
+                    )
                     if ".ts" in live_playlist:
                         await self._storage.upload_file(
                             file_data=live_playlist.encode("utf-8"),
@@ -416,6 +425,14 @@ class AudioComposer:
                             content_type=CONTENT_TYPE_MANIFEST,
                             cache_control=CACHE_LIVE_MANIFEST,
                         )
+
+                if on_segment_ready is not None:
+                    await on_segment_ready(
+                        SegmentProgress(
+                            segments_available=segments_available,
+                            available_duration_ms=available_duration_ms,
+                        )
+                    )
 
             if ffmpeg_done and len(uploaded_segments) == len(ts_files):
                 break

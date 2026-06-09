@@ -169,6 +169,8 @@ class TestAudioGenerationAPI:
             job_id=job_id,
             status=AudioGenerationJobStatus.GENERATING,
             segments_available=2,
+            available_duration_ms=12_000,
+            estimated_total_duration_ms=600_000,
             playlist_url="https://cdn.test/audio/1/job/playlist.m3u8",
             lesson_audio_id=lesson_audio_id,
             error_message=None,
@@ -186,6 +188,8 @@ class TestAudioGenerationAPI:
         assert data["job_id"] == str(job_id)
         assert data["status"] == AudioGenerationJobStatus.GENERATING.value
         assert data["segments_available"] == 2
+        assert data["available_duration_ms"] == 12_000
+        assert data["estimated_total_duration_ms"] == 600_000
         assert data["playlist_url"] == "https://cdn.test/audio/1/job/playlist.m3u8"
         assert data["lesson_audio_id"] == str(lesson_audio_id)
         assert data["error_message"] is None

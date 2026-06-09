@@ -155,6 +155,8 @@ class AudioGenerationJob(Base):
     s3_base_path: Mapped[str] = mapped_column(nullable=False)
     status: Mapped[str] = mapped_column(default=AudioGenerationJobStatus.PENDING.value)
     segments_available: Mapped[int] = mapped_column(default=0)
+    available_duration_ms: Mapped[int] = mapped_column(default=0)
+    estimated_total_duration_ms: Mapped[int] = mapped_column(default=0)
     lesson_audio_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("lesson_audio.id"), nullable=True
     )

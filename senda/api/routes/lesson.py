@@ -344,6 +344,8 @@ async def get_lesson_audio_status(
 
     playlist_url = lesson_dto.playlist_url
     active_job_id = None
+    available_duration_ms = None
+    estimated_total_duration_ms = None
 
     if lesson_dto.status == LessonStatus.AUDIO_GENERATING:
         active_job = await audio_service.get_active_job_for_lesson(
@@ -352,10 +354,14 @@ async def get_lesson_audio_status(
         if active_job is not None:
             active_job_id = active_job.job_id
             playlist_url = active_job.playlist_url
+            available_duration_ms = active_job.available_duration_ms
+            estimated_total_duration_ms = active_job.estimated_total_duration_ms
 
     return AudioGenerationStatusResponse(
         lesson_id=lesson_id,
         status=lesson_dto.status.value,
         playlist_url=playlist_url,
         active_job_id=active_job_id,
+        available_duration_ms=available_duration_ms,
+        estimated_total_duration_ms=estimated_total_duration_ms,
     )

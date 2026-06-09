@@ -41,6 +41,8 @@ class AudioGenerationJobRepository(IAudioGenerationJobRepository):
                 s3_base_path=create_item.s3_base_path,
                 status=AudioGenerationJobStatus.PENDING.value,
                 segments_available=0,
+                available_duration_ms=0,
+                estimated_total_duration_ms=create_item.estimated_total_duration_ms,
                 created_at=datetime.now(),
             )
             .returning(AudioGenerationJob)
@@ -103,6 +105,14 @@ class AudioGenerationJobRepository(IAudioGenerationJobRepository):
             query = query.values(status=update_item.status.value)
         if update_item.segments_available is not None:
             query = query.values(segments_available=update_item.segments_available)
+        if update_item.available_duration_ms is not None:
+            query = query.values(
+                available_duration_ms=update_item.available_duration_ms
+            )
+        if update_item.estimated_total_duration_ms is not None:
+            query = query.values(
+                estimated_total_duration_ms=update_item.estimated_total_duration_ms
+            )
         if update_item.lesson_audio_id is not None:
             query = query.values(lesson_audio_id=update_item.lesson_audio_id)
         if update_item.error_message is not None:

@@ -63,6 +63,15 @@ def upgrade() -> None:
         sa.Column(
             "segments_available", sa.Integer(), nullable=False, server_default="0"
         ),
+        sa.Column(
+            "available_duration_ms", sa.Integer(), nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "estimated_total_duration_ms",
+            sa.Integer(),
+            nullable=False,
+            server_default="0",
+        ),
         sa.Column("lesson_audio_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),

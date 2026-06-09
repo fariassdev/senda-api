@@ -53,6 +53,8 @@ class AudioGenerationJobStatusResultDTO:
     job_id: UUID
     status: AudioGenerationJobStatus
     segments_available: int
+    available_duration_ms: int
+    estimated_total_duration_ms: int
     playlist_url: str
     lesson_audio_id: UUID | None
     error_message: str | None

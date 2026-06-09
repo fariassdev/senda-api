@@ -50,6 +50,12 @@ class AudioGenerationJobStatusResponse(BaseModel):
     segments_available: int = Field(
         ..., description="Number of HLS segments uploaded so far"
     )
+    available_duration_ms: int = Field(
+        ..., description="Milliseconds of audio available in the uploaded HLS playlist"
+    )
+    estimated_total_duration_ms: int = Field(
+        ..., description="Estimated final audio duration from the lesson script"
+    )
     playlist_url: str = Field(..., description="Live or final HLS playlist URL")
     lesson_audio_id: UUID | None = Field(
         None, description="Published lesson_audio id when generation completes"
@@ -66,6 +72,8 @@ class AudioGenerationJobStatusResponse(BaseModel):
             job_id=dto.job_id,
             status=dto.status.value,
             segments_available=dto.segments_available,
+            available_duration_ms=dto.available_duration_ms,
+            estimated_total_duration_ms=dto.estimated_total_duration_ms,
             playlist_url=dto.playlist_url,
             lesson_audio_id=dto.lesson_audio_id,
             error_message=dto.error_message,
@@ -77,6 +85,8 @@ class AudioGenerationJobStatusResponse(BaseModel):
                 "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
                 "status": "GENERATING",
                 "segments_available": 3,
+                "available_duration_ms": 18000,
+                "estimated_total_duration_ms": 643000,
                 "playlist_url": "https://cdn.senda.com/audio/1/job-id/playlist.m3u8",
                 "lesson_audio_id": None,
                 "error_message": None,
@@ -193,6 +203,14 @@ class AudioGenerationStatusResponse(BaseModel):
     active_job_id: UUID | None = Field(
         None, description="Active generation job id while status is AUDIO_GENERATING"
     )
+    available_duration_ms: int | None = Field(
+        None,
+        description="Milliseconds of audio available while generation is in progress",
+    )
+    estimated_total_duration_ms: int | None = Field(
+        None,
+        description="Estimated final audio duration while generation is in progress",
+    )
 
     class Config:
         json_schema_extra = {
@@ -201,5 +219,7 @@ class AudioGenerationStatusResponse(BaseModel):
                 "status": "AUDIO_GENERATING",
                 "playlist_url": "https://cdn.senda.com/audio/1/job-id/playlist.m3u8",
                 "active_job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "available_duration_ms": 18000,
+                "estimated_total_duration_ms": 643000,
             }
         }
