@@ -22,11 +22,12 @@ run-hooks:
 	uv run pre-commit run --all-files
 
 # Development Server
-runserver:
-	uv run uvicorn senda.app:app --host 0.0.0.0 --port 8081
-
-runserver-dev:
-	uv run --env-file .env.dev uvicorn senda.app:app --host 0.0.0.0 --port 8081 --reload
+# Note for Windows: Uvicorn's native `--reload` forces SelectorEventLoop on Windows,
+# which does not support asynchronous subprocesses (like ffmpeg in compose_hls)
+# and raises NotImplementedError. To avoid this, we use `watchfiles` externally
+# to monitor changes and reload, allowing Uvicorn to run under ProactorEventLoop.
+dev:
+	uv run --env-file .env.dev watchfiles "uvicorn senda.app:app --host 0.0.0.0 --port 8081"
 
 # Testing
 test:
