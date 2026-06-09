@@ -55,18 +55,36 @@ def playlist_url_for(cdn_base_url: str, s3_base_path: str) -> str:
 
 
 def rewrite_playlist_with_cdn_urls(
-    playlist_content: str, cdn_base_url: str, s3_base_path: str
+    playlist_content: str,
+    cdn_base_url: str,
+    s3_base_path: str,
+    uploaded_segments: set[str] | None = None,
 ) -> str:
-    """Replace relative segment paths with absolute CDN URLs."""
+    """Replace relative segment paths with absolute CDN URLs, filtering out un-uploaded segments."""
     base_path = normalize_base_path(s3_base_path)
     cdn_prefix = f"{cdn_base_url.rstrip('/')}/{base_path}"
     rewritten_lines: list[str] = []
+    buffered_extinf: str | None = None
 
     for line in playlist_content.splitlines():
         stripped = line.strip()
+        if stripped.startswith("#EXTINF:"):
+            buffered_extinf = line
+            continue
+
         if stripped.endswith(".ts") and not stripped.startswith("http"):
-            rewritten_lines.append(f"{cdn_prefix}{stripped}")
+            segment_name = stripped
+            if uploaded_segments is None or segment_name in uploaded_segments:
+                if buffered_extinf is not None:
+                    rewritten_lines.append(buffered_extinf)
+                    buffered_extinf = None
+                rewritten_lines.append(f"{cdn_prefix}{segment_name}")
+            else:
+                buffered_extinf = None
         else:
+            if buffered_extinf is not None:
+                rewritten_lines.append(buffered_extinf)
+                buffered_extinf = None
             rewritten_lines.append(line)
 
     return "\n".join(rewritten_lines) + "\n"
@@ -359,14 +377,15 @@ class AudioComposer:
                         playlist_path.read_text(encoding="utf-8")
                     )
                     live_playlist = rewrite_playlist_with_cdn_urls(
-                        live_playlist, cdn_base_url, base_path
+                        live_playlist, cdn_base_url, base_path, uploaded_segments
                     )
-                    await self._storage.upload_file(
-                        file_data=live_playlist.encode("utf-8"),
-                        key=playlist_key,
-                        content_type=CONTENT_TYPE_MANIFEST,
-                        cache_control=CACHE_LIVE_MANIFEST,
-                    )
+                    if ".ts" in live_playlist:
+                        await self._storage.upload_file(
+                            file_data=live_playlist.encode("utf-8"),
+                            key=playlist_key,
+                            content_type=CONTENT_TYPE_MANIFEST,
+                            cache_control=CACHE_LIVE_MANIFEST,
+                        )
 
             if ffmpeg_done and len(uploaded_segments) == len(ts_files):
                 break
