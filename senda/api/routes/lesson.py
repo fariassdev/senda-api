@@ -30,6 +30,7 @@ from senda.core.dependencies import (
     IScriptGenerationService,
     OptionalUser,
 )
+from senda.core.enums import LessonStatus
 from senda.domain.dtos.audio_generation import (
     AudioConfigDTO,
     AudioGenerationRequestDTO,
@@ -331,6 +332,7 @@ async def get_lesson_audio_status(
     session: DBSession,
     current_user: AuthenticatedUser,
     lesson_service: ILessonService,
+    audio_service: IAudioGenerationService,
     lesson_id: int = Path(..., alias="id"),
 ) -> AudioGenerationStatusResponse:
     """
@@ -340,8 +342,20 @@ async def get_lesson_audio_status(
         session=session, slug=slug, lesson_id=lesson_id, current_user=current_user
     )
 
+    playlist_url = lesson_dto.playlist_url
+    active_job_id = None
+
+    if lesson_dto.status == LessonStatus.AUDIO_GENERATING:
+        active_job = await audio_service.get_active_job_for_lesson(
+            session=session, lesson_id=lesson_id
+        )
+        if active_job is not None:
+            active_job_id = active_job.job_id
+            playlist_url = active_job.playlist_url
+
     return AudioGenerationStatusResponse(
         lesson_id=lesson_id,
         status=lesson_dto.status.value,
-        playlist_url=lesson_dto.playlist_url,
+        playlist_url=playlist_url,
+        active_job_id=active_job_id,
     )

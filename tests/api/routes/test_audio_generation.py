@@ -433,6 +433,56 @@ class TestAudioGenerationAPI:
         assert data["status"] == LessonStatus.SCRIPT_COMPLETED.value
         assert data["playlist_url"] is None
 
+    @pytest.mark.anyio
+    async def test_get_lesson_audio_status_generating_with_active_job(
+        self, authorized_test_client: AsyncClient, test_course, session
+    ):
+        """Test status resolves active job metadata while audio is generating."""
+        from senda.infrastructure.models import AudioGenerationJob, Course, Lesson
+
+        course = await session.get(Course, test_course.id)
+        lesson = Lesson(
+            course_id=course.id,
+            lesson_number=1,
+            title="Generating Lesson",
+            core_practice="Breathing",
+            key_point="Focus",
+            tone="calm",
+            duration_minutes=10,
+            status=LessonStatus.AUDIO_GENERATING,
+            script='[{"type": "speak", "content": "Hello"}]',
+            created_at=datetime.now(),
+        )
+        session.add(lesson)
+        await session.commit()
+        await session.refresh(lesson)
+        lesson_id = lesson.id
+
+        job_id = uuid4()
+        job = AudioGenerationJob(
+            id=job_id,
+            lesson_id=lesson_id,
+            s3_base_path=f"audio/{lesson_id}/{job_id}/",
+            status=AudioGenerationJobStatus.GENERATING.value,
+            segments_available=0,
+            created_at=datetime.now(),
+        )
+        session.add(job)
+        await session.commit()
+
+        response = await authorized_test_client.get(
+            f"/courses/{test_course.slug}/lessons/{lesson_id}/audio-status"
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        assert data["lesson_id"] == lesson_id
+        assert data["status"] == LessonStatus.AUDIO_GENERATING.value
+        assert data["active_job_id"] == str(job_id)
+        assert data["playlist_url"] is not None
+        assert str(job_id) in data["playlist_url"]
+
 
 class TestBatchAudioGeneration:
     """Test suite for batch audio generation with lesson_ids filtering."""

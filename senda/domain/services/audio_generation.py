@@ -120,6 +120,13 @@ class IAudioGenerationService(abc.ABC):
         pass
 
     @abc.abstractmethod
+    async def get_active_job_for_lesson(
+        self, session: object, lesson_id: int
+    ) -> AudioGenerationJobStatusResultDTO | None:
+        """Return the active generation job for a lesson, if any."""
+        pass
+
+    @abc.abstractmethod
     async def generate_lesson_audio(
         self, session: object, request: AudioGenerationRequestDTO
     ) -> AudioGenerationResultDTO:

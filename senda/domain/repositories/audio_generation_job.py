@@ -31,6 +31,11 @@ class IAudioGenerationJobRepository(abc.ABC):
     ) -> AudioGenerationJobDTO | None: ...
 
     @abc.abstractmethod
+    async def get_active_for_lesson(
+        self, session: Any, lesson_id: int
+    ) -> AudioGenerationJobDTO | None: ...
+
+    @abc.abstractmethod
     async def update(
         self, session: Any, job_id: UUID, update_item: UpdateAudioGenerationJobDTO
     ) -> AudioGenerationJobDTO: ...

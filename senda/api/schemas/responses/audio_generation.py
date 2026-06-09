@@ -190,12 +190,16 @@ class AudioGenerationStatusResponse(BaseModel):
     playlist_url: str | None = Field(
         None, description="HLS playlist URL if audio is available"
     )
+    active_job_id: UUID | None = Field(
+        None, description="Active generation job id while status is AUDIO_GENERATING"
+    )
 
     class Config:
         json_schema_extra = {
             "example": {
                 "lesson_id": 1,
                 "status": "AUDIO_GENERATING",
-                "playlist_url": None,
+                "playlist_url": "https://cdn.senda.com/audio/1/job-id/playlist.m3u8",
+                "active_job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
             }
         }

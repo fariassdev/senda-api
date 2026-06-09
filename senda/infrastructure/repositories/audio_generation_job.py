@@ -72,6 +72,21 @@ class AudioGenerationJobRepository(IAudioGenerationJobRepository):
         if job := await session.scalar(query):
             return self._job_mapper.to_dto(job)
 
+    async def get_active_for_lesson(
+        self, session: AsyncSession, lesson_id: int
+    ) -> AudioGenerationJobDTO | None:
+        query = (
+            select(AudioGenerationJob)
+            .where(
+                AudioGenerationJob.lesson_id == lesson_id,
+                AudioGenerationJob.status.in_(_ACTIVE_JOB_STATUSES),
+            )
+            .order_by(AudioGenerationJob.created_at.desc())
+            .limit(1)
+        )
+        if job := await session.scalar(query):
+            return self._job_mapper.to_dto(job)
+
     async def update(
         self,
         session: AsyncSession,

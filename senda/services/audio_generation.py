@@ -135,6 +135,21 @@ class AudioGenerationService(IAudioGenerationService):
         self, session: AsyncSession, job_id: UUID
     ) -> AudioGenerationJobStatusResultDTO:
         job = await self._job_repo.get(session=session, job_id=job_id)
+        return self._job_to_status_result(job)
+
+    async def get_active_job_for_lesson(
+        self, session: AsyncSession, lesson_id: int
+    ) -> AudioGenerationJobStatusResultDTO | None:
+        job = await self._job_repo.get_active_for_lesson(
+            session=session, lesson_id=lesson_id
+        )
+        if job is None:
+            return None
+        return self._job_to_status_result(job)
+
+    def _job_to_status_result(
+        self, job: AudioGenerationJobDTO
+    ) -> AudioGenerationJobStatusResultDTO:
         return AudioGenerationJobStatusResultDTO(
             job_id=job.id,
             status=job.status,
