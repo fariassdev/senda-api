@@ -132,11 +132,14 @@ class AudioComposer:
         sample_count = int(self._sample_rate * duration_seconds)
         return b"\x00\x00" * sample_count
 
-    def _pcm_for_script_part(
-        self, part: ScriptPartDTO, idx: int, speech_data: dict[int, bytes]
+    async def _pcm_for_script_part(
+        self,
+        part: ScriptPartDTO,
+        idx: int,
+        speech_data: Callable[[int], Awaitable[bytes | None]],
     ) -> bytes:
         if part.type == ScriptPartType.SPEAK:
-            pcm = speech_data.get(idx)
+            pcm = await speech_data(idx)
             if not pcm:
                 logger.warning(
                     "Missing TTS audio for script part %s — using %.1fs silence fallback",
@@ -200,7 +203,7 @@ class AudioComposer:
         *,
         job_id: UUID,
         script_parts: list[ScriptPartDTO],
-        speech_data: dict[int, bytes],
+        speech_data: Callable[[int], Awaitable[bytes | None]],
         s3_base_path: str,
         cdn_base_url: str | None = None,
         on_segment_ready: Callable[[int], Awaitable[None]] | None = None,
@@ -296,14 +299,14 @@ class AudioComposer:
         self,
         proc: asyncio.subprocess.Process,
         script_parts: list[ScriptPartDTO],
-        speech_data: dict[int, bytes],
+        speech_data: Callable[[int], Awaitable[bytes | None]],
     ) -> None:
         if proc.stdin is None:
             raise AudioGenerationException(message="ffmpeg stdin is not available")
 
         try:
             for idx, part in enumerate(script_parts):
-                pcm = self._pcm_for_script_part(part, idx, speech_data)
+                pcm = await self._pcm_for_script_part(part, idx, speech_data)
                 if not pcm:
                     continue
                 proc.stdin.write(pcm)

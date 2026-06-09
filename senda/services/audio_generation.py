@@ -40,6 +40,7 @@ from senda.domain.dtos.audio_generation_job import (
 )
 from senda.domain.dtos.lesson import LessonRecordDTO, UpdateLessonDTO
 from senda.domain.dtos.lesson_audio import UpsertLessonAudioDTO
+from senda.domain.dtos.script_generation import ScriptPartDTO
 from senda.domain.dtos.voice import VoiceDTO
 from senda.domain.repositories.audio_generation_job import IAudioGenerationJobRepository
 from senda.domain.repositories.course import ICourseRepository
@@ -232,6 +233,7 @@ class AudioGenerationService(IAudioGenerationService):
 
     async def run_generation_pipeline(self, job_id: UUID) -> None:
         """Run TTS + HLS composition and persist job/lesson outcomes."""
+        speech_tasks: dict[int, asyncio.Task[tuple[int, bytes | None]]] = {}
         try:
             async with self._session_factory() as session:
                 job = await self._job_repo.get(session=session, job_id=job_id)
@@ -271,11 +273,43 @@ class AudioGenerationService(IAudioGenerationService):
                 audio_provider = job.audio_provider or catalog_voice.tts_provider
 
             provider = self._resolve_audio_provider(catalog_voice.tts_provider)
-            speech_data = await self._generate_speech_data(
-                script_parts=script_parts,
-                provider=provider,
-                voice_name=catalog_voice.slug,
-            )
+
+            # Dispatch TTS requests as concurrent tasks
+            semaphore = asyncio.Semaphore(self._max_concurrent_tts)
+
+            async def generate_speech_with_semaphore(
+                idx: int, text: str
+            ) -> tuple[int, bytes | None]:
+                async with semaphore:
+                    try:
+                        pcm_bytes = await provider.generate_speech(
+                            text=text, voice=catalog_voice.slug
+                        )
+                        return idx, pcm_bytes
+                    except AudioProviderException as exc:
+                        logger.warning(
+                            "TTS failed for script part %s, composer will use silence: %s",
+                            idx + 1,
+                            exc,
+                        )
+                        return idx, None
+
+            for idx, part in enumerate(script_parts):
+                if (
+                    part.type == ScriptPartType.SPEAK
+                    and part.content
+                    and part.content.strip()
+                ):
+                    speech_tasks[idx] = asyncio.create_task(
+                        generate_speech_with_semaphore(idx, part.content)
+                    )
+
+            async def get_speech_for_part(idx: int) -> bytes | None:
+                task = speech_tasks.get(idx)
+                if task is None:
+                    return None
+                _, pcm_bytes = await task
+                return pcm_bytes
 
             async def on_segment_ready(segments_available: int) -> None:
                 async with self._session_factory() as progress_session:
@@ -291,11 +325,15 @@ class AudioGenerationService(IAudioGenerationService):
             composition = await self._audio_composer.compose_hls(
                 job_id=job_id,
                 script_parts=script_parts,
-                speech_data=speech_data,
+                speech_data=get_speech_for_part,
                 s3_base_path=s3_base_path,
                 cdn_base_url=self._resolve_cdn_base_url(),
                 on_segment_ready=on_segment_ready,
             )
+
+            # Ensure all background tasks are fully completed
+            if speech_tasks:
+                await asyncio.gather(*speech_tasks.values(), return_exceptions=True)
 
             async with self._session_factory() as session:
                 completed_at = datetime.now()
@@ -332,6 +370,13 @@ class AudioGenerationService(IAudioGenerationService):
                 "Completed HLS generation job %s for lesson %s", job_id, lesson_id
             )
         except Exception as exc:
+            # Clean up any pending tasks in case of error
+            for task in speech_tasks.values():
+                if not task.done():
+                    task.cancel()
+            if speech_tasks:
+                await asyncio.gather(*speech_tasks.values(), return_exceptions=True)
+
             error_message = str(exc)
             logger.exception("HLS generation job %s failed: %s", job_id, exc)
             async with self._session_factory() as session:
@@ -353,45 +398,6 @@ class AudioGenerationService(IAudioGenerationService):
                         update_item=UpdateLessonDTO(status=LessonStatus.AUDIO_FAILED),
                     )
                     await session.commit()
-
-    async def _generate_speech_data(
-        self, *, script_parts: list, provider: IAudioProvider, voice_name: str
-    ) -> dict[int, bytes]:
-        semaphore = asyncio.Semaphore(self._max_concurrent_tts)
-
-        async def generate_speech_with_semaphore(
-            idx: int, text: str
-        ) -> tuple[int, bytes | None]:
-            async with semaphore:
-                try:
-                    pcm_bytes = await provider.generate_speech(
-                        text=text, voice=voice_name
-                    )
-                    return idx, pcm_bytes
-                except AudioProviderException as exc:
-                    logger.warning(
-                        "TTS failed for script part %s, composer will use silence: %s",
-                        idx + 1,
-                        exc,
-                    )
-                    return idx, None
-
-        speak_tasks = []
-        for idx, part in enumerate(script_parts):
-            if (
-                part.type == ScriptPartType.SPEAK
-                and part.content
-                and part.content.strip()
-            ):
-                speak_tasks.append(generate_speech_with_semaphore(idx, part.content))
-
-        if not speak_tasks:
-            return {}
-
-        tts_results = await asyncio.gather(*speak_tasks)
-        return {
-            idx: pcm_bytes for idx, pcm_bytes in tts_results if pcm_bytes is not None
-        }
 
     async def generate_lesson_audio(
         self, session: AsyncSession, request: AudioGenerationRequestDTO
