@@ -33,6 +33,15 @@ class ScriptPartDTO:
 
 
 @dataclass(frozen=True)
+class StartScriptGenerationResultDTO:
+    """Result of starting async script generation for a lesson."""
+
+    lesson_id: int
+    status: str
+    is_new: bool
+
+
+@dataclass(frozen=True)
 class LessonScriptRequestDTO:
     """Request for generating a lesson script."""
 

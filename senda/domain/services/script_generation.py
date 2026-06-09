@@ -10,6 +10,7 @@ from senda.domain.dtos.script_generation import (
     LessonScriptRequestDTO,
     ScriptGenerationResultDTO,
     ScriptPartDTO,
+    StartScriptGenerationResultDTO,
 )
 
 
@@ -97,5 +98,21 @@ class IScriptGenerationService(abc.ABC):
 
         Raises:
             LessonNotFoundException: If lesson not found
+        """
+        pass
+
+    @abc.abstractmethod
+    async def start_script_generation(
+        self, session: object, lesson_id: int
+    ) -> StartScriptGenerationResultDTO:
+        """
+        Set status to SCRIPT_GENERATING synchronously, or return an in-flight generation.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def run_script_generation(self, lesson_id: int, user_id: int) -> None:
+        """
+        Run the script generation pipeline in the background.
         """
         pass

@@ -215,6 +215,7 @@ class Container:
         return ScriptGenerationService(
             course_repo=self.course_repository(),
             lesson_repo=self.lesson_repository(),
+            session_factory=self._session,
             script_provider=self.script_generation_provider(),
         )
 

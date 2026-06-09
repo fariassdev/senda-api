@@ -18,7 +18,6 @@ from senda.api.schemas.responses.audio_generation import (
 from senda.api.schemas.responses.lesson import LessonResponse, LessonsListResponse
 from senda.api.schemas.responses.script_generation import (
     CourseScriptsGenerationResponse,
-    ScriptGenerationResponse,
     ScriptGenerationStatusResponse,
 )
 from senda.core.dependencies import (
@@ -36,10 +35,7 @@ from senda.domain.dtos.audio_generation import (
     AudioGenerationRequestDTO,
     CourseAudioGenerationRequestDTO,
 )
-from senda.domain.dtos.script_generation import (
-    CourseScriptRequestDTO,
-    LessonScriptRequestDTO,
-)
+from senda.domain.dtos.script_generation import CourseScriptRequestDTO
 
 router = APIRouter()
 
@@ -164,26 +160,32 @@ async def reorder_lessons(
 
 @router.post(
     "/{slug}/lessons/{id}/generate-script",
-    response_model=ScriptGenerationResponse,
-    status_code=status.HTTP_200_OK,
+    response_model=ScriptGenerationStatusResponse,
+    status_code=status.HTTP_202_ACCEPTED,
 )
 async def generate_lesson_script(
     slug: str,
     session: DBSession,
+    background_tasks: BackgroundTasks,
     current_user: AdminUser,
     script_service: IScriptGenerationService,
     lesson_id: int = Path(..., alias="id"),
-) -> ScriptGenerationResponse:
+) -> ScriptGenerationStatusResponse:
     """
-    Generate script for a specific lesson.
+    Generate script for a specific lesson asynchronously.
     """
-    request = LessonScriptRequestDTO(lesson_id=lesson_id, user_id=current_user.id)
-
-    result = await script_service.generate_lesson_script(
-        session=session, request=request
+    start_result = await script_service.start_script_generation(
+        session=session, lesson_id=lesson_id
     )
 
-    return ScriptGenerationResponse.from_dto(result)
+    if start_result.is_new:
+        background_tasks.add_task(
+            script_service.run_script_generation, lesson_id, current_user.id
+        )
+
+    return ScriptGenerationStatusResponse(
+        lesson_id=start_result.lesson_id, status=start_result.status
+    )
 
 
 @router.post(
@@ -272,7 +274,6 @@ async def generate_lesson_audio(
     start_result = await audio_service.start_generation_job(
         session=session, request=request
     )
-    await session.commit()
 
     if start_result.is_new:
         background_tasks.add_task(

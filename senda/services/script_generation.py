@@ -4,7 +4,7 @@ import logging
 import time
 from datetime import datetime
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from senda.core.enums import LessonStatus
 from senda.core.exceptions import (
@@ -21,6 +21,7 @@ from senda.domain.dtos.script_generation import (
     LessonContextDTO,
     LessonScriptRequestDTO,
     ScriptGenerationResultDTO,
+    StartScriptGenerationResultDTO,
 )
 from senda.domain.repositories.course import ICourseRepository
 from senda.domain.repositories.lesson import ILessonRepository
@@ -39,11 +40,63 @@ class ScriptGenerationService(IScriptGenerationService):
         self,
         course_repo: ICourseRepository,
         lesson_repo: ILessonRepository,
+        session_factory: async_sessionmaker[AsyncSession],
         script_provider: ILessonScriptProvider | None = None,
     ) -> None:
         self._course_repo = course_repo
         self._lesson_repo = lesson_repo
         self._script_provider = script_provider
+        self._session_factory = session_factory
+
+    async def start_script_generation(
+        self, session: AsyncSession, lesson_id: int
+    ) -> StartScriptGenerationResultDTO:
+        """
+        Validate and set status to SCRIPT_GENERATING, or return an in-flight job.
+        """
+        lesson_record = await self._lesson_repo.get_or_none(
+            session=session, lesson_id=lesson_id
+        )
+        if not lesson_record:
+            raise LessonNotFoundException()
+
+        if lesson_record.status == LessonStatus.SCRIPT_GENERATING:
+            logger.info(
+                "Returning existing in-flight script generation for lesson %s",
+                lesson_id,
+            )
+            return StartScriptGenerationResultDTO(
+                lesson_id=lesson_id, status=lesson_record.status, is_new=False
+            )
+
+        await self._lesson_repo.update(
+            session=session,
+            lesson_id=lesson_id,
+            update_item=UpdateLessonDTO(status=LessonStatus.SCRIPT_GENERATING),
+        )
+
+        return StartScriptGenerationResultDTO(
+            lesson_id=lesson_id,
+            status=LessonStatus.SCRIPT_GENERATING.value,
+            is_new=True,
+        )
+
+    async def run_script_generation(self, lesson_id: int, user_id: int) -> None:
+        """
+        Run the script generation pipeline in the background using a fresh database session.
+        """
+        async with self._session_factory() as session:
+            try:
+                await self._execute_script_generation(
+                    session=session, lesson_id=lesson_id
+                )
+            except Exception as exc:
+                logger.exception(
+                    "Background script generation failed for lesson %s: %s",
+                    lesson_id,
+                    exc,
+                )
+                await self._ensure_script_failed(session=session, lesson_id=lesson_id)
 
     async def generate_lesson_script(
         self, session: AsyncSession, request: LessonScriptRequestDTO
@@ -55,42 +108,55 @@ class ScriptGenerationService(IScriptGenerationService):
             LessonNotFoundException: If lesson not found
             ScriptGenerationException: If generation fails or provider not configured
         """
-        if not self._script_provider:
-            raise ScriptGenerationException(
-                message="Script generation provider not configured"
-            )
+        lesson_record = await self._lesson_repo.get_or_none(
+            session=session, lesson_id=request.lesson_id
+        )
+        if not lesson_record:
+            raise LessonNotFoundException()
 
-        logger.info(f"Starting script generation for lesson {request.lesson_id}")
+        await self._lesson_repo.update(
+            session=session,
+            lesson_id=request.lesson_id,
+            update_item=UpdateLessonDTO(status=LessonStatus.SCRIPT_GENERATING),
+        )
+
+        return await self._execute_script_generation(
+            session=session, lesson_id=request.lesson_id
+        )
+
+    async def _execute_script_generation(
+        self, session: AsyncSession, lesson_id: int
+    ) -> ScriptGenerationResultDTO:
+        """
+        Generate and persist a lesson script.
+
+        Assumes the lesson is already in SCRIPT_GENERATING state.
+        """
+        logger.info("Starting script generation for lesson %s", lesson_id)
         start_time = time.time()
 
         try:
-            # Get lesson and validate permissions
+            if not self._script_provider:
+                raise ScriptGenerationException(
+                    message="Script generation provider not configured"
+                )
+
             lesson_record = await self._lesson_repo.get_or_none(
-                session=session, lesson_id=request.lesson_id
+                session=session, lesson_id=lesson_id
             )
             if not lesson_record:
                 raise LessonNotFoundException()
 
-            # Get course context
             course_record = await self._course_repo.get_by_id(
                 session=session, course_id=lesson_record.course_id
             )
             if not course_record:
                 raise CourseNotFoundException()
 
-            # Update lesson status to generating
-            await self._lesson_repo.update(
-                session=session,
-                lesson_id=request.lesson_id,
-                update_item=UpdateLessonDTO(status=LessonStatus.SCRIPT_GENERATING),
-            )
-
-            # Get total lesson count for course context
             total_lessons = await self._lesson_repo.count(
                 session=session, course_id=course_record.id
             )
 
-            # Prepare context data
             course_context = CourseContextDTO(
                 name=course_record.title,
                 description=course_record.description,
@@ -106,15 +172,13 @@ class ScriptGenerationService(IScriptGenerationService):
                 tone=lesson_record.tone,
             )
 
-            # Generate script using AI provider
             script_parts = await self._script_provider.generate_script(
                 course_context=course_context, lesson_context=lesson_context
             )
 
-            # Save script and update status
             await self._lesson_repo.update(
                 session=session,
-                lesson_id=request.lesson_id,
+                lesson_id=lesson_id,
                 update_item=UpdateLessonDTO(
                     script=script_parts,
                     status=LessonStatus.SCRIPT_COMPLETED,
@@ -124,12 +188,13 @@ class ScriptGenerationService(IScriptGenerationService):
 
             generation_time = time.time() - start_time
             logger.info(
-                f"Successfully generated script for lesson {request.lesson_id} "
-                f"in {generation_time:.2f} seconds"
+                "Successfully generated script for lesson %s in %.2f seconds",
+                lesson_id,
+                generation_time,
             )
 
             return ScriptGenerationResultDTO(
-                lesson_id=request.lesson_id,
+                lesson_id=lesson_id,
                 script=script_parts,
                 generation_time_seconds=generation_time,
             )
@@ -139,27 +204,37 @@ class ScriptGenerationService(IScriptGenerationService):
             CourseNotFoundException,
             ScriptGenerationException,
         ):
-            # Update status to failed and re-raise known exceptions
-            await self._lesson_repo.update(
-                session=session,
-                lesson_id=request.lesson_id,
-                update_item=UpdateLessonDTO(status=LessonStatus.SCRIPT_FAILED),
-            )
+            await self._mark_script_failed(session=session, lesson_id=lesson_id)
             raise
 
-        except Exception as e:
-            # Update status to failed for unexpected errors
+        except Exception as exc:
             logger.exception(
-                f"Unexpected error generating script for lesson {request.lesson_id}: {e}"
+                "Unexpected error generating script for lesson %s: %s", lesson_id, exc
             )
-            await self._lesson_repo.update(
-                session=session,
-                lesson_id=request.lesson_id,
-                update_item=UpdateLessonDTO(status=LessonStatus.SCRIPT_FAILED),
-            )
+            await self._mark_script_failed(session=session, lesson_id=lesson_id)
             raise ScriptGenerationException(
-                message=f"Script generation failed: {str(e)}"
-            ) from e
+                message=f"Script generation failed: {str(exc)}"
+            ) from exc
+
+    async def _mark_script_failed(self, session: AsyncSession, lesson_id: int) -> None:
+        await self._lesson_repo.update(
+            session=session,
+            lesson_id=lesson_id,
+            update_item=UpdateLessonDTO(status=LessonStatus.SCRIPT_FAILED),
+        )
+
+    async def _ensure_script_failed(
+        self, session: AsyncSession, lesson_id: int
+    ) -> None:
+        lesson_record = await self._lesson_repo.get_or_none(
+            session=session, lesson_id=lesson_id
+        )
+        if lesson_record is None:
+            return
+        if lesson_record.status != LessonStatus.SCRIPT_GENERATING:
+            return
+
+        await self._mark_script_failed(session=session, lesson_id=lesson_id)
 
     async def generate_course_scripts(
         self, session: AsyncSession, request: CourseScriptRequestDTO
