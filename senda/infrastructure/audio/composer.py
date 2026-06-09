@@ -350,6 +350,7 @@ class AudioComposer:
             ts_files = sorted(tmp_dir.glob("segment_*.ts"))
             ffmpeg_done = proc.returncode is not None
 
+            pending_uploads: list[Path] = []
             for index, ts_file in enumerate(ts_files):
                 if ts_file.name in uploaded_segments:
                     continue
@@ -358,15 +359,27 @@ class AudioComposer:
                 if not next_segment_exists and not ffmpeg_done:
                     continue
 
-                segment_bytes = ts_file.read_bytes()
-                await self._storage.upload_file(
-                    file_data=segment_bytes,
-                    key=f"{base_path}{ts_file.name}",
-                    content_type=CONTENT_TYPE_SEGMENT,
-                    cache_control=CACHE_IMMUTABLE,
+                pending_uploads.append(ts_file)
+
+            if pending_uploads:
+
+                async def upload_one_segment(ts_file: Path) -> str:
+                    segment_bytes = ts_file.read_bytes()
+                    await self._storage.upload_file(
+                        file_data=segment_bytes,
+                        key=f"{base_path}{ts_file.name}",
+                        content_type=CONTENT_TYPE_SEGMENT,
+                        cache_control=CACHE_IMMUTABLE,
+                    )
+                    return ts_file.name
+
+                uploaded_names = await asyncio.gather(
+                    *(upload_one_segment(f) for f in pending_uploads)
                 )
-                uploaded_segments.add(ts_file.name)
-                segments_available += 1
+
+                for name in uploaded_names:
+                    uploaded_segments.add(name)
+                segments_available += len(uploaded_names)
 
                 if on_segment_ready is not None:
                     await on_segment_ready(segments_available)
